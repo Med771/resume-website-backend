@@ -6,6 +6,7 @@
 | [project-passport.md](./project-passport.md) | Паспорт проекта: стек, БД, безопасность |
 | [backend.md](./backend.md) | Архитектура backend |
 | [frontend.md](./frontend.md) | Руководство для frontend-разработчиков |
+| [frontend-student-email-registration.md](./frontend-student-email-registration.md) | Саморегистрация студента: почта, код, анкета |
 | [testing.md](./testing.md) | Тесты, Testcontainers, JaCoCo |
 | [roles-product-journeys.md](./roles-product-journeys.md) | Сценарии по ролям |
 | [design-ui-brief.md](./design-ui-brief.md) | UI/UX: чаты, проекты, вакансии |

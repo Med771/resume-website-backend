@@ -13,6 +13,7 @@ import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.skill.SkillEnt;
+import ru.ai.sin.logic.skill.SkillOrder;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.user.UserEnt;
@@ -152,6 +153,7 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
             }
             if (student.getSkills() != null) {
                 skills = student.getSkills().stream()
+                        .sorted(SkillOrder.byCreatedAtThenId())
                         .map(SkillEnt::getName)
                         .filter(Objects::nonNull)
                         .limit(16)

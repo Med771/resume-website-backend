@@ -11,6 +11,7 @@ import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.skill.SkillMapper;
+import ru.ai.sin.logic.skill.SkillOrder;
 import ru.ai.sin.logic.skill.dto.SkillDTO;
 import ru.ai.sin.logic.vacancy.dto.FilterVacancyModerationReq;
 import ru.ai.sin.logic.vacancy.dto.PatchVacancyVitrinaReq;
@@ -43,7 +44,7 @@ public class VacancyModerationAdminServiceImpl implements VacancyModerationAdmin
                 pageable
         );
         return new PageResponse<>(
-                page.getContent().stream().map(v -> toDto(v)).toList(),
+                page.getContent().stream().map(this::toDto).toList(),
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
                 page.getTotalElements(),
@@ -128,7 +129,10 @@ public class VacancyModerationAdminServiceImpl implements VacancyModerationAdmin
     }
 
     private VacancyDTO toDto(VacancyEnt v) {
-        List<SkillDTO> skills = v.getSkills().stream().map(skillMapper::toDTO).toList();
+        List<SkillDTO> skills = v.getSkills().stream()
+                .sorted(SkillOrder.byCreatedAtThenId())
+                .map(skillMapper::toDTO)
+                .toList();
         var ts = v.getTimestamps();
         return new VacancyDTO(
                 v.getId(),

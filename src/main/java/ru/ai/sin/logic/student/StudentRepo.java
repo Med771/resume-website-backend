@@ -38,11 +38,9 @@ public interface StudentRepo extends
         SELECT sk FROM StudentEnt s
         JOIN s.skills sk
         WHERE s.id = :studentId
-        ORDER BY sk.timestamps.createdAt
+        ORDER BY sk.timestamps.createdAt ASC, sk.id ASC
         """)
     List<SkillEnt> findSkillsByStudentId(UUID studentId);
-
-    Optional<StudentEnt> findByContactInformationTelegramUserId(String telegramUserId);
 
     @Query("""
             SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END

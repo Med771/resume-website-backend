@@ -17,6 +17,7 @@ import ru.ai.sin.logic.siteproject.dto.SiteProjectStudentsReq;
 import ru.ai.sin.logic.siteproject.dto.UpdateSiteProjectReq;
 import ru.ai.sin.logic.skill.SkillEnt;
 import ru.ai.sin.logic.skill.SkillMapper;
+import ru.ai.sin.logic.skill.SkillOrder;
 import ru.ai.sin.logic.skill.SkillRepo;
 import ru.ai.sin.logic.skill.dto.SkillDTO;
 import ru.ai.sin.logic.speciality.SpecialityEnt;
@@ -336,7 +337,7 @@ public class SiteProjectServiceImpl implements SiteProjectService {
         }
         List<SiteProjectImageDTO> images = mapUniqueImages(e.getImages());
         List<SkillDTO> skills = e.getSkills().stream()
-                .sorted(Comparator.comparing(SkillEnt::getName, String.CASE_INSENSITIVE_ORDER))
+                .sorted(SkillOrder.byCreatedAtThenId())
                 .map(skillMapper::toDTO)
                 .toList();
         return new SiteProjectDTO(

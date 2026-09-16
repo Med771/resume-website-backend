@@ -2,6 +2,8 @@
 
 Полный перечень HTTP-эндпоинтов с ролями и публичными путями: [api-endpoints.md](./api-endpoints.md).
 
+Саморегистрация студента (почта, 6-значный код, без Telegram): [frontend-student-email-registration.md](./frontend-student-email-registration.md).
+
 ## Базовый URL и CORS
 
 - API должен быть в **`app.security.cors.allowed-origins`** (см. `application.yaml`), иначе браузер заблокирует запросы с **credentials**.

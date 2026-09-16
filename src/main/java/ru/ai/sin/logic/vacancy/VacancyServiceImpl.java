@@ -13,6 +13,7 @@ import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.skill.SkillEnt;
 import ru.ai.sin.logic.skill.SkillMapper;
+import ru.ai.sin.logic.skill.SkillOrder;
 import ru.ai.sin.logic.skill.SkillRepo;
 import ru.ai.sin.logic.skill.dto.SkillDTO;
 import ru.ai.sin.logic.speciality.SpecialityEnt;
@@ -199,11 +200,8 @@ public class VacancyServiceImpl implements VacancyService {
             return true;
         }
         UserEnt user = userTools.findCurrentUserFetchingRecruiter().orElse(null);
-        if (user != null && user.getRecruiter() != null
-                && user.getRecruiter().getId().equals(v.getRecruiter().getId())) {
-            return true;
-        }
-        return false;
+        return user != null && user.getRecruiter() != null
+                && user.getRecruiter().getId().equals(v.getRecruiter().getId());
     }
 
     public static boolean isInPublicationWindow(VacancyEnt v) {
@@ -211,10 +209,7 @@ public class VacancyServiceImpl implements VacancyService {
         if (v.getPublishedFrom() != null && v.getPublishedFrom().isAfter(now)) {
             return false;
         }
-        if (v.getPublishedTo() != null && v.getPublishedTo().isBefore(now)) {
-            return false;
-        }
-        return true;
+        return v.getPublishedTo() == null || !v.getPublishedTo().isBefore(now);
     }
 
     private UUID currentStudentIdOrNull() {
@@ -303,7 +298,10 @@ public class VacancyServiceImpl implements VacancyService {
     }
 
     private VacancyDTO toDto(VacancyEnt v, UUID studentId) {
-        List<SkillDTO> skills = v.getSkills().stream().map(skillMapper::toDTO).toList();
+        List<SkillDTO> skills = v.getSkills().stream()
+                .sorted(SkillOrder.byCreatedAtThenId())
+                .map(skillMapper::toDTO)
+                .toList();
         Boolean hasApplied = studentId != null
                 ? vacancyRepo.existsApplicationByVacancyAndStudent(v.getId(), studentId)
                 : null;

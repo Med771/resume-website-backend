@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import ru.ai.sin.logic.skill.dto.SkillDTO;
 import ru.ai.sin.logic.skill.SkillMapper;
+import ru.ai.sin.logic.skill.SkillOrder;
 
 import ru.ai.sin.logic.student.dto.StudentCardDTO;
 import ru.ai.sin.logic.student.dto.StudentDTO;
@@ -39,7 +40,7 @@ public class StudentTools {
     public StudentDTO mapToDTO(StudentEnt studentEnt) {
         List<SkillDTO> skillDTOList = studentRepo.findSkillsByStudentId(studentEnt.getId())
                 .stream()
-                
+                .sorted(SkillOrder.byCreatedAtThenId())
                 .map(skillMapper::toDTO)
                 .toList();
 
@@ -50,7 +51,7 @@ public class StudentTools {
     public StudentCardDTO mapToCardDTO(StudentEnt studentEnt) {
         List<SkillDTO> skillDTOList = studentRepo.findSkillsByStudentId(studentEnt.getId())
                 .stream()
-
+                .sorted(SkillOrder.byCreatedAtThenId())
                 .map(skillMapper::toDTO)
                 .toList();
 

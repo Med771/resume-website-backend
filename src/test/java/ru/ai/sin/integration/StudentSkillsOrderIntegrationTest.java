@@ -45,7 +45,7 @@ class StudentSkillsOrderIntegrationTest extends AbstractPostgresIntegrationTest 
 
         List<SkillEnt> skills = studentRepo.findSkillsByStudentId(student.getId());
 
-        assertThat(skills).extracting(SkillEnt::getName)
-                .containsExactly(zebra.getName(), apple.getName(), sofa.getName());
+        assertThat(skills).extracting(SkillEnt::getId)
+                .containsExactly(zebra.getId(), apple.getId(), sofa.getId());
     }
 }
