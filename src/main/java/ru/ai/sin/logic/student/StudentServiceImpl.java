@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -13,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import ru.ai.sin.models.PageResponse;
 import ru.ai.sin.models.embeddables.ContactInformation;
+import ru.ai.sin.models.embeddables.UserInformation;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.AccountAccessHelper;
@@ -35,8 +35,11 @@ import ru.ai.sin.tools.SkillTools;
 import ru.ai.sin.tools.SpecialityTools;
 import ru.ai.sin.tools.StudentTools;
 import ru.ai.sin.tools.UserTools;
+import ru.ai.sin.models.enums.BusynessEnum;
+import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -146,12 +149,12 @@ public class StudentServiceImpl implements StudentService {
 
         userTools.findCurrentUserFetchingLinks()
                 .filter(u -> u.getRole() == RoleEnum.STUDENT && u.getStudent() != null)
-                .map(u -> u.getStudent())
+                .map(UserEnt::getStudent)
                 .ifPresent(ownStudent -> {
                     UUID ownId = ownStudent.getId();
                     boolean alreadyListed = cards.stream().anyMatch(c -> c.id().equals(ownId));
                     if (!alreadyListed) {
-                        cards.add(0, studentTools.mapToCardDTO(ownStudent));
+                        cards.addFirst(studentTools.mapToCardDTO(ownStudent));
                     }
                 });
 
@@ -203,16 +206,7 @@ public class StudentServiceImpl implements StudentService {
         studentEnt.setSpeciality(specialityEnt);
         studentSkillsMutator.replaceSkills(studentEnt, addStudentReq.skillsIds());
         applyCreateCatalogFlags(addStudentReq, studentEnt);
-
-        try {
-            studentEnt = studentRepo.save(studentEnt);
-        }
-        catch (DataIntegrityViolationException ex) {
-            log.warn("Student already exists: {}, {}", addStudentReq.email(), addStudentReq.telegramUsername());
-
-            throw new BadRequestException("Student already exists: %s, %s"
-                    .formatted(addStudentReq.email(), addStudentReq.telegramUsername()));
-        }
+        studentEnt = saveNewStudent(studentEnt, addStudentReq.email(), addStudentReq.telegramUsername());
 
         StudentProfileScoring.applyTo(studentEnt);
         studentRepo.save(studentEnt);
@@ -234,14 +228,8 @@ public class StudentServiceImpl implements StudentService {
         studentEnt.setSpeciality(specialityTools.getSpecialityOrThrow(createStudentExtendedReq.specialityId()));
         studentEnt.setSkills(resolveSkillsForExtended(createStudentExtendedReq));
         applyCreateCatalogFlags(base, studentEnt);
-
-        try {
-            studentEnt = studentRepo.save(studentEnt);
-        } catch (DataIntegrityViolationException ex) {
-            log.warn("Student already exists: {}, {}", createStudentExtendedReq.email(), createStudentExtendedReq.telegramUsername());
-            throw new BadRequestException("Student already exists: %s, %s"
-                    .formatted(createStudentExtendedReq.email(), createStudentExtendedReq.telegramUsername()));
-        }
+        studentEnt = saveNewStudent(
+                studentEnt, createStudentExtendedReq.email(), createStudentExtendedReq.telegramUsername());
 
         createPortfolioForStudent(studentEnt, createStudentExtendedReq.portfolio());
         studentCvAttachmentService.attachExperiences(studentEnt, createStudentExtendedReq.experiences());
@@ -306,54 +294,22 @@ public class StudentServiceImpl implements StudentService {
     public StudentDTO patch(UUID id, PatchStudentReq patchStudentReq) {
         StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
 
-        if (patchStudentReq.city() != null) {
-            studentEnt.setCity(patchStudentReq.city());
-        }
-        if (patchStudentReq.hhLink() != null) {
-            studentEnt.setHhLink(patchStudentReq.hhLink());
-        }
-        if (patchStudentReq.birthDate() != null) {
-            studentEnt.setBirthDate(patchStudentReq.birthDate());
-        }
-        if (patchStudentReq.bio() != null) {
-            studentEnt.setBio(patchStudentReq.bio());
-        }
-        if (patchStudentReq.course() != null) {
-            studentEnt.setCourse(patchStudentReq.course());
-        }
-        if (patchStudentReq.busyness() != null) {
-            studentEnt.setBusyness(patchStudentReq.busyness());
-        }
-
-        if (studentEnt.getContactInformation() == null) {
-            studentEnt.setContactInformation(new ContactInformation());
-        }
-
-        if (patchStudentReq.firstName() != null) {
-            studentEnt.getUserInformation().setFirstName(patchStudentReq.firstName());
-        }
-        if (patchStudentReq.lastName() != null) {
-            studentEnt.getUserInformation().setLastName(patchStudentReq.lastName());
-        }
-        if (patchStudentReq.email() != null) {
-            studentEnt.getUserInformation().setEmail(patchStudentReq.email());
-        }
-        if (patchStudentReq.phoneNumber() != null) {
-            studentEnt.getContactInformation().setPhoneNumber(patchStudentReq.phoneNumber());
-        }
-        if (patchStudentReq.telegramUsername() != null) {
-            studentEnt.getContactInformation().setTelegramUsername(patchStudentReq.telegramUsername());
-        }
-
-        if (patchStudentReq.specialityId() != null) {
-            studentEnt.setSpeciality(specialityTools.getSpecialityOrThrow(patchStudentReq.specialityId()));
-        }
-        if (patchStudentReq.skillsIds() != null) {
-            studentSkillsMutator.replaceSkills(studentEnt, patchStudentReq.skillsIds());
-        }
-        if (patchStudentReq.publicProfileConsent() != null) {
-            studentEnt.setPublicProfileConsent(patchStudentReq.publicProfileConsent());
-        }
+        applyOptionalResumeFields(
+                studentEnt,
+                patchStudentReq.city(),
+                patchStudentReq.hhLink(),
+                patchStudentReq.birthDate(),
+                patchStudentReq.bio(),
+                patchStudentReq.course(),
+                patchStudentReq.busyness(),
+                patchStudentReq.firstName(),
+                patchStudentReq.lastName(),
+                patchStudentReq.email(),
+                patchStudentReq.phoneNumber(),
+                patchStudentReq.telegramUsername(),
+                patchStudentReq.specialityId(),
+                patchStudentReq.skillsIds(),
+                patchStudentReq.publicProfileConsent());
         if (patchStudentReq.catalogVisible() != null) {
             studentEnt.setCatalogVisible(patchStudentReq.catalogVisible());
         }
@@ -378,17 +334,33 @@ public class StudentServiceImpl implements StudentService {
         if (user.getRole() != RoleEnum.STUDENT || user.getStudent() == null) {
             throw new BadRequestException("К аккаунту не привязана карточка студента");
         }
+        StudentEnt studentEnt = user.getStudent();
+        accountAccessHelper.requireStudentCanMutateResume(studentEnt.getId());
+
         if (req.hintsDisabled() != null) {
             user.setHintsDisabled(req.hintsDisabled());
             userRepo.save(user);
         }
-        if (req.publicProfileConsent() != null) {
-            StudentEnt studentEnt = user.getStudent();
-            studentEnt.setPublicProfileConsent(req.publicProfileConsent());
-            StudentProfileScoring.applyTo(studentEnt);
-            return studentTools.mapToDTO(studentEnt);
-        }
-        return studentTools.mapToDTO(user.getStudent());
+
+        applyOptionalResumeFields(
+                studentEnt,
+                req.city(),
+                req.hhLink(),
+                req.birthDate(),
+                req.bio(),
+                req.course(),
+                req.busyness(),
+                req.firstName(),
+                req.lastName(),
+                req.email(),
+                req.phoneNumber(),
+                req.telegramUsername(),
+                req.specialityId(),
+                req.skillsIds(),
+                req.publicProfileConsent());
+
+        StudentProfileScoring.applyTo(studentEnt);
+        return studentTools.mapToDTO(studentEnt);
     }
 
     @Override
@@ -476,6 +448,84 @@ public class StudentServiceImpl implements StudentService {
 
     private static boolean hasAccountCredentials(String username, String password) {
         return username != null && !username.isBlank() && password != null && !password.isBlank();
+    }
+
+    private StudentEnt saveNewStudent(StudentEnt studentEnt, String email, String telegramUsername) {
+        try {
+            return studentRepo.save(studentEnt);
+        } catch (DataIntegrityViolationException ex) {
+            log.warn("Student already exists: {}, {}", email, telegramUsername);
+            throw new BadRequestException("Student already exists: %s, %s".formatted(email, telegramUsername));
+        }
+    }
+
+    private void applyOptionalResumeFields(
+            StudentEnt studentEnt,
+            String city,
+            String hhLink,
+            LocalDate birthDate,
+            String bio,
+            CourseEnum course,
+            BusynessEnum busyness,
+            String firstName,
+            String lastName,
+            String email,
+            String phoneNumber,
+            String telegramUsername,
+            Long specialityId,
+            List<Long> skillsIds,
+            Boolean publicProfileConsent
+    ) {
+        if (city != null) {
+            studentEnt.setCity(city);
+        }
+        if (hhLink != null) {
+            studentEnt.setHhLink(hhLink);
+        }
+        if (birthDate != null) {
+            studentEnt.setBirthDate(birthDate);
+        }
+        if (bio != null) {
+            studentEnt.setBio(bio);
+        }
+        if (course != null) {
+            studentEnt.setCourse(course);
+        }
+        if (busyness != null) {
+            studentEnt.setBusyness(busyness);
+        }
+
+        if (studentEnt.getUserInformation() == null) {
+            studentEnt.setUserInformation(new UserInformation());
+        }
+        if (studentEnt.getContactInformation() == null) {
+            studentEnt.setContactInformation(new ContactInformation());
+        }
+        if (firstName != null) {
+            studentEnt.getUserInformation().setFirstName(firstName);
+        }
+        if (lastName != null) {
+            studentEnt.getUserInformation().setLastName(lastName);
+        }
+        if (email != null) {
+            studentEnt.getUserInformation().setEmail(email);
+        }
+        if (phoneNumber != null) {
+            studentEnt.getContactInformation().setPhoneNumber(phoneNumber);
+        }
+        if (telegramUsername != null) {
+            studentEnt.getContactInformation().setTelegramUsername(telegramUsername);
+        }
+
+        if (specialityId != null) {
+            studentEnt.setSpeciality(specialityTools.getSpecialityOrThrow(specialityId));
+        }
+        if (skillsIds != null) {
+            studentSkillsMutator.replaceSkills(studentEnt, skillsIds);
+        }
+        if (publicProfileConsent != null) {
+            studentEnt.setPublicProfileConsent(publicProfileConsent);
+        }
     }
 
     /**

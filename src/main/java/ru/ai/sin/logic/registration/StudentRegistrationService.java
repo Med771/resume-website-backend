@@ -8,7 +8,7 @@ public interface StudentRegistrationService {
 
     /**
      * Создаёт пользователя STUDENT и черновик карточки ({@code catalogVisible=false}), выполняет аутентификацию.
-     * Дозаполнение резюме — {@code POST /student/onboarding/resume}.
+     * Дозаполнение резюме — {@code PATCH /student/me} и CRUD {@code /experience}, {@code /institution}, {@code /portfolio}.
      */
     TokenPair registerAndIssueTokens(StudentAccountRegistrationReq req, HttpServletRequest httpRequest);
 }

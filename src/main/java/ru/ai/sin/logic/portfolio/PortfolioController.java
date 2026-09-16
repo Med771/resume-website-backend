@@ -32,8 +32,8 @@ public class PortfolioController {
 
     private final PortfolioService portfolioService;
 
-    @Operation(summary = "Получить портфолио по ID", description = "Возвращает запись портфолио")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @Operation(summary = "Получить портфолио по ID", description = "Своё всегда; чужое — если карточка открыта админом (catalogVisible)")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<PortfolioDTO> getById(@PathVariable @Min(1) long id) {
         PortfolioDTO portfolioDTO = portfolioService.getById(id);
@@ -55,8 +55,8 @@ public class PortfolioController {
     }
 
 
-    @Operation(summary = "Создать портфолио", description = "Создает новую запись портфолио")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Создать портфолио", description = "Студент — только на свою карточку; админ — любой studentId")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PostMapping()
     public ResponseEntity<PortfolioDTO> create(@Valid @RequestBody AddPortfolioReq portfolioReq) {
         PortfolioDTO portfolioDTO = portfolioService.create(portfolioReq);
@@ -64,8 +64,8 @@ public class PortfolioController {
         return ResponseEntity.status(HttpStatus.CREATED).body(portfolioDTO);
     }
 
-    @Operation(summary = "Обновить портфолио", description = "Обновляет запись портфолио по ID")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Обновить портфолио", description = "Студент — только свою запись")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PutMapping(path = "/{id}")
     public ResponseEntity<PortfolioDTO> updateById(
             @PathVariable @Min(1) long id,
@@ -77,8 +77,8 @@ public class PortfolioController {
         return ResponseEntity.ok(portfolioDTO);
     }
 
-    @Operation(summary = "Удалить портфолио", description = "Удаляет запись портфолио по ID")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Удалить портфолио", description = "Студент — только свою запись")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteById(@PathVariable @Min(1) long id) {

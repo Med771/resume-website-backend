@@ -52,7 +52,7 @@ public class AuthController {
     @Operation(
             summary = "Саморегистрация студента (учётная запись)",
             description = "Создаёт аккаунт STUDENT и черновик карточки (catalogVisible=false) после подтверждения телефона. "
-                    + "Дозаполнение резюме — POST /student/onboarding/resume. Cookie как при входе.")
+                    + "Дозаполнение резюме — PATCH /student/me и CRUD /experience, /institution, /portfolio. Cookie как при входе.")
     @PostMapping("/register-student")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void registerStudent(

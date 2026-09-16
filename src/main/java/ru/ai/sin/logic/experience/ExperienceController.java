@@ -36,8 +36,8 @@ public class ExperienceController {
 
     private final SecurityHelper securityHelper;
 
-    @Operation(summary = "Получить опыт по ID", description = "Возвращает запись опыта работы")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @Operation(summary = "Получить опыт по ID", description = "Своё всегда; чужое — если карточка открыта админом (catalogVisible)")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<ExperienceDTO> getById(@PathVariable @Min(1) long id) {
         return ResponseEntity.ok(experienceService.getById(id));
@@ -59,8 +59,8 @@ public class ExperienceController {
         return ResponseEntity.ok(experienceDTOs);
     }
 
-    @Operation(summary = "Создать опыт", description = "Создает новую запись опыта работы")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Создать опыт", description = "Студент — только на свою карточку; админ — любой studentId")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PostMapping()
     public ResponseEntity<ExperienceDTO> create(@Valid @RequestBody AddExperienceReq addExperienceReq) {
         ExperienceDTO experienceDTO = experienceService.create(addExperienceReq);
@@ -68,8 +68,8 @@ public class ExperienceController {
         return ResponseEntity.status(HttpStatus.CREATED).body(experienceDTO);
     }
 
-    @Operation(summary = "Обновить опыт", description = "Обновляет запись опыта работы по ID")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Обновить опыт", description = "Студент — только свою запись")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PutMapping(path = "/{id}")
     public ResponseEntity<ExperienceDTO> update(
             @PathVariable long id,
@@ -81,8 +81,8 @@ public class ExperienceController {
         return ResponseEntity.ok(experienceDTO);
     }
 
-    @Operation(summary = "Удалить опыт", description = "Удаляет запись опыта работы по ID")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Удалить опыт", description = "Студент — только свою запись")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteById(@PathVariable @Min(1) long id) {

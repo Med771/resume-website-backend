@@ -57,10 +57,6 @@ public class AccountAccessHelper {
         return user.getAccountStatus() != AccountStatus.APPROVED;
     }
 
-    public UUID requireCurrentUserId() {
-        return requireCurrentUser().getId();
-    }
-
     /** null if not authenticated */
     public UserEnt requireCurrentUserOptional() {
         try {
@@ -96,6 +92,45 @@ public class AccountAccessHelper {
         }
     }
 
+    /** Админ — да. Студент — только своя карточка. Рекрутер — 403. */
+    public void requireStudentCanMutateResume(UUID studentId) {
+        requireStudentOwnsProfile(studentId);
+    }
+
+    /**
+     * Id карточки текущего студента. Админу нужно передать {@code studentId} в теле запроса.
+     */
+    public UUID requireCurrentStudentId() {
+        UserEnt user = userTools.findCurrentUserFetchingLinks()
+                .orElseThrow(() -> new ForbiddenException("Пользователь не найден"));
+        if (user.getRole() == RoleEnum.ADMIN) {
+            throw new BadRequestException("Укажите studentId");
+        }
+        if (user.getRole() != RoleEnum.STUDENT || user.getStudent() == null) {
+            throw new ForbiddenException("К аккаунту не привязана карточка студента");
+        }
+        return user.getStudent().getId();
+    }
+
+    /**
+     * STUDENT — всегда своя карточка (поле в теле игнорируется).
+     * ADMIN — обязательный {@code requestedStudentId}.
+     */
+    public UUID resolveStudentIdForResumeMutation(UUID requestedStudentId) {
+        UserEnt user = userTools.findCurrentUserFetchingLinks()
+                .orElseThrow(() -> new ForbiddenException("Пользователь не найден"));
+        if (user.getRole() == RoleEnum.ADMIN) {
+            if (requestedStudentId == null) {
+                throw new BadRequestException("Укажите studentId");
+            }
+            return requestedStudentId;
+        }
+        if (user.getRole() != RoleEnum.STUDENT || user.getStudent() == null) {
+            throw new ForbiddenException("К аккаунту не привязана карточка студента");
+        }
+        return user.getStudent().getId();
+    }
+
     /**
      * Те же правила видимости, что у {@code StudentServiceImpl#getById}: свой профиль всегда;
      * чужой — только при {@code catalogVisible} и одобренном аккаунте (кроме ADMIN).
@@ -122,10 +157,6 @@ public class AccountAccessHelper {
         if (!studentEnt.isCatalogVisible() && !securityHelper.isCurrentUserAdmin() && !isOwnProfile) {
             throw new NotFoundException("Failed to find student by id " + studentId);
         }
-    }
-
-    public void rejectIfPendingCannotApply() {
-        requireApprovedAccount();
     }
 
     public static void validateRejection(String reasonCode, String comment) {

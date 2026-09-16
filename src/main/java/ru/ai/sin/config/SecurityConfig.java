@@ -57,7 +57,6 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/verification/phone/**").permitAll()
                         .requestMatchers("/telegram/webhook").permitAll()
-                        .requestMatchers("/public/registration/**").permitAll()
                         .requestMatchers("/public/vitrina/**").permitAll()
                         .requestMatchers("/public/analytics/**").permitAll()
                         .requestMatchers("/main/**").permitAll()

@@ -61,7 +61,11 @@ public class StudentController {
                 .orElseThrow(() -> new NotFoundException("К аккаунту не привязана карточка студента")));
     }
 
-    @Operation(summary = "Обновить настройки текущего студента (согласие на витрину, hints)")
+    @Operation(
+            summary = "Обновить свою карточку",
+            description = """
+                    Только **STUDENT**. Частичный PATCH: `null` — поле не менять.
+                    Навыки — только существующие `skillsIds`. Видимость в каталоге рекрутёров (`catalogVisible`) здесь не меняется.""")
     @PreAuthorize("hasRole('STUDENT')")
     @PatchMapping(path = "/me")
     public ResponseEntity<StudentDTO> patchMe(@Valid @RequestBody PatchStudentMeReq req) {

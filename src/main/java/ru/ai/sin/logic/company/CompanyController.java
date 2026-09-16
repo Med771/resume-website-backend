@@ -42,7 +42,7 @@ public class CompanyController {
     }
 
     @Operation(summary = "Фильтр компаний", description = "Принимает DTO фильтра в request body и Pageable без параметра sort")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<CompanyDTO>> filter(
             @PageableDefault Pageable pageable,
