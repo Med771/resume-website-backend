@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.ai.sin.helper.CookieHelper;
 import ru.ai.sin.logic.auth.dto.AuthMeDTO;
 import ru.ai.sin.logic.auth.dto.ChangePasswordReq;
+import ru.ai.sin.logic.auth.dto.ConfirmEmailReq;
 import ru.ai.sin.logic.auth.dto.LoginRequest;
 import ru.ai.sin.logic.auth.dto.TokenPair;
 import ru.ai.sin.logic.recruiter.registration.RecruiterSelfRegistrationService;
@@ -50,9 +51,11 @@ public class AuthController {
     }
 
     @Operation(
-            summary = "Саморегистрация студента (учётная запись)",
-            description = "Создаёт аккаунт STUDENT и черновик карточки (catalogVisible=false) после подтверждения телефона. "
-                    + "Дозаполнение резюме — PATCH /student/me и CRUD /experience, /institution, /portfolio. Cookie как при входе.")
+            summary = "Саморегистрация студента",
+            description = """
+                    Создаёт User STUDENT и черновик карточки (`catalogVisible=false`, `PENDING_APPROVAL`) в одной транзакции.
+                    Сразу ставит cookie. На почту уходит 6-значный код — `POST /auth/confirm-email`.
+                    Дозаполнение анкеты — PATCH /student/me и CRUD /experience, /institution, /portfolio.""")
     @PostMapping("/register-student")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void registerStudent(
@@ -61,6 +64,22 @@ public class AuthController {
             HttpServletResponse response
     ) {
         setAuthCookies(response, studentRegistrationService.registerAndIssueTokens(req, httpRequest));
+    }
+
+    @Operation(summary = "Подтвердить почту кодом из письма", description = "Только STUDENT. 204, если уже подтверждена.")
+    @PostMapping("/confirm-email")
+    @PreAuthorize("hasRole('STUDENT')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmEmail(@Valid @RequestBody ConfirmEmailReq req) {
+        studentRegistrationService.confirmEmail(req.code());
+    }
+
+    @Operation(summary = "Повторно отправить код подтверждения почты", description = "Только STUDENT.")
+    @PostMapping("/resend-email-confirmation")
+    @PreAuthorize("hasRole('STUDENT')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resendEmailConfirmation() {
+        studentRegistrationService.resendEmailConfirmation();
     }
 
     @Operation(summary = "Вход на основной сайт", description = "STUDENT / RECRUITER. Администраторы — /auth/admin/login")

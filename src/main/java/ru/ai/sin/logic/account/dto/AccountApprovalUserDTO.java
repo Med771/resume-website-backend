@@ -22,6 +22,8 @@ public record AccountApprovalUserDTO(
         LocalDateTime createdAt,
         @Schema(description = "Телефон подтверждён через Telegram при регистрации")
         boolean phoneVerified,
+        @Schema(description = "Почта подтверждена кодом после саморегистрации")
+        boolean emailVerified,
         String email,
         String phoneNumber,
         String telegramUsername,

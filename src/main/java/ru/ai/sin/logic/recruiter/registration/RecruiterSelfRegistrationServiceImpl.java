@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +13,7 @@ import ru.ai.sin.config.property.RegistrationProperties;
 import ru.ai.sin.config.property.UserProperties;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.JwtHelper;
+import ru.ai.sin.helper.ParticipantDisplayNames;
 import ru.ai.sin.logic.auth.dto.TokenPair;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.recruiter.RecruiterMapper;
@@ -127,13 +126,12 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
             throw conflict();
         }
 
-        Authentication auth = authenticationManager.authenticate(
+        authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(username, req.password()));
-        UserDetails principal = (UserDetails) auth.getPrincipal();
         log.info("Recruiter registered with PENDING approval: username={} recruiterId={}", username, recruiter.getId());
         return new TokenPair(
-                jwtHelper.generateAccessToken(principal.getUsername()),
-                jwtHelper.generateRefreshToken(principal.getUsername())
+                jwtHelper.generateAccessToken(username),
+                jwtHelper.generateRefreshToken(username)
         );
     }
 
@@ -141,15 +139,8 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         if (userRepo.existsByUsername(username)) {
             throw conflict();
         }
-        if (registrationProperties.isReservedUsername(username)) {
+        if (registrationProperties.isReservedUsername(username, userProperties)) {
             throw new BadRequestException("Этот логин зарезервирован");
-        }
-        if (userProperties.getLogins() != null) {
-            for (UserProperties.Login login : userProperties.getLogins()) {
-                if (login.getUsername() != null && login.getUsername().equalsIgnoreCase(username)) {
-                    throw new BadRequestException("Этот логин зарезервирован");
-                }
-            }
         }
     }
 
@@ -157,19 +148,7 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         if (req.name() != null && !req.name().isBlank()) {
             return req.name().trim();
         }
-        StringBuilder sb = new StringBuilder();
-        if (req.lastName() != null && !req.lastName().isBlank()) {
-            sb.append(req.lastName().trim());
-        }
-        if (req.firstName() != null && !req.firstName().isBlank()) {
-            if (!sb.isEmpty()) sb.append(' ');
-            sb.append(req.firstName().trim());
-        }
-        if (req.middleName() != null && !req.middleName().isBlank()) {
-            if (!sb.isEmpty()) sb.append(' ');
-            sb.append(req.middleName().trim());
-        }
-        return sb.isEmpty() ? null : sb.toString();
+        return ParticipantDisplayNames.fromFio(req.lastName(), req.firstName(), req.middleName());
     }
 
     private static BadRequestException conflict() {

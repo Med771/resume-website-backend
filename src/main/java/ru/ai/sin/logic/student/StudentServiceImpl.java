@@ -269,6 +269,8 @@ public class StudentServiceImpl implements StudentService {
 
         studentEnt.getUserInformation().setFirstName(updateStudentReq.firstName());
         studentEnt.getUserInformation().setLastName(updateStudentReq.lastName());
+        studentEnt.setMiddleName(updateStudentReq.middleName());
+        studentEnt.setGender(updateStudentReq.gender());
         studentEnt.setSpeciality(specialityEnt);
         studentSkillsMutator.replaceSkills(studentEnt, updateStudentReq.skillsIds());
 
@@ -304,6 +306,8 @@ public class StudentServiceImpl implements StudentService {
                 patchStudentReq.busyness(),
                 patchStudentReq.firstName(),
                 patchStudentReq.lastName(),
+                patchStudentReq.middleName(),
+                patchStudentReq.gender(),
                 patchStudentReq.email(),
                 patchStudentReq.phoneNumber(),
                 patchStudentReq.telegramUsername(),
@@ -352,6 +356,8 @@ public class StudentServiceImpl implements StudentService {
                 req.busyness(),
                 req.firstName(),
                 req.lastName(),
+                req.middleName(),
+                req.gender(),
                 req.email(),
                 req.phoneNumber(),
                 req.telegramUsername(),
@@ -397,6 +403,8 @@ public class StudentServiceImpl implements StudentService {
                 req.busyness(),
                 req.firstName(),
                 req.lastName(),
+                req.middleName(),
+                req.gender(),
                 req.email(),
                 req.phoneNumber(),
                 req.telegramUsername(),
@@ -431,6 +439,7 @@ public class StudentServiceImpl implements StudentService {
                 passwordEncoder.encode(password)
         );
         user.setStudent(studentEnt);
+        user.setEmailVerified(true);
         try {
             userRepo.save(user);
         } catch (DataIntegrityViolationException ex) {
@@ -442,7 +451,8 @@ public class StudentServiceImpl implements StudentService {
     private static String buildStudentDisplayName(AddStudentReq req) {
         String first = req.firstName() != null ? req.firstName().trim() : "";
         String last = req.lastName() != null ? req.lastName().trim() : "";
-        String combined = (first + " " + last).trim();
+        String middle = req.middleName() != null ? req.middleName().trim() : "";
+        String combined = (last + " " + first + " " + middle).trim();
         return combined.isEmpty() ? null : combined;
     }
 
@@ -469,6 +479,8 @@ public class StudentServiceImpl implements StudentService {
             BusynessEnum busyness,
             String firstName,
             String lastName,
+            String middleName,
+            ru.ai.sin.models.enums.GenderEnum gender,
             String email,
             String phoneNumber,
             String telegramUsername,
@@ -506,6 +518,12 @@ public class StudentServiceImpl implements StudentService {
         }
         if (lastName != null) {
             studentEnt.getUserInformation().setLastName(lastName);
+        }
+        if (middleName != null) {
+            studentEnt.setMiddleName(middleName);
+        }
+        if (gender != null) {
+            studentEnt.setGender(gender);
         }
         if (email != null) {
             studentEnt.getUserInformation().setEmail(email);

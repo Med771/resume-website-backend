@@ -24,6 +24,8 @@ import ru.ai.sin.models.embeddables.TimeStamped;
 import ru.ai.sin.models.embeddables.UserInformation;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
+import ru.ai.sin.models.enums.GenderEnum;
+import ru.ai.sin.models.enums.convertor.GenderEnumConverter;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -62,6 +64,14 @@ public class StudentEnt {
     @Column(name = "busyness", length = 32)
     @Convert(converter = BusynessEnumConverter.class)
     private BusynessEnum busyness;
+
+    /** Отчество (не фамилия — фамилия в {@code userInformation.lastName}). */
+    @Column(name = "middle_name")
+    private String middleName;
+
+    @Column(name = "gender", length = 16)
+    @Convert(converter = GenderEnumConverter.class)
+    private GenderEnum gender;
 
     @Embedded
     private UserInformation userInformation = new UserInformation();

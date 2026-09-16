@@ -58,9 +58,11 @@ public final class StudentSpecifications {
 
                 Expression<String> fullName = cb.lower(cb.concat(
                         cb.concat(
-                                root.get("userInformation").get("firstName"), " "),
-                                root.get("userInformation").get("lastName"))
-                );
+                                cb.concat(
+                                        root.get("userInformation").get("firstName"), " "),
+                                root.get("userInformation").get("lastName")),
+                        cb.concat(" ", root.get("middleName"))
+                ));
 
                 Expression<String> bio = cb.lower(root.get("bio"));
 

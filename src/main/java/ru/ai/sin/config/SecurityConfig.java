@@ -54,6 +54,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
+                        .requestMatchers("/auth/confirm-email", "/auth/resend-email-confirmation").authenticated()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/verification/phone/**").permitAll()
                         .requestMatchers("/telegram/webhook").permitAll()

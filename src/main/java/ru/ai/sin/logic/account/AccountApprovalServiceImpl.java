@@ -61,6 +61,9 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL) {
             throw new BadRequestException("Аккаунт уже обработан");
         }
+        if (user.getRole() == RoleEnum.STUDENT && !user.isEmailVerified()) {
+            throw new BadRequestException("Студент ещё не подтвердил почту");
+        }
         user.setAccountStatus(AccountStatus.APPROVED);
         userRepo.save(user);
         StudentEnt student = user.getStudent();
@@ -169,6 +172,7 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
                 recruiter != null ? recruiter.getId() : null,
                 createdAt,
                 u.isPhoneVerified(),
+                u.isEmailVerified(),
                 email,
                 phone,
                 telegram,

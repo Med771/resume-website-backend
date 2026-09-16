@@ -41,7 +41,7 @@ public record PatchStudentReq(
         @Size(max = 2000, message = "Additional info must be less than 2000 characters")
         String bio,
 
-        @Schema(description = "Текущий курс")
+        @Schema(description = "Текущий курс (1–5)")
         CourseEnum course,
         @Schema(description = "Тип занятости")
         BusynessEnum busyness,
@@ -53,6 +53,13 @@ public record PatchStudentReq(
         @Schema(description = "Фамилия")
         @Size(min = 1, max = 255, message = "Last name must be less than 255 characters")
         String lastName,
+
+        @Schema(description = "Отчество")
+        @Size(max = 255)
+        String middleName,
+
+        @Schema(description = "Пол; null — не менять")
+        ru.ai.sin.models.enums.GenderEnum gender,
 
         @Schema(description = "Email")
         @Email(message = "Email should be valid")
