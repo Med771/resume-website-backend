@@ -57,6 +57,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     @Transactional(readOnly = true)
     public InstitutionDTO getById(long id) {
         InstitutionEnt institutionEnt = institutionTools.getInstitutionOrThrow(id);
+        accountAccessHelper.requireCanReadStudentResumeDetails(institutionEnt.getStudent().getId());
 
         return institutionTools.mapToDTO(institutionEnt);
     }
@@ -81,10 +82,13 @@ public class InstitutionServiceImpl implements InstitutionService {
     @Override
     @Transactional
     public InstitutionDTO create(AddInstitutionReq addInstitutionReq) {
+        UUID studentId = accountAccessHelper.resolveStudentIdForResumeMutation(addInstitutionReq.studentId());
+        accountAccessHelper.requireStudentCanMutateResume(studentId);
+
         InstitutionEnt institutionEnt = institutionMapper.toEntity(addInstitutionReq);
 
         updateActiveEducationOrThrow(addInstitutionReq.educationId(), institutionEnt);
-        updateActiveStudentOrThrow(addInstitutionReq.studentId(), institutionEnt);
+        updateActiveStudentOrThrow(studentId, institutionEnt);
 
         try {
             institutionEnt = institutionRepo.save(institutionEnt);
@@ -109,14 +113,19 @@ public class InstitutionServiceImpl implements InstitutionService {
             UpdateInstitutionReq updateInstitutionReq
     ) {
         InstitutionEnt institutionEnt = institutionTools.getInstitutionOrThrow(id);
+        accountAccessHelper.requireStudentCanMutateResume(institutionEnt.getStudent().getId());
 
         institutionMapper.updateEntityFromDto(updateInstitutionReq, institutionEnt);
 
         if (!Objects.equals(institutionEnt.getEducation().getId(), updateInstitutionReq.educationId())) {
             updateActiveEducationOrThrow(updateInstitutionReq.educationId(), institutionEnt);
         }
-        if (!Objects.equals(institutionEnt.getStudent().getId(), updateInstitutionReq.studentId())) {
-            updateActiveStudentOrThrow(updateInstitutionReq.studentId(), institutionEnt);
+        UUID targetStudentId = accountAccessHelper.resolveStudentIdForResumeMutation(
+                updateInstitutionReq.studentId() != null
+                        ? updateInstitutionReq.studentId()
+                        : institutionEnt.getStudent().getId());
+        if (!Objects.equals(institutionEnt.getStudent().getId(), targetStudentId)) {
+            updateActiveStudentOrThrow(targetStudentId, institutionEnt);
         }
 
         InstitutionDTO institutionDTO = institutionTools.mapToDTO(institutionEnt);
@@ -130,6 +139,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     @Transactional
     public void deleteById(long id) {
         InstitutionEnt institutionEnt = institutionTools.getInstitutionOrThrow(id);
+        accountAccessHelper.requireStudentCanMutateResume(institutionEnt.getStudent().getId());
 
         try {
             institutionRepo.delete(institutionEnt);

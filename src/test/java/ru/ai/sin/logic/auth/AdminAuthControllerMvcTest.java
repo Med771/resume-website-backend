@@ -5,12 +5,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.ai.sin.config.MethodSecurityTestConfig;
 import ru.ai.sin.filter.JwtCookieAuthenticationFilter;
@@ -35,13 +35,13 @@ class AdminAuthControllerMvcTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private AuthService authService;
 
-    @MockBean
+    @MockitoBean
     private CookieHelper cookieHelper;
 
-    @MockBean
+    @MockitoBean
     private JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;
 
     @Test
@@ -86,7 +86,7 @@ class AdminAuthControllerMvcTest {
         when(authService.getCurrentSession()).thenReturn(
                 new ru.ai.sin.logic.auth.dto.AuthMeDTO(
                         java.util.UUID.fromString("11111111-1111-1111-1111-111111111111"),
-                        "admin", "ADMIN", "APPROVED", false));
+                        "admin", "ADMIN", "APPROVED", true, false));
 
         mockMvc.perform(get("/auth/admin/me").with(csrf()))
                 .andExpect(status().isOk());

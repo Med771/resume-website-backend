@@ -37,8 +37,8 @@ public class InstitutionController {
 
     private final SecurityHelper securityHelper;
 
-    @Operation(summary = "Получить запись обучения по ID", description = "Возвращает запись обучения студента")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @Operation(summary = "Получить запись обучения по ID", description = "Своё всегда; чужое — если карточка открыта админом (catalogVisible)")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<InstitutionDTO> getById(@PathVariable @Min(1) long id) {
         InstitutionDTO institutionDTO = institutionService.getById(id);
@@ -63,8 +63,8 @@ public class InstitutionController {
         return ResponseEntity.ok(experienceDTOs);
     }
 
-    @Operation(summary = "Создать запись обучения", description = "Создает новую запись обучения студента")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Создать запись обучения", description = "Студент — только на свою карточку; админ — любой studentId")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PostMapping()
     public ResponseEntity<InstitutionDTO> create(@Valid @RequestBody AddInstitutionReq institutionReq) {
         InstitutionDTO institutionDTO = institutionService.create(institutionReq);
@@ -72,8 +72,8 @@ public class InstitutionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(institutionDTO);
     }
 
-    @Operation(summary = "Обновить запись обучения", description = "Обновляет запись обучения по ID")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Обновить запись обучения", description = "Студент — только свою запись")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PutMapping(path = "/{id}")
     public ResponseEntity<InstitutionDTO> update(
             @PathVariable @Min(1) long id,
@@ -85,8 +85,8 @@ public class InstitutionController {
         return ResponseEntity.ok(institutionDTO);
     }
 
-    @Operation(summary = "Удалить запись обучения", description = "Удаляет запись обучения по ID")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Удалить запись обучения", description = "Студент — только свою запись")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteById(@PathVariable @Min(1) long id) {

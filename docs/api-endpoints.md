@@ -14,14 +14,10 @@
 | Метод | Путь | Назначение |
 |-------|------|------------|
 | POST | `/auth/register-recruiter` | Заявка на регистрацию работодателя; **204**, cookie не выдаются |
-| POST | `/auth/register-student` | Саморегистрация студента + черновик карточки; **204** + Set-Cookie (см. `app.registration`) |
+| POST | `/auth/register-student` | Саморегистрация студента + черновик карточки; **204** + Set-Cookie (см. `app.registration`). `email` обязателен; `phoneVerificationId` не нужен |
 | POST | `/auth/login` | Вход; **204** + Set-Cookie |
 | POST | `/auth/refresh` | Новый access; **204** + Set-Cookie |
 | POST | `/auth/logout` | Очистка cookie; **204** |
-| GET | `/public/registration/specialities` | Справочник специальностей; query `page`, `size` (лимит `app.registration.max-catalog-page-size`) |
-| GET | `/public/registration/skills` | Справочник навыков |
-| GET | `/public/registration/companies` | Справочник компаний |
-| GET | `/public/registration/educations` | Справочник образования |
 | GET | `/public/vitrina/home` | Витрина главной: `{ students: StudentCardDTO[], projects: SiteProjectDTO[] }` |
 | POST | `/public/analytics/events` | Запись события аналитики; **204**; при лимите IP — **429** |
 | GET | `/main/status` | Liveness; **204** |
@@ -35,12 +31,16 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 
 ## `/auth` — сессия и регистрация
 
-Все методы выше в таблице публичных. Кратко:
+Публичные методы — в таблице выше. `confirm-email` / `resend-email-confirmation` требуют сессию **STUDENT**; `change-password` — любой вход.
 
 | Метод | Путь | Ответ | Примечание |
 |-------|------|-------|------------|
 | POST | `/auth/register-recruiter` | 204 | Тело `RecruiterSelfRegistrationReq` |
-| POST | `/auth/register-student` | 204 | Тело `StudentAccountRegistrationReq`; создаёт черновик карточки (`catalogVisible=false`); cookie как после login |
+| POST | `/auth/register-student` | 204 | Тело `StudentAccountRegistrationReq` (`username`, `password`, `passwordConfirm`, `email`, `phoneNumber`; опционально ФИО и город). Черновик карточки (`catalogVisible=false`); cookie как после login. На почту уходит 6-значный OTP |
+| POST | `/auth/confirm-email` | 204 | Только **STUDENT** (cookie). Тело `ConfirmEmailReq` `{ "code": "123456" }`. **401** без сессии |
+| POST | `/auth/resend-email-confirmation` | 204 | Только **STUDENT**. Повторная отправка OTP (лимиты `app.registration.email-*`) |
+| GET | `/auth/me` | 200 | `AuthMeDTO`, в т.ч. `emailVerified` и `accountStatus` |
+| POST | `/auth/change-password` | 204 | Тело `ChangePasswordReq`; нужен вход |
 | POST | `/auth/login` | 204 | `LoginRequest` |
 | POST | `/auth/refresh` | 204 | Refresh из cookie |
 | POST | `/auth/logout` | 204 | Очистка обеих cookie |
@@ -56,19 +56,6 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 
 ---
 
-## `/public/registration` — справочники для формы регистрации
-
-Все **GET**, публично. Пагинация: `page`, `size` (размер ограничен конфигом).
-
-| Путь | Ответ |
-|------|--------|
-| `/public/registration/specialities` | `PageResponse<SpecialityDTO>` |
-| `/public/registration/skills` | `PageResponse<SkillDTO>` |
-| `/public/registration/companies` | `PageResponse<CompanyDTO>` |
-| `/public/registration/educations` | `PageResponse<EducationDTO>` |
-
----
-
 ## `/public/vitrina` — витрина главной (без входа)
 
 | Метод | Путь | Описание |
@@ -79,15 +66,25 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 
 ## `/public/students`, `/public/projects` — устаревший публичный доступ
 
-Эндпоинты сохранены в коде, но **не** в `permitAll` — анонимный запрос вернёт **401**. Используйте `GET /public/vitrina/home` на главной и authenticated API после входа.
+Отдельного `/public/projects` нет. Анонимный `GET /public/projects` вернёт **401**. Главная без входа — `GET /public/vitrina/home`. После входа — `POST /projects/filter` и `GET /projects/{id}`.
 
 ---
 
-## `/projects` — Projects (авторизованные)
+## `/projects` — Projects
+
+Чтение: **STUDENT**, **RECRUITER**, **ADMIN**. CUD / reorder / students: только **ADMIN**. Список = `POST /filter` (пустого `GET /projects` нет).
 
 | Метод | Путь | Роли | Описание |
 |-------|------|------|----------|
-| GET | `/projects` | **STUDENT**, **GUEST**, **USER** | Витрина: все проекты в окне публикации, включая `visibleToAnonymous=false` |
+| POST | `/projects/filter` | **STUDENT**, **RECRUITER**, **ADMIN** | Тело `FilterSiteProjectReq` (`q`, `section`, `visibleToAnonymous`; пустое/частичное — без ограничений). Массив `SiteProjectDTO` в порядке `sortOrder`, без пагинации. **ADMIN** — все записи, с `students`. **RECRUITER** — окно публикации, с `students`. **STUDENT** — окно публикации, `students = null` |
+| GET | `/projects/{id}` | те же | `SiteProjectDTO`; **404** вне окна публикации для не-админа |
+| POST | `/projects` | **ADMIN** | Создание; **201** `CreateSiteProjectReq`; `sortOrder` в конец очереди |
+| PUT | `/projects/{id}` | **ADMIN** | Полная замена `UpdateSiteProjectReq` (включая `images`); не PATCH |
+| DELETE | `/projects/{id}` | **ADMIN** | **204** |
+| POST | `/projects/reorder` | **ADMIN** | Порядок `orderedIds`; **204** |
+| GET | `/projects/{id}/students` | **ADMIN** | UUID привязанных студентов |
+| POST | `/projects/{id}/students` | **ADMIN** | Привязка; тело `SiteProjectStudentsReq`; **204** |
+| DELETE | `/projects/{id}/students` | **ADMIN** | Отвязка; **204** |
 
 ---
 
@@ -142,6 +139,7 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 | Метод | Путь | Роли | Описание |
 |-------|------|------|----------|
 | GET | `/student/me` | **STUDENT** | Своя карточка `StudentDTO`; **404** если нет привязки |
+| PATCH | `/student/me` | **STUDENT** | Частичное обновление анкеты (`PatchStudentMeReq`: в т.ч. `middleName`, `gender`); `null` — не менять; `catalogVisible` студенту недоступен |
 | GET | `/student/{id}` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | Полный `StudentDTO`; `catalogVisible=false` для не-админа → **404**; требуется **APPROVED** (кроме ADMIN) |
 | POST | `/student/cardsFilter` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | `PageResponse<StudentCardDTO>`; тело `FilterStudentReq`; скрытые карточки только у админа; **APPROVED** обязателен (кроме ADMIN) |
 | POST | `/student/filter` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | `PageResponse<StudentDTO>`; те же правила |
@@ -153,6 +151,18 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 | DELETE | `/student/{id}` | **ADMIN** | Каскадное удаление связанных данных; **204** |
 
 Роль **STUDENT** с **APPROVED** может читать каталог через `GET /student/{id}`, `POST /student/cardsFilter`, `POST /student/filter`. Пользователи **PENDING_APPROVAL** получают **403**.
+
+`CourseEnum` — курсы **1–5** (`FIRST`…`FIFTH`). Отчество — `middleName` (фамилия по-прежнему `lastName`). Пол — `gender` (`MALE`/`FEMALE`, `null` = не указан); фильтр каталога по полу не предусмотрен.
+
+---
+
+## `/admin/account-approvals` — модерация аккаунтов
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/admin/account-approvals` | Очередь `PENDING_APPROVAL`; query `role`, `page`, `size`; `AccountApprovalUserDTO` (в т.ч. `emailVerified`) |
+| POST | `/admin/account-approvals/{userId}/approve` | **204**. Студенту — **400**, если почта не подтверждена |
+| POST | `/admin/account-approvals/{userId}/reject` | **204**; опционально `AccountRejectReq` |
 
 ---
 
@@ -213,23 +223,6 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 
 ---
 
-## `/admin/projects` — Projects (админ)
-
-Класс контроллера: `@PreAuthorize("hasRole('ADMIN')")` на все методы.
-
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/admin/projects` | Все проекты в порядке `sortOrder` |
-| POST | `/admin/projects` | Создание; **201** `CreateSiteProjectReq` |
-| PUT | `/admin/projects/{id}` | Обновление `UpdateSiteProjectReq` |
-| DELETE | `/admin/projects/{id}` | **204** |
-| POST | `/admin/projects/reorder` | Порядок `orderedIds`; **204** |
-| GET | `/admin/projects/{id}/students` | UUID привязанных студентов |
-| POST | `/admin/projects/{id}/students` | Привязка студентов; тело `SiteProjectStudentsReq`; **204** |
-| DELETE | `/admin/projects/{id}/students` | Отвязка студентов; **204** |
-
----
-
 ## `/admin/analytics` — отчёты (админ)
 
 | Метод | Путь | Описание |
@@ -253,12 +246,12 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 
 ## Справочники: `/company`, `/skill`, `/speciality`, `/education`
 
-Паттерн одинаковый:
+Чтение после входа (студент выбирает id для резюме). CUD только админ.
 
 | Метод | Путь | Роли |
 |-------|------|------|
-| GET | `/{resource}/{id}` | **GUEST**, **USER**, **ADMIN** |
-| POST | `/{resource}/filter` | **ADMIN** |
+| GET | `/{resource}/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** |
+| POST | `/{resource}/filter` | **STUDENT**, **RECRUITER**, **ADMIN** |
 | POST | `/{resource}` | **ADMIN** |
 | PUT | `/{resource}/{id}` | **ADMIN** |
 | DELETE | `/{resource}/{id}` | **ADMIN** |
@@ -269,46 +262,52 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 
 ## `/experience` — опыт работы
 
+Своё всегда; чужое GET — только при `catalogVisible`. Запись: студент — только своя карточка (`studentId` в теле игнорируется), админ — любой `studentId`.
+
 | Метод | Путь | Роли |
 |-------|------|------|
-| GET | `/experience/{id}` | **GUEST**, **USER**, **ADMIN** |
-| POST | `/experience/filter` | **GUEST**, **USER**, **ADMIN** |
-| POST | `/experience` | **ADMIN** |
-| PUT | `/experience/{id}` | **ADMIN** |
-| DELETE | `/experience/{id}` | **ADMIN** |
+| GET | `/experience/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** |
+| POST | `/experience/filter` | **STUDENT**, **RECRUITER**, **ADMIN** |
+| POST | `/experience` | **STUDENT**, **ADMIN** |
+| PUT | `/experience/{id}` | **STUDENT**, **ADMIN** |
+| DELETE | `/experience/{id}` | **STUDENT**, **ADMIN** |
 
 ---
 
 ## `/portfolio` — портфолио
 
+Те же правила доступа, что у `/experience`.
+
 | Метод | Путь | Роли |
 |-------|------|------|
-| GET | `/portfolio/{id}` | **GUEST**, **USER**, **ADMIN** |
-| POST | `/portfolio/filter` | **GUEST**, **USER**, **ADMIN** |
-| POST | `/portfolio` | **ADMIN** |
-| PUT | `/portfolio/{id}` | **ADMIN** |
-| DELETE | `/portfolio/{id}` | **ADMIN** |
+| GET | `/portfolio/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** |
+| POST | `/portfolio/filter` | **STUDENT**, **RECRUITER**, **ADMIN** |
+| POST | `/portfolio` | **STUDENT**, **ADMIN** |
+| PUT | `/portfolio/{id}` | **STUDENT**, **ADMIN** |
+| DELETE | `/portfolio/{id}` | **STUDENT**, **ADMIN** |
 
 ---
 
 ## `/institution` — учёба студента (связь студент–образование)
 
+Те же правила доступа, что у `/experience`.
+
 | Метод | Путь | Роли | Примечание |
 |-------|------|------|------------|
-| GET | `/institution/{id}` | **GUEST**, **USER**, **ADMIN** | |
-| POST | `/institution/filter` | **GUEST**, **USER**, **ADMIN** | Если в фильтре передан `educationId`, внутри вызывается проверка **админа** (`SecurityHelper.checkAdminRoleForFilter`) |
-| POST | `/institution` | **ADMIN** | |
-| PUT | `/institution/{id}` | **ADMIN** | |
-| DELETE | `/institution/{id}` | **ADMIN** | |
+| GET | `/institution/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** | |
+| POST | `/institution/filter` | **STUDENT**, **RECRUITER**, **ADMIN** | Если в фильтре передан `educationId`, внутри вызывается проверка **админа** (`SecurityHelper.checkAdminRoleForFilter`) |
+| POST | `/institution` | **STUDENT**, **ADMIN** | |
+| PUT | `/institution/{id}` | **STUDENT**, **ADMIN** | |
+| DELETE | `/institution/{id}` | **STUDENT**, **ADMIN** | |
 
 ---
 
 ## Сводка по доступу к «фильтрам» справочников
 
-| Ресурс | `POST …/filter` для рекрутера (GUEST/USER) |
-|--------|---------------------------------------------|
-| company, skill, speciality, education | Нет, только **ADMIN** |
-| experience, portfolio, institution | Да (**GUEST**, **USER**, **ADMIN**) |
+| Ресурс | `POST …/filter` |
+|--------|-----------------|
+| company, skill, speciality, education | **STUDENT**, **RECRUITER**, **ADMIN** (CUD только **ADMIN**) |
+| experience, portfolio, institution | **STUDENT**, **RECRUITER**, **ADMIN**; CUD — **STUDENT** (своя карточка) и **ADMIN** |
 
 ---
 

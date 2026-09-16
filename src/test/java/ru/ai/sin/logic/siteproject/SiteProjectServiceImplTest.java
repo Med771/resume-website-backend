@@ -7,6 +7,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
+import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.siteproject.dto.FilterSiteProjectReq;
 import ru.ai.sin.logic.siteproject.dto.SiteProjectDTO;
 import ru.ai.sin.logic.siteproject.dto.SiteProjectImageReq;
 import ru.ai.sin.logic.siteproject.dto.SiteProjectStudentsReq;
@@ -40,6 +42,8 @@ class SiteProjectServiceImplTest {
     private SkillRepo skillRepo;
     @Mock
     private SkillMapper skillMapper;
+    @Mock
+    private SecurityHelper securityHelper;
 
     private SiteProjectServiceImpl service;
 
@@ -49,57 +53,83 @@ class SiteProjectServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new SiteProjectServiceImpl(siteProjectRepo, studentRepo, skillRepo, skillMapper);
+        service = new SiteProjectServiceImpl(siteProjectRepo, studentRepo, skillRepo, skillMapper, securityHelper);
     }
 
     @Test
-    void listPublicVisible_onlyAnonymousFlagInPublicationWindow() {
+    void listForVitrina_onlyAnonymousFlagInPublicationWindow() {
         SiteProjectEnt publicProject = project("Public", true, null, null);
         SiteProjectEnt authOnly = project("Auth only", false, null, null);
         SiteProjectEnt expired = project("Expired", true, null, LocalDateTime.now().minusDays(1));
 
         when(siteProjectRepo.findAllWithImagesByOrderBySortOrderAsc()).thenReturn(List.of(publicProject, authOnly, expired));
 
-        assertThat(service.listPublicVisible(null))
+        assertThat(service.listForVitrina(10))
                 .extracting(SiteProjectDTO::title)
                 .containsExactly("Public");
     }
 
     @Test
-    void listAuthenticatedVisible_allInPublicationWindowRegardlessOfAnonymousFlag() {
+    void listForVitrina_respectsLimit() {
+        SiteProjectEnt first = project("First", true, null, null);
+        SiteProjectEnt second = project("Second", true, null, null);
+        when(siteProjectRepo.findAllWithImagesByOrderBySortOrderAsc()).thenReturn(List.of(first, second));
+
+        assertThat(service.listForVitrina(1))
+                .extracting(SiteProjectDTO::title)
+                .containsExactly("First");
+    }
+
+    @Test
+    void filter_student_allInPublicationWindowRegardlessOfAnonymousFlag() {
+        asStudent();
         SiteProjectEnt publicProject = project("Public", true, null, null);
         SiteProjectEnt authOnly = project("Auth only", false, null, null);
         SiteProjectEnt expired = project("Expired", true, null, LocalDateTime.now().minusDays(1));
 
         when(siteProjectRepo.findAllWithImagesByOrderBySortOrderAsc()).thenReturn(List.of(publicProject, authOnly, expired));
 
-        assertThat(service.listAuthenticatedVisible(false, null))
+        assertThat(service.filter(null))
                 .extracting(SiteProjectDTO::title)
                 .containsExactly("Public", "Auth only");
     }
 
     @Test
-    void listAuthenticatedVisible_recruiterIncludesStudentsFlag() {
+    void filter_recruiter_includesStudents() {
+        asRecruiter();
         SiteProjectEnt publicProject = project("Public", true, null, null);
         when(siteProjectRepo.findAllWithDetailsByOrderBySortOrderAsc()).thenReturn(List.of(publicProject));
 
-        assertThat(service.listAuthenticatedVisible(true, null))
+        assertThat(service.filter(null))
                 .singleElement()
                 .satisfies(dto -> assertThat(dto.students()).isNotNull());
     }
 
     @Test
-    void listAuthenticatedVisible_studentExcludesStudents() {
+    void filter_student_excludesStudents() {
+        asStudent();
         SiteProjectEnt publicProject = project("Public", true, null, null);
         when(siteProjectRepo.findAllWithImagesByOrderBySortOrderAsc()).thenReturn(List.of(publicProject));
 
-        assertThat(service.listAuthenticatedVisible(false, null))
+        assertThat(service.filter(null))
                 .singleElement()
                 .satisfies(dto -> assertThat(dto.students()).isNull());
     }
 
     @Test
-    void listPublicVisible_findStringFiltersBySection() {
+    void filter_admin_includesOutOfWindow() {
+        asAdmin();
+        SiteProjectEnt expired = project("Expired", true, null, LocalDateTime.now().minusDays(1));
+        when(siteProjectRepo.findAllWithDetailsByOrderBySortOrderAsc()).thenReturn(List.of(expired));
+
+        assertThat(service.filter(null))
+                .extracting(SiteProjectDTO::title)
+                .containsExactly("Expired");
+    }
+
+    @Test
+    void filter_qFiltersBySection() {
+        asStudent();
         SiteProjectEnt match = project("Web app", true, null, null);
         match.setSection("Веб-разработка");
         match.setSummary("React dashboard");
@@ -108,25 +138,31 @@ class SiteProjectServiceImplTest {
 
         when(siteProjectRepo.findAllWithImagesByOrderBySortOrderAsc()).thenReturn(List.of(match, other));
 
-        assertThat(service.listPublicVisible("веб"))
+        assertThat(service.filter(new FilterSiteProjectReq("веб", null, null)))
                 .extracting(SiteProjectDTO::title)
                 .containsExactly("Web app");
     }
 
-    private static SiteProjectEnt project(String title, boolean visibleToAnonymous,
-                                          LocalDateTime publishedFrom, LocalDateTime publishedTo) {
-        SiteProjectEnt e = new SiteProjectEnt();
-        e.setId(UUID.randomUUID());
-        e.setTitle(title);
-        e.setVisibleToAnonymous(visibleToAnonymous);
-        e.setPublishedFrom(publishedFrom);
-        e.setPublishedTo(publishedTo);
-        e.setSortOrder(0);
-        return e;
+    @Test
+    void filter_sectionAndVisibleToAnonymous() {
+        asAdmin();
+        SiteProjectEnt match = project("Shown", true, null, null);
+        match.setSection("games");
+        SiteProjectEnt hidden = project("Hidden", false, null, null);
+        hidden.setSection("games");
+        SiteProjectEnt otherSection = project("Other", true, null, null);
+        otherSection.setSection("web");
+
+        when(siteProjectRepo.findAllWithDetailsByOrderBySortOrderAsc()).thenReturn(List.of(match, hidden, otherSection));
+
+        assertThat(service.filter(new FilterSiteProjectReq(null, "game", true)))
+                .extracting(SiteProjectDTO::title)
+                .containsExactly("Shown");
     }
 
     @Test
-    void getAdminById_deduplicatesImagesFromPersistenceBag() {
+    void getById_deduplicatesImagesFromPersistenceBag() {
+        asAdmin();
         SiteProjectEnt project = project("Gallery", true, null, null);
         project.setId(projectId);
         SiteProjectImageEnt image = new SiteProjectImageEnt();
@@ -140,10 +176,45 @@ class SiteProjectServiceImplTest {
 
         when(siteProjectRepo.findWithDetailsById(projectId)).thenReturn(Optional.of(project));
 
-        assertThat(service.getAdminById(projectId).images())
+        assertThat(service.getById(projectId).images())
                 .hasSize(1)
                 .first()
                 .satisfies(dto -> assertThat(dto.id()).isEqualTo(imageId));
+    }
+
+    @Test
+    void getById_outOfWindow_404ForStudent() {
+        asStudent();
+        SiteProjectEnt expired = project("Expired", true, null, LocalDateTime.now().minusDays(1));
+        expired.setId(projectId);
+        when(siteProjectRepo.findWithImagesById(projectId)).thenReturn(Optional.of(expired));
+
+        assertThatThrownBy(() -> service.getById(projectId))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void getById_adminSeesOutOfWindow() {
+        asAdmin();
+        SiteProjectEnt expired = project("Expired", true, null, LocalDateTime.now().minusDays(1));
+        expired.setId(projectId);
+        when(siteProjectRepo.findWithDetailsById(projectId)).thenReturn(Optional.of(expired));
+
+        assertThat(service.getById(projectId).title()).isEqualTo("Expired");
+    }
+
+    private void asAdmin() {
+        when(securityHelper.isCurrentUserAdmin()).thenReturn(true);
+    }
+
+    private void asStudent() {
+        when(securityHelper.isCurrentUserAdmin()).thenReturn(false);
+        when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of("STUDENT"));
+    }
+
+    private void asRecruiter() {
+        when(securityHelper.isCurrentUserAdmin()).thenReturn(false);
+        when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of("RECRUITER"));
     }
 
     @Test
@@ -256,5 +327,17 @@ class SiteProjectServiceImplTest {
 
         assertThat(project.getStudents()).containsExactly(s2);
         verify(siteProjectRepo).save(project);
+    }
+
+    private static SiteProjectEnt project(String title, boolean visibleToAnonymous,
+                                          LocalDateTime publishedFrom, LocalDateTime publishedTo) {
+        SiteProjectEnt e = new SiteProjectEnt();
+        e.setId(UUID.randomUUID());
+        e.setTitle(title);
+        e.setVisibleToAnonymous(visibleToAnonymous);
+        e.setPublishedFrom(publishedFrom);
+        e.setPublishedTo(publishedTo);
+        e.setSortOrder(0);
+        return e;
     }
 }

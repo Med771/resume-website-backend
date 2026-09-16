@@ -43,7 +43,7 @@ public class EducationController {
     }
 
     @Operation(summary = "Фильтр образования", description = "Принимает DTO фильтра в request body и Pageable без параметра sort")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<EducationDTO>> filter(
             @PageableDefault Pageable pageable,

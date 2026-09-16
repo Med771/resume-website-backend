@@ -32,6 +32,8 @@ public interface StudentMapper {
     // ---------------- StudentEnt -> StudentDTO ----------------
     @Mapping(source = "student.userInformation.firstName", target = "firstName")
     @Mapping(source = "student.userInformation.lastName", target = "lastName")
+    @Mapping(source = "student.middleName", target = "middleName")
+    @Mapping(source = "student.gender", target = "gender")
     @Mapping(source = "student.userInformation.email", target = "email")
     @Mapping(source = "student.contactInformation.phoneNumber", target = "phoneNumber")
     @Mapping(source = "student.contactInformation.telegramUsername", target = "telegramUsername")
@@ -46,6 +48,7 @@ public interface StudentMapper {
     // ---------------- StudentEnt -> StudentCardDTO ----------------
     @Mapping(source = "student.userInformation.firstName", target = "firstName")
     @Mapping(source = "student.userInformation.lastName", target = "lastName")
+    @Mapping(source = "student.middleName", target = "middleName")
     @Mapping(source = "student.speciality.name", target = "speciality")
     @Mapping(source = "student.manualSortOrder", target = "manualSortOrder")
     StudentCardDTO toCardDTO(StudentEnt student, List<SkillDTO> skills);

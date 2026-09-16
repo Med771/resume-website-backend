@@ -11,4 +11,8 @@ public class MailProperties {
 
     private boolean enabled = false;
     private String from = "";
+    /** TTL кода подтверждения почты после саморегистрации студента. */
+    private int otpTtlMinutes = 15;
+    /** Для тестов/стенда: не требует реальной отправки письма. */
+    private boolean allowDevConfirm = false;
 }

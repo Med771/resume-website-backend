@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Schema(
         name = "SiteProjectStudentsReq",
-        description = "Список UUID студентов для привязки или отвязки от проекта ленты.")
+        description = "Список UUID студентов для привязки или отвязки (`POST`/`DELETE /projects/{id}/students`), только ADMIN.")
 public record SiteProjectStudentsReq(
         @NotEmpty
         @Schema(description = "UUID студентов; дубликаты в списке запрещены", requiredMode = Schema.RequiredMode.REQUIRED)

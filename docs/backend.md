@@ -35,7 +35,7 @@
 
 Роли: **`GUEST`**, **`USER`**, **`STUDENT`**, **`ADMIN`**. В Spring Security для `hasRole('X')` в JWT/Principal ожидается authority вида **`ROLE_X`** (формируется в `UserHelper` из `RoleEnum`).
 
-В `SecurityConfig`: кроме явных исключений всё требует **аутентификации**. Исключения: `/auth/**`, **`/public/registration/**`**, **`/public/students/**`**, **`/public/projects/**`**, **`/public/analytics/**`**, `/main/**`, **`/ws/**`** (handshake WebSocket), Swagger, `/error`, `OPTIONS /**`.
+В `SecurityConfig`: кроме явных исключений всё требует **аутентификации**. Исключения: `/auth/**`, **`/public/vitrina/**`**, **`/public/analytics/**`**, `/main/**`, **`/ws/**`** (handshake WebSocket), Swagger, `/error`, `OPTIONS /**`. Справочники company/skill/education/speciality читаются после входа через обычные `GET /{id}` и `POST /filter`.
 
 **`JwtCookieAuthenticationFilter`**: читает access (и при необходимости refresh), валидирует JWT, поднимает `SecurityContext` с `UserDetails` по username из БД.
 
@@ -85,7 +85,7 @@
 
 ### Студент (`/student`)
 
-Каталог для рекрутера (**GUEST**/**USER**/**ADMIN**), админские CRUD и фото; ЛК — **`GET /student/me`** только для **`STUDENT`**. Публичная витрина без входа — **`/public/students/...`**.
+Каталог для рекрутера (**RECRUITER**/**ADMIN**), админские CRUD и фото; ЛК — **`GET /student/me`** и **`PATCH /student/me`** только для **`STUDENT`**. Дозаполнение резюме — CRUD `/experience`, `/institution`, `/portfolio`. Публичная витрина без входа — **`/public/vitrina/home`**.
 
 ### Рекрутер (`/recruiter`)
 
@@ -93,9 +93,9 @@
 
 ### Справочники и связанные сущности
 
-**company, skill, speciality, education:** чтение по id для рекрутера; **POST …/filter** и мутации — **ADMIN**.  
-**experience, portfolio:** фильтр и чтение — **GUEST**/**USER**/**ADMIN**; мутации — **ADMIN**.  
-**institution:** фильтр и чтение — **GUEST**/**USER**/**ADMIN**, но при фильтре с **`educationId`** требуется роль **ADMIN** (см. `SecurityHelper`).
+**company, skill, speciality, education:** `GET /{id}` и **`POST …/filter`** — **STUDENT**/**RECRUITER**/**ADMIN**; CUD — только **ADMIN**.  
+**experience, portfolio, institution:** чтение — **STUDENT**/**RECRUITER**/**ADMIN** (чужое — только при `catalogVisible`); CUD — **STUDENT** (своя карточка) и **ADMIN**.  
+**institution:** при фильтре с **`educationId`** требуется роль **ADMIN** (см. `SecurityHelper`).
 
 ## Хранение файлов
 
@@ -124,9 +124,9 @@
 ## Лента проектов
 
 - Таблица `site_projects` (Flyway `V0034`).
-- Админ: `GET/POST/PUT/DELETE /admin/projects`, `POST /admin/projects/reorder` (тело `orderedIds`), привязка студентов `…/{id}/students`.
-- Витрины: `GET /public/projects` (анонимы), `GET /projects` (STUDENT/GUEST/USER).
-- Публично: `GET /public/projects` — только `visible_to_anonymous` и в окне `published_from` / `published_to`, сортировка по `sort_order`.
+- Один ресурс `/projects`: чтение **STUDENT** / **RECRUITER** / **ADMIN** (`POST /projects/filter`, `GET /projects/{id}`); CUD, `POST /projects/reorder`, `…/{id}/students` — только **ADMIN**.
+- Видимость: админ — все записи и `students` в DTO; рекрутер — окно публикации и `students`; студент — окно публикации, `students = null`. Вне окна / чужой id для не-админа — **404**.
+- Анонимная главная: `GET /public/vitrina/home` вызывает тот же сервисный list (`visibleToAnonymous` + окно, без участников, `limit` из `app.vitrina.home`). Отдельного `/public/projects` нет.
 
 ## Аналитика посещений (first-party)
 

@@ -15,6 +15,8 @@ public record AuthMeDTO(
         String role,
         @Schema(description = "Статус аккаунта: PENDING_APPROVAL, APPROVED, REJECTED")
         String accountStatus,
+        @Schema(description = "Почта подтверждена кодом после регистрации (для студентов после нового флоу)")
+        boolean emailVerified,
         @Schema(description = "Подсказки при создании резюме/вакансий отключены")
         boolean hintsDisabled
 ) {

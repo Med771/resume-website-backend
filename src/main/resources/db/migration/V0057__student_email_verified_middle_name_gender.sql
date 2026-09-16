@@ -1,0 +1,8 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_otp_hash VARCHAR(128);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_otp_expires_at TIMESTAMP;
+
+UPDATE users SET email_verified = TRUE WHERE phone_verified = TRUE OR account_status = 'APPROVED';
+
+ALTER TABLE students ADD COLUMN IF NOT EXISTS middle_name VARCHAR(255);
+ALTER TABLE students ADD COLUMN IF NOT EXISTS gender VARCHAR(16);

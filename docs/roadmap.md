@@ -10,7 +10,7 @@
 
 ## Полные пути по сторонам (актуально по `@PreAuthorize`)
 
-- **Анонимы:** без cookie можно вызывать `GET /public/students/{id}`, `POST /public/students/cards`, `GET /public/projects`, `POST /public/analytics/events` (см. `SecurityConfig`).
+- **Анонимы:** без cookie можно вызывать `GET /public/vitrina/home`, `POST /public/analytics/events` (см. `SecurityConfig`). Пути `/public/students/**` и `/public/projects` требуют JWT и для анонима дают **401**.
 
 ### Общее для всех ролей после входа
 

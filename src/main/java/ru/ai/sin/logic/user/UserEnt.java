@@ -15,6 +15,7 @@ import ru.ai.sin.models.enums.convertor.AccountStatusConverter;
 import ru.ai.sin.models.enums.convertor.RoleEnumConverter;
 import ru.ai.sin.models.enums.RoleEnum;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -44,6 +45,15 @@ public class UserEnt {
 
     @Column(name = "phone_verified", nullable = false)
     private boolean phoneVerified = false;
+
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+
+    @Column(name = "email_otp_hash", length = 128)
+    private String emailOtpHash;
+
+    @Column(name = "email_otp_expires_at")
+    private LocalDateTime emailOtpExpiresAt;
 
     @Column(name = "account_status", length = 32, nullable = false)
     @Convert(converter = AccountStatusConverter.class)

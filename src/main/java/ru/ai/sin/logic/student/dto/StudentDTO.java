@@ -39,7 +39,7 @@ public record StudentDTO(
         @Schema(description = "Путь к изображению профиля")
         String imagePath,
 
-        @Schema(description = "Текущий курс")
+        @Schema(description = "Текущий курс (1–5)")
         @NotNull
         CourseEnum course,
 
@@ -51,6 +51,10 @@ public record StudentDTO(
         String firstName,
         @Schema(description = "Фамилия")
         String lastName,
+        @Schema(description = "Отчество")
+        String middleName,
+        @Schema(description = "Пол; null — не указан")
+        ru.ai.sin.models.enums.GenderEnum gender,
 
         @Schema(description = "Email (только для владельца и админки)")
         String email,

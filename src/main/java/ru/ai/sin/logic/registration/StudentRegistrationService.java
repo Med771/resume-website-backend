@@ -8,7 +8,11 @@ public interface StudentRegistrationService {
 
     /**
      * Создаёт пользователя STUDENT и черновик карточки ({@code catalogVisible=false}), выполняет аутентификацию.
-     * Дозаполнение резюме — {@code POST /student/onboarding/resume}.
+     * Письмо с кодом уходит сразу; подтверждение — {@code POST /auth/confirm-email}.
      */
     TokenPair registerAndIssueTokens(StudentAccountRegistrationReq req, HttpServletRequest httpRequest);
+
+    void confirmEmail(String code);
+
+    void resendEmailConfirmation();
 }

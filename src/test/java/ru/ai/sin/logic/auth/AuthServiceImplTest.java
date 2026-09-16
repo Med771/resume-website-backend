@@ -174,6 +174,7 @@ class AuthServiceImplTest {
         assertThat(me.id()).isEqualTo(userId);
         assertThat(me.username()).isEqualTo("alice");
         assertThat(me.role()).isEqualTo("STUDENT");
+        assertThat(me.emailVerified()).isFalse();
     }
 
     private void stubAuthentication(UserDetails userDetails) {

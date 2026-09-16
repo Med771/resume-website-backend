@@ -56,14 +56,12 @@
 
 | Действие | HTTP | Назначение |
 |----------|------|------------|
-| Регистрация студента | `POST /auth/register-student` | Создание пользователя `STUDENT` и черновика карточки (`catalogVisible=false`), выдача **HttpOnly** cookie `ACCESS_TOKEN` / `REFRESH_TOKEN` |
+| Регистрация студента | `POST /auth/register-student` | Создание пользователя `STUDENT` и черновика карточки (`catalogVisible=false`), выдача **HttpOnly** cookie; почта подтверждается отдельно |
 | Заявка на регистрацию работодателя | `POST /auth/register-recruiter` | Запись со статусом `PENDING`, **без** cookie и без возможности входа до одобрения админом |
 | Вход | `POST /auth/login` | Установка пары JWT-cookie |
 | Обновление access | `POST /auth/refresh` | Новый access по refresh-cookie |
 | Выход | `POST /auth/logout` | Очистка cookie |
-| Справочники для формы студента | `GET /public/registration/specialities`, `/skills`, `/companies`, `/educations` | Постраничные списки с ограничением размера страницы из `app.registration.max-catalog-page-size` |
-| Публичная витрина студентов | `GET /public/students/{id}`, `POST /public/students/cards` | Только карточки с `public_profile_consent = true` и `catalog_visible = true`; без cookie |
-| Лента проектов | `GET /public/projects` | Только `visible_to_anonymous` и в окне публикации |
+| Публичная витрина главной | `GET /public/vitrina/home` | Карточки студентов и проекты (`visible_to_anonymous` + окно публикации) |
 | Аналитика (first-party) | `POST /public/analytics/events` | Лимит `app.analytics.rate-limit-per-ip-per-minute`; без cookie |
 | Статус API / картинки | `GET /main/status`, `GET /main/photo/{image_path}` | Живость, отдача файлов из `app.file.path` |
 | Документация | Swagger, OpenAPI | См. `app.swagger` в конфиге |
@@ -76,7 +74,7 @@
 
 1. **Карточки:** `POST /public/students/cards` с тем же телом фильтра, что и у рекрутера (`FilterStudentReq` + пагинация `page`/`size`), но сервер дополнительно требует **`public_profile_consent = true`** и **`catalog_visible = true`**. Параметры сортировки — поля **`sortBy`**, **`sortDirection`**, **`useDefaultRanking`** в теле (произвольный `sort=` из query для этих методов не используется).
 2. **Деталь:** `GET /public/students/{id}` — **404**, если нет согласия, `catalog_visible = false` или запись скрыта по тем же правилам, что и для не-админов на `GET /student/{id}`.
-3. **Проекты:** `GET /public/projects` — только опубликованные и с `visible_to_anonymous`.
+3. **Проекты:** `GET /public/vitrina/home` — только опубликованные и с `visible_to_anonymous` (поле `projects`).
 4. **Аналитика:** при согласии на cookies/трекинг (продуктово) — `POST /public/analytics/events` с типом **`PAGE_VIEW`** и т.д.; при превышении лимита с одного IP — **429**.
 
 ### 4.2. После входа (любая роль)
@@ -93,10 +91,11 @@
 
 **Путь A — саморегистрация**
 
-1. Подтверждение телефона через Telegram (`POST /verification/phone/start` → бот).
-2. `POST /auth/register-student` с телом `StudentAccountRegistrationReq`: логин, пароль, подтверждение, телефон, опционально имя/фамилия, город, дата рождения, курс (1–4).
-3. Ограничения: лимит попыток с одного IP (`app.registration.rate-limit-per-ip-per-hour`), политика пароля (`min-password-length`, `require-letter-and-digit`).
-4. Создаётся пользователь **`STUDENT`** (`PENDING_APPROVAL`) и **черновик** карточки (`catalogVisible=false`); сразу выдаются cookie, как при логине. Дозаполнение анкеты — `POST /student/onboarding/resume`.
+1. `POST /auth/register-student` с телом `StudentAccountRegistrationReq`: логин, пароль, подтверждение пароля, **email**, телефон; опционально имя (`firstName`), фамилия (`lastName`), отчество (`middleName`), город. Telegram и `phoneVerificationId` не нужны.
+2. На указанную почту уходит **6-значный** код. Подтверждение: `POST /auth/confirm-email` с cookie сессии (роль **STUDENT**). Повторная отправка: `POST /auth/resend-email-confirmation`. Лимиты — `app.registration.email-confirm-max-attempts-per-hour` / `email-resend-max-per-hour`.
+3. Ограничения регистрации: лимит попыток с одного IP (`app.registration.rate-limit-per-ip-per-hour`), политика пароля (`min-password-length`, `require-letter-and-digit`).
+4. Создаётся пользователь **`STUDENT`** (`PENDING_APPROVAL`, `emailVerified=false`) и **черновик** карточки (`catalogVisible=false`); сразу выдаются cookie. `GET /auth/me` отдаёт `emailVerified`. Дозаполнение анкеты — `PATCH /student/me` (курс **1–5**, пол `gender`) и CRUD `/experience`, `/institution`, `/portfolio`. Справочники студент только читает.
+5. Админ одобряет аккаунт (`POST /admin/account-approvals/{id}/approve`) **только после** подтверждения почты; иначе **400**. `PENDING_APPROVAL` не подменяется флагом почты.
 
 **Путь B — администратор готовит витрину**
 
@@ -118,6 +117,9 @@
 | Возможность | Эндпоинт / механизм |
 |-------------|---------------------|
 | Просмотр своей карточки | `GET /student/me` |
+| Редактирование резюме | `PATCH /student/me`; CRUD `/experience`, `/institution`, `/portfolio` (только своя карточка; `catalogVisible` студенту недоступен) |
+| Справочники для анкеты | `POST /skill/filter`, `/company/filter`, `/education/filter`, `/speciality/filter` и GET по id (CUD справочников — только админ) |
+| Лента проектов | `POST /projects/filter`, `GET /projects/{id}` (окно публикации, без `students`) |
 | Решение по заявке | `POST /request/{id}/student-decision` с `accept` и опциональным `comment` |
 | Чаты | `GET /chat`, `GET /chat/{chatId}/summary`, `GET /chat/{chatId}/messages`, отправка текста/вложений, отметка прочитанного, правка **своих** сообщений — по тем же правилам, что и у других ролей (кроме админского удаления) |
 | WebSocket | Подписка на `/topic/chats/{chatId}` для событий и переписки после «разрешения» заявки (см. раздел 7) |
@@ -159,7 +161,8 @@
 
 1. **Логин** → cookie.
 2. **Каталог**: `POST /student/cardsFilter`, `POST /student/filter`, детальная карточка `GET /student/{id}` — карточки с **`catalogVisible=false`** в выдаче **только у админа**; для рекрутера они отфильтрованы / недоступны по id.
-3. **Профиль рекрутера «я»**: `GET /recruiter/me` — если ещё **нет** привязки рекрутера к пользователю, будет **404** до первой успешной заявки с полным набором полей компании (логика описана в Swagger у `POST /request`).
+3. **Проекты:** `POST /projects/filter`, `GET /projects/{id}` — все в окне публикации, включая `visibleToAnonymous=false`; в DTO есть `students`.
+4. **Профиль рекрутера «я»**: `GET /recruiter/me` — если ещё **нет** привязки рекрутера к пользователю, будет **404** до первой успешной заявки с полным набором полей компании (логика описана в Swagger у `POST /request`).
 
 ### 6.3. Заявка и чат
 
@@ -190,10 +193,12 @@
 |------|-------------------|
 | Заявки на регистрацию работодателей | `POST /admin/recruiter-registration-requests/filter`, `POST .../{id}/approve`, `POST .../{id}/reject` |
 | Пользователи | `POST /user/filter`, `POST /user`, `DELETE /user/{id}` (не админов) |
-| Студенты | полный CRUD, расширенное создание, фото, `catalogVisible` / `publicProfileConsent` |
+| Очередь аккаунтов | `GET /admin/account-approvals`, approve/reject; студенту approve требует `emailVerified` |
+| Студенты | полный CRUD, расширенное создание, фото, `catalogVisible` / `publicProfileConsent`, `middleName` / `gender` |
 | Рекрутеры | создание/фильтр/изменение/удаление |
 | Заявки на контакт | `GET /request/{id}`, `POST /request/filter`, `DELETE /request/{id}` плюс то же создание, что у рекрутера |
 | Справочники | POST/PUT/PATCH/DELETE по корням `/company`, `/institution`, … |
+| Проекты | `POST /projects`, `PUT/DELETE /projects/{id}`, `POST /projects/reorder`, `GET/POST/DELETE /projects/{id}/students` |
 | Чат | полная история в REST в любой фазе; **`DELETE /chat/{chatId}/messages/{messageId}`** — мягкое удаление сообщения |
 
 ### 7.3. Особенности чата для админа

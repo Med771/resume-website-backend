@@ -79,7 +79,8 @@ public class AuthServiceImpl implements AuthService {
         UserEnt user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new BadCredentialsException("Not authenticated"));
         AccountStatus status = user.getAccountStatus() != null ? user.getAccountStatus() : AccountStatus.APPROVED;
-        return new AuthMeDTO(user.getId(), username, role, status.getCode(), user.isHintsDisabled());
+        return new AuthMeDTO(
+                user.getId(), username, role, status.getCode(), user.isEmailVerified(), user.isHintsDisabled());
     }
 
     @Override
