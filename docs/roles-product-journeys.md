@@ -56,7 +56,7 @@
 
 | Действие | HTTP | Назначение |
 |----------|------|------------|
-| Регистрация студента | `POST /auth/register-student` | Создание пользователя `STUDENT` и черновика карточки (`catalogVisible=false`), выдача **HttpOnly** cookie `ACCESS_TOKEN` / `REFRESH_TOKEN` |
+| Регистрация студента | `POST /auth/register-student` | Создание пользователя `STUDENT` и черновика карточки (`catalogVisible=false`), выдача **HttpOnly** cookie; почта подтверждается отдельно |
 | Заявка на регистрацию работодателя | `POST /auth/register-recruiter` | Запись со статусом `PENDING`, **без** cookie и без возможности входа до одобрения админом |
 | Вход | `POST /auth/login` | Установка пары JWT-cookie |
 | Обновление access | `POST /auth/refresh` | Новый access по refresh-cookie |
@@ -91,10 +91,11 @@
 
 **Путь A — саморегистрация**
 
-1. Подтверждение телефона через Telegram (`POST /verification/phone/start` → бот).
-2. `POST /auth/register-student` с телом `StudentAccountRegistrationReq`: логин, пароль, подтверждение, телефон, опционально имя/фамилия, город, дата рождения, курс (1–4).
-3. Ограничения: лимит попыток с одного IP (`app.registration.rate-limit-per-ip-per-hour`), политика пароля (`min-password-length`, `require-letter-and-digit`).
-4. Создаётся пользователь **`STUDENT`** (`PENDING_APPROVAL`) и **черновик** карточки (`catalogVisible=false`); сразу выдаются cookie, как при логине. Дозаполнение анкеты — `PATCH /student/me` и CRUD `/experience`, `/institution`, `/portfolio`. Справочники (`POST /skill/filter`, `/company/filter`, `/education/filter`, `/speciality/filter`) студент только читает.
+1. `POST /auth/register-student` с телом `StudentAccountRegistrationReq`: логин, пароль, подтверждение пароля, **email**, телефон; опционально имя (`firstName`), фамилия (`lastName`), отчество (`middleName`), город. Telegram и `phoneVerificationId` не нужны.
+2. На указанную почту уходит **6-значный** код. Подтверждение: `POST /auth/confirm-email` с cookie сессии (роль **STUDENT**). Повторная отправка: `POST /auth/resend-email-confirmation`. Лимиты — `app.registration.email-confirm-max-attempts-per-hour` / `email-resend-max-per-hour`.
+3. Ограничения регистрации: лимит попыток с одного IP (`app.registration.rate-limit-per-ip-per-hour`), политика пароля (`min-password-length`, `require-letter-and-digit`).
+4. Создаётся пользователь **`STUDENT`** (`PENDING_APPROVAL`, `emailVerified=false`) и **черновик** карточки (`catalogVisible=false`); сразу выдаются cookie. `GET /auth/me` отдаёт `emailVerified`. Дозаполнение анкеты — `PATCH /student/me` (курс **1–5**, пол `gender`) и CRUD `/experience`, `/institution`, `/portfolio`. Справочники студент только читает.
+5. Админ одобряет аккаунт (`POST /admin/account-approvals/{id}/approve`) **только после** подтверждения почты; иначе **400**. `PENDING_APPROVAL` не подменяется флагом почты.
 
 **Путь B — администратор готовит витрину**
 
@@ -192,7 +193,8 @@
 |------|-------------------|
 | Заявки на регистрацию работодателей | `POST /admin/recruiter-registration-requests/filter`, `POST .../{id}/approve`, `POST .../{id}/reject` |
 | Пользователи | `POST /user/filter`, `POST /user`, `DELETE /user/{id}` (не админов) |
-| Студенты | полный CRUD, расширенное создание, фото, `catalogVisible` / `publicProfileConsent` |
+| Очередь аккаунтов | `GET /admin/account-approvals`, approve/reject; студенту approve требует `emailVerified` |
+| Студенты | полный CRUD, расширенное создание, фото, `catalogVisible` / `publicProfileConsent`, `middleName` / `gender` |
 | Рекрутеры | создание/фильтр/изменение/удаление |
 | Заявки на контакт | `GET /request/{id}`, `POST /request/filter`, `DELETE /request/{id}` плюс то же создание, что у рекрутера |
 | Справочники | POST/PUT/PATCH/DELETE по корням `/company`, `/institution`, … |

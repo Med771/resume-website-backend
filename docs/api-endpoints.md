@@ -14,7 +14,7 @@
 | Метод | Путь | Назначение |
 |-------|------|------------|
 | POST | `/auth/register-recruiter` | Заявка на регистрацию работодателя; **204**, cookie не выдаются |
-| POST | `/auth/register-student` | Саморегистрация студента + черновик карточки; **204** + Set-Cookie (см. `app.registration`) |
+| POST | `/auth/register-student` | Саморегистрация студента + черновик карточки; **204** + Set-Cookie (см. `app.registration`). `email` обязателен; `phoneVerificationId` не нужен |
 | POST | `/auth/login` | Вход; **204** + Set-Cookie |
 | POST | `/auth/refresh` | Новый access; **204** + Set-Cookie |
 | POST | `/auth/logout` | Очистка cookie; **204** |
@@ -31,12 +31,16 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 
 ## `/auth` — сессия и регистрация
 
-Все методы выше в таблице публичных. Кратко:
+Публичные методы — в таблице выше. `confirm-email` / `resend-email-confirmation` требуют сессию **STUDENT**; `change-password` — любой вход.
 
 | Метод | Путь | Ответ | Примечание |
 |-------|------|-------|------------|
 | POST | `/auth/register-recruiter` | 204 | Тело `RecruiterSelfRegistrationReq` |
-| POST | `/auth/register-student` | 204 | Тело `StudentAccountRegistrationReq`; создаёт черновик карточки (`catalogVisible=false`); cookie как после login |
+| POST | `/auth/register-student` | 204 | Тело `StudentAccountRegistrationReq` (`username`, `password`, `passwordConfirm`, `email`, `phoneNumber`; опционально ФИО и город). Черновик карточки (`catalogVisible=false`); cookie как после login. На почту уходит 6-значный OTP |
+| POST | `/auth/confirm-email` | 204 | Только **STUDENT** (cookie). Тело `ConfirmEmailReq` `{ "code": "123456" }`. **401** без сессии |
+| POST | `/auth/resend-email-confirmation` | 204 | Только **STUDENT**. Повторная отправка OTP (лимиты `app.registration.email-*`) |
+| GET | `/auth/me` | 200 | `AuthMeDTO`, в т.ч. `emailVerified` и `accountStatus` |
+| POST | `/auth/change-password` | 204 | Тело `ChangePasswordReq`; нужен вход |
 | POST | `/auth/login` | 204 | `LoginRequest` |
 | POST | `/auth/refresh` | 204 | Refresh из cookie |
 | POST | `/auth/logout` | 204 | Очистка обеих cookie |
@@ -135,7 +139,7 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 | Метод | Путь | Роли | Описание |
 |-------|------|------|----------|
 | GET | `/student/me` | **STUDENT** | Своя карточка `StudentDTO`; **404** если нет привязки |
-| PATCH | `/student/me` | **STUDENT** | Частичное обновление анкеты (`PatchStudentMeReq`); `null` — не менять; `catalogVisible` студенту недоступен |
+| PATCH | `/student/me` | **STUDENT** | Частичное обновление анкеты (`PatchStudentMeReq`: в т.ч. `middleName`, `gender`); `null` — не менять; `catalogVisible` студенту недоступен |
 | GET | `/student/{id}` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | Полный `StudentDTO`; `catalogVisible=false` для не-админа → **404**; требуется **APPROVED** (кроме ADMIN) |
 | POST | `/student/cardsFilter` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | `PageResponse<StudentCardDTO>`; тело `FilterStudentReq`; скрытые карточки только у админа; **APPROVED** обязателен (кроме ADMIN) |
 | POST | `/student/filter` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | `PageResponse<StudentDTO>`; те же правила |
@@ -147,6 +151,18 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 | DELETE | `/student/{id}` | **ADMIN** | Каскадное удаление связанных данных; **204** |
 
 Роль **STUDENT** с **APPROVED** может читать каталог через `GET /student/{id}`, `POST /student/cardsFilter`, `POST /student/filter`. Пользователи **PENDING_APPROVAL** получают **403**.
+
+`CourseEnum` — курсы **1–5** (`FIRST`…`FIFTH`). Отчество — `middleName` (фамилия по-прежнему `lastName`). Пол — `gender` (`MALE`/`FEMALE`, `null` = не указан); фильтр каталога по полу не предусмотрен.
+
+---
+
+## `/admin/account-approvals` — модерация аккаунтов
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/admin/account-approvals` | Очередь `PENDING_APPROVAL`; query `role`, `page`, `size`; `AccountApprovalUserDTO` (в т.ч. `emailVerified`) |
+| POST | `/admin/account-approvals/{userId}/approve` | **204**. Студенту — **400**, если почта не подтверждена |
+| POST | `/admin/account-approvals/{userId}/reject` | **204**; опционально `AccountRejectReq` |
 
 ---
 
