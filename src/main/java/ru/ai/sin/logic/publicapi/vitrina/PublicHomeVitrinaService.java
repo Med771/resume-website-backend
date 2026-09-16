@@ -29,9 +29,7 @@ public class PublicHomeVitrinaService {
                 PageRequest.of(0, studentsLimit),
                 emptyFilter());
 
-        var projects = siteProjectService.listPublicVisible(null).stream()
-                .limit(projectsLimit)
-                .toList();
+        var projects = siteProjectService.listForVitrina(projectsLimit);
 
         return new PublicHomeVitrinaDTO(studentsPage.data(), projects);
     }

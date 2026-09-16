@@ -9,7 +9,7 @@ import java.util.UUID;
 @Schema(
         name = "ReorderSiteProjectsReq",
         description = """
-                Тело `POST /admin/projects/reorder`: задаёт новые значения `sortOrder` для перечисленных проектов.
+                Тело `POST /projects/reorder`: задаёт новые значения `sortOrder` для перечисленных проектов.
                 Порядок в массиве `orderedIds` определяет индекс сортировки (0 — первый).""")
 public record ReorderSiteProjectsReq(
         @NotEmpty

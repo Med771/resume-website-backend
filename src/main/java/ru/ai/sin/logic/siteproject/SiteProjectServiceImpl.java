@@ -3,9 +3,11 @@ package ru.ai.sin.logic.siteproject;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.logic.siteproject.dto.CreateSiteProjectReq;
+import ru.ai.sin.logic.siteproject.dto.FilterSiteProjectReq;
 import ru.ai.sin.logic.siteproject.dto.ReorderSiteProjectsReq;
 import ru.ai.sin.logic.siteproject.dto.SiteProjectDTO;
 import ru.ai.sin.logic.siteproject.dto.SiteProjectImageDTO;
@@ -20,6 +22,8 @@ import ru.ai.sin.logic.skill.dto.SkillDTO;
 import ru.ai.sin.logic.speciality.SpecialityEnt;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
+
+import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -36,75 +40,81 @@ public class SiteProjectServiceImpl implements SiteProjectService {
     private final StudentRepo studentRepo;
     private final SkillRepo skillRepo;
     private final SkillMapper skillMapper;
+    private final SecurityHelper securityHelper;
 
     @Override
     @Transactional(readOnly = true)
-    public List<SiteProjectDTO> listAdminOrdered(String findString) {
-        return siteProjectRepo.findAllWithDetailsByOrderBySortOrderAsc().stream()
-                .filter(p -> matchesFindString(p, findString))
-                .map(p -> toDto(p, true))
-                .toList();
+    public List<SiteProjectDTO> filter(FilterSiteProjectReq req) {
+        boolean admin = securityHelper.isCurrentUserAdmin();
+        boolean includeStudents = admin || isRecruiter();
+        return listMatching(normalize(req), admin, includeStudents);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public SiteProjectDTO getAdminById(UUID id) {
-        SiteProjectEnt project = siteProjectRepo.findWithDetailsById(id)
-                .orElseThrow(() -> new NotFoundException("Project not found: " + id));
-        return toDto(project, true);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<SiteProjectDTO> listPublicVisible(String findString) {
-        return siteProjectRepo.findAllWithImagesByOrderBySortOrderAsc().stream()
-                .filter(SiteProjectEnt::isVisibleToAnonymous)
-                .filter(this::isInPublicationWindow)
-                .filter(p -> matchesFindString(p, findString))
-                .map(p -> toDto(p, false))
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public SiteProjectDTO getPublicVisibleById(UUID id) {
-        SiteProjectEnt project = siteProjectRepo.findWithImagesById(id)
-                .orElseThrow(() -> new NotFoundException("Project not found: " + id));
-        if (!project.isVisibleToAnonymous() || !isInPublicationWindow(project)) {
-            throw new NotFoundException("Project not found: " + id);
-        }
-        return toDto(project, false);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<SiteProjectDTO> listAuthenticatedVisible(boolean includeStudents, String findString) {
-        if (includeStudents) {
-            return siteProjectRepo.findAllWithDetailsByOrderBySortOrderAsc().stream()
-                    .filter(this::isInPublicationWindow)
-                    .filter(p -> matchesFindString(p, findString))
-                    .map(p -> toDto(p, true))
-                    .toList();
-        }
-        return siteProjectRepo.findAllWithImagesByOrderBySortOrderAsc().stream()
-                .filter(this::isInPublicationWindow)
-                .filter(p -> matchesFindString(p, findString))
-                .map(p -> toDto(p, false))
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public SiteProjectDTO getAuthenticatedVisibleById(UUID id, boolean includeStudents) {
-        SiteProjectEnt project = includeStudents
-                ? siteProjectRepo.findWithDetailsById(id)
-                .orElseThrow(() -> new NotFoundException("Project not found: " + id))
-                : siteProjectRepo.findWithImagesById(id)
-                .orElseThrow(() -> new NotFoundException("Project not found: " + id));
-        if (!isInPublicationWindow(project)) {
+    public SiteProjectDTO getById(UUID id) {
+        boolean admin = securityHelper.isCurrentUserAdmin();
+        boolean includeStudents = admin || isRecruiter();
+        SiteProjectEnt project = loadById(id, includeStudents);
+        if (!admin && !isInPublicationWindow(project)) {
             throw new NotFoundException("Project not found: " + id);
         }
         return toDto(project, includeStudents);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SiteProjectDTO> listForVitrina(int limit) {
+        int cap = Math.max(1, limit);
+        FilterSiteProjectReq vitrinaFilter = new FilterSiteProjectReq(null, null, true);
+        return listMatching(vitrinaFilter, false, false).stream()
+                .limit(cap)
+                .toList();
+    }
+
+    private List<SiteProjectDTO> listMatching(
+            FilterSiteProjectReq filter,
+            boolean adminView,
+            boolean includeStudents
+    ) {
+        List<SiteProjectEnt> all = includeStudents
+                ? siteProjectRepo.findAllWithDetailsByOrderBySortOrderAsc()
+                : siteProjectRepo.findAllWithImagesByOrderBySortOrderAsc();
+        return all.stream()
+                .filter(p -> adminView || isInPublicationWindow(p))
+                .filter(p -> matchesVisibleFlag(p, filter.visibleToAnonymous()))
+                .filter(p -> matchesSection(p, filter.section()))
+                .filter(p -> matchesFindString(p, filter.q()))
+                .map(p -> toDto(p, includeStudents))
+                .toList();
+    }
+
+    private SiteProjectEnt loadById(UUID id, boolean includeStudents) {
+        return (includeStudents
+                ? siteProjectRepo.findWithDetailsById(id)
+                : siteProjectRepo.findWithImagesById(id))
+                .orElseThrow(() -> new NotFoundException("Project not found: " + id));
+    }
+
+    private boolean isRecruiter() {
+        return securityHelper.getCurrentRoleOptional()
+                .filter(role -> RoleEnum.RECRUITER.getRole().equals(role))
+                .isPresent();
+    }
+
+    private static FilterSiteProjectReq normalize(FilterSiteProjectReq req) {
+        return req != null ? req : new FilterSiteProjectReq(null, null, null);
+    }
+
+    private static boolean matchesVisibleFlag(SiteProjectEnt project, Boolean visibleToAnonymous) {
+        return visibleToAnonymous == null || project.isVisibleToAnonymous() == visibleToAnonymous;
+    }
+
+    private static boolean matchesSection(SiteProjectEnt project, String section) {
+        if (section == null || section.isBlank()) {
+            return true;
+        }
+        return fieldContains(project.getSection(), section.trim().toLowerCase());
     }
 
     private boolean isInPublicationWindow(SiteProjectEnt project) {
@@ -138,16 +148,9 @@ public class SiteProjectServiceImpl implements SiteProjectService {
                 .max()
                 .orElse(-1) + 1;
         SiteProjectEnt e = new SiteProjectEnt();
-        e.setTitle(req.title());
-        e.setSection(blankToNull(req.section()));
-        e.setSummary(req.summary());
-        e.setBody(req.body());
-        e.setVisibleToAnonymous(req.visibleToAnonymous());
-        e.setPublishedFrom(req.publishedFrom());
-        e.setPublishedTo(req.publishedTo());
+        applyContent(e, req.title(), req.section(), req.summary(), req.body(),
+                req.images(), req.skillIds(), req.visibleToAnonymous(), req.publishedFrom(), req.publishedTo());
         e.setSortOrder(nextOrder);
-        applyImages(e, req.images());
-        applySkills(e, req.skillIds());
         return toDto(siteProjectRepo.save(e), false);
     }
 
@@ -156,16 +159,32 @@ public class SiteProjectServiceImpl implements SiteProjectService {
     public SiteProjectDTO update(UUID id, UpdateSiteProjectReq req) {
         SiteProjectEnt e = siteProjectRepo.findWithImagesById(id)
                 .orElseThrow(() -> new NotFoundException("Project not found: " + id));
-        e.setTitle(req.title());
-        e.setSection(blankToNull(req.section()));
-        e.setSummary(req.summary());
-        e.setBody(req.body());
-        e.setVisibleToAnonymous(req.visibleToAnonymous());
-        e.setPublishedFrom(req.publishedFrom());
-        e.setPublishedTo(req.publishedTo());
-        applyImages(e, req.images());
-        applySkills(e, req.skillIds());
+        applyContent(e, req.title(), req.section(), req.summary(), req.body(),
+                req.images(), req.skillIds(), req.visibleToAnonymous(), req.publishedFrom(), req.publishedTo());
         return toDto(siteProjectRepo.save(e), false);
+    }
+
+    private void applyContent(
+            SiteProjectEnt e,
+            String title,
+            String section,
+            String summary,
+            String body,
+            List<SiteProjectImageReq> images,
+            List<Long> skillIds,
+            boolean visibleToAnonymous,
+            LocalDateTime publishedFrom,
+            LocalDateTime publishedTo
+    ) {
+        e.setTitle(title);
+        e.setSection(blankToNull(section));
+        e.setSummary(summary);
+        e.setBody(body);
+        e.setVisibleToAnonymous(visibleToAnonymous);
+        e.setPublishedFrom(publishedFrom);
+        e.setPublishedTo(publishedTo);
+        applyImages(e, images);
+        applySkills(e, skillIds);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package ru.ai.sin.logic.siteproject;
 
 import ru.ai.sin.logic.siteproject.dto.CreateSiteProjectReq;
+import ru.ai.sin.logic.siteproject.dto.FilterSiteProjectReq;
 import ru.ai.sin.logic.siteproject.dto.ReorderSiteProjectsReq;
 import ru.ai.sin.logic.siteproject.dto.SiteProjectDTO;
 import ru.ai.sin.logic.siteproject.dto.SiteProjectStudentsReq;
@@ -11,17 +12,12 @@ import java.util.UUID;
 
 public interface SiteProjectService {
 
-    List<SiteProjectDTO> listAdminOrdered(String findString);
+    List<SiteProjectDTO> filter(FilterSiteProjectReq req);
 
-    SiteProjectDTO getAdminById(UUID id);
+    SiteProjectDTO getById(UUID id);
 
-    List<SiteProjectDTO> listPublicVisible(String findString);
-
-    SiteProjectDTO getPublicVisibleById(UUID id);
-
-    List<SiteProjectDTO> listAuthenticatedVisible(boolean includeStudents, String findString);
-
-    SiteProjectDTO getAuthenticatedVisibleById(UUID id, boolean includeStudents);
+    /** Публичная главная: visibleToAnonymous + окно публикации, без участников, обрезка limit. */
+    List<SiteProjectDTO> listForVitrina(int limit);
 
     SiteProjectDTO create(CreateSiteProjectReq req);
 
