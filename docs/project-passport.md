@@ -141,8 +141,7 @@ ru.ai.sin
 |---------|------------|
 | `/auth` | login, refresh, logout, регистрация студента/рекрутера (см. `AuthController`) |
 | `/main` | health, отдача файлов по пути |
-| `/public/students` | Витрина карточек без JWT |
-| `/public/projects` | Публичная лента проектов |
+| `/public/vitrina` | Анонимная главная: студенты + проекты |
 | `/public/analytics` | Ingest событий аналитики |
 | `/student` | Каталог, CRUD карточек (в основном админ), ЛК студента |
 | `/request` | Заявки, фильтр, решение студента |
@@ -151,9 +150,7 @@ ru.ai.sin
 | `/user` | Пользователи (админ) |
 | `/company`, `/skill`, `/speciality`, `/education`, `/experience`, `/institution`, `/portfolio` | Справочники и связи с карточкой |
 | `/admin/recruiter-registration-requests` | Модерация регистраций работодателей |
-| `/admin/projects` | CRUD, порядок и привязка студентов |
-| `/projects` | Витрина для STUDENT/GUEST/USER |
-| `/public/projects` | Витрина для анонимов |
+| `/projects` | Лента проектов: чтение STUDENT/RECRUITER/ADMIN, CUD только ADMIN |
 | `/admin/analytics` | Сводки по событиям и по сущностям (пользователи/студенты/рекрутеры) |
 
 Полные пути методов, HTTP-глаголы и матрица ролей: [api-endpoints.md](./api-endpoints.md); детали полей — в Swagger.
@@ -193,9 +190,9 @@ ru.ai.sin
 
 ### 8.6. Лента проектов (`site_projects`)
 
-- Админ: `/admin/projects` CRUD + `POST …/reorder` + привязка студентов `…/{id}/students`.
-- Витрины: `/public/projects`, `/projects`.
-- Публично: `GET /public/projects` — фильтр `visible_to_anonymous`, окна `published_from` / `published_to`.
+- Один ресурс `/projects`: `POST /filter` и `GET /{id}` для **STUDENT** / **RECRUITER** / **ADMIN**; CUD, `POST /reorder`, `…/{id}/students` — только **ADMIN**.
+- Видимость в сервисе: админ — все записи + `students`; рекрутер — окно публикации + `students`; студент — окно публикации, `students = null`.
+- Анонимная главная: `GET /public/vitrina/home` (тот же list: `visible_to_anonymous` + окно, без участников). Отдельного `/public/projects` нет.
 
 ### 8.7. Аналитика (first-party)
 
@@ -283,7 +280,7 @@ ru.ai.sin
 
 - Регистрация студента / заявка на регистрацию рекрутера.
 - **`GET /public/students/{id}`**, **`POST /public/students/cards`** — только согласие + `catalogVisible`.
-- **`GET /public/projects`**, **`POST /public/analytics/events`**.
+- **`GET /public/vitrina/home`**, **`POST /public/analytics/events`**.
 - Swagger, `/main/status`, фото по пути.
 
 ### 14.2. Рекрутер (`GUEST` / `USER`)
@@ -298,7 +295,7 @@ ru.ai.sin
 
 ### 14.4. Админ (`ADMIN`)
 
-- Всё вышеперечисленное по правилам метода + модерация пользователей/справочников/заявок, удаление сообщений, полный чат, **`/admin/projects`**, **`/admin/analytics/summary`**, **`/admin/analytics/entity-population`**, заявки на регистрацию рекрутеров.
+- Всё вышеперечисленное по правилам метода + модерация пользователей/справочников/заявок, удаление сообщений, полный чат, **`/projects`** (CUD), **`/admin/analytics/summary`**, **`/admin/analytics/entity-population`**, заявки на регистрацию рекрутеров.
 
 ### 14.5. Сквозной «happy path» (интеграционный тест)
 

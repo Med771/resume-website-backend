@@ -124,9 +124,9 @@
 ## Лента проектов
 
 - Таблица `site_projects` (Flyway `V0034`).
-- Админ: `GET/POST/PUT/DELETE /admin/projects`, `POST /admin/projects/reorder` (тело `orderedIds`), привязка студентов `…/{id}/students`.
-- Витрины: `GET /public/projects` (анонимы), `GET /projects` (STUDENT/GUEST/USER).
-- Публично: `GET /public/projects` — только `visible_to_anonymous` и в окне `published_from` / `published_to`, сортировка по `sort_order`.
+- Один ресурс `/projects`: чтение **STUDENT** / **RECRUITER** / **ADMIN** (`POST /projects/filter`, `GET /projects/{id}`); CUD, `POST /projects/reorder`, `…/{id}/students` — только **ADMIN**.
+- Видимость: админ — все записи и `students` в DTO; рекрутер — окно публикации и `students`; студент — окно публикации, `students = null`. Вне окна / чужой id для не-админа — **404**.
+- Анонимная главная: `GET /public/vitrina/home` вызывает тот же сервисный list (`visibleToAnonymous` + окно, без участников, `limit` из `app.vitrina.home`). Отдельного `/public/projects` нет.
 
 ## Аналитика посещений (first-party)
 

@@ -62,15 +62,25 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 
 ## `/public/students`, `/public/projects` — устаревший публичный доступ
 
-Эндпоинты сохранены в коде, но **не** в `permitAll` — анонимный запрос вернёт **401**. Используйте `GET /public/vitrina/home` на главной и authenticated API после входа.
+Отдельного `/public/projects` нет. Анонимный `GET /public/projects` вернёт **401**. Главная без входа — `GET /public/vitrina/home`. После входа — `POST /projects/filter` и `GET /projects/{id}`.
 
 ---
 
-## `/projects` — Projects (авторизованные)
+## `/projects` — Projects
+
+Чтение: **STUDENT**, **RECRUITER**, **ADMIN**. CUD / reorder / students: только **ADMIN**. Список = `POST /filter` (пустого `GET /projects` нет).
 
 | Метод | Путь | Роли | Описание |
 |-------|------|------|----------|
-| GET | `/projects` | **STUDENT**, **GUEST**, **USER** | Витрина: все проекты в окне публикации, включая `visibleToAnonymous=false` |
+| POST | `/projects/filter` | **STUDENT**, **RECRUITER**, **ADMIN** | Тело `FilterSiteProjectReq` (`q`, `section`, `visibleToAnonymous`; пустое/частичное — без ограничений). Массив `SiteProjectDTO` в порядке `sortOrder`, без пагинации. **ADMIN** — все записи, с `students`. **RECRUITER** — окно публикации, с `students`. **STUDENT** — окно публикации, `students = null` |
+| GET | `/projects/{id}` | те же | `SiteProjectDTO`; **404** вне окна публикации для не-админа |
+| POST | `/projects` | **ADMIN** | Создание; **201** `CreateSiteProjectReq`; `sortOrder` в конец очереди |
+| PUT | `/projects/{id}` | **ADMIN** | Полная замена `UpdateSiteProjectReq` (включая `images`); не PATCH |
+| DELETE | `/projects/{id}` | **ADMIN** | **204** |
+| POST | `/projects/reorder` | **ADMIN** | Порядок `orderedIds`; **204** |
+| GET | `/projects/{id}/students` | **ADMIN** | UUID привязанных студентов |
+| POST | `/projects/{id}/students` | **ADMIN** | Привязка; тело `SiteProjectStudentsReq`; **204** |
+| DELETE | `/projects/{id}/students` | **ADMIN** | Отвязка; **204** |
 
 ---
 
@@ -194,23 +204,6 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 | POST | `/user/filter` | **ADMIN** | `FilterUserReq` |
 | POST | `/user` | **ADMIN** | Создание; для ЛК студента: роль **STUDENT** + `studentId`; **201** |
 | DELETE | `/user/{id}` | **ADMIN** | Удаление **USER** / **STUDENT** по UUID; **204** |
-
----
-
-## `/admin/projects` — Projects (админ)
-
-Класс контроллера: `@PreAuthorize("hasRole('ADMIN')")` на все методы.
-
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/admin/projects` | Все проекты в порядке `sortOrder` |
-| POST | `/admin/projects` | Создание; **201** `CreateSiteProjectReq` |
-| PUT | `/admin/projects/{id}` | Обновление `UpdateSiteProjectReq` |
-| DELETE | `/admin/projects/{id}` | **204** |
-| POST | `/admin/projects/reorder` | Порядок `orderedIds`; **204** |
-| GET | `/admin/projects/{id}/students` | UUID привязанных студентов |
-| POST | `/admin/projects/{id}/students` | Привязка студентов; тело `SiteProjectStudentsReq`; **204** |
-| DELETE | `/admin/projects/{id}/students` | Отвязка студентов; **204** |
 
 ---
 
