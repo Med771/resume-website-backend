@@ -18,10 +18,6 @@
 | POST | `/auth/login` | Вход; **204** + Set-Cookie |
 | POST | `/auth/refresh` | Новый access; **204** + Set-Cookie |
 | POST | `/auth/logout` | Очистка cookie; **204** |
-| GET | `/public/registration/specialities` | Справочник специальностей; query `page`, `size` (лимит `app.registration.max-catalog-page-size`) |
-| GET | `/public/registration/skills` | Справочник навыков |
-| GET | `/public/registration/companies` | Справочник компаний |
-| GET | `/public/registration/educations` | Справочник образования |
 | GET | `/public/vitrina/home` | Витрина главной: `{ students: StudentCardDTO[], projects: SiteProjectDTO[] }` |
 | POST | `/public/analytics/events` | Запись события аналитики; **204**; при лимите IP — **429** |
 | GET | `/main/status` | Liveness; **204** |
@@ -53,19 +49,6 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 |-------|------|--------|----------|
 | GET | `/main/status` | публично | **204** — сервис жив |
 | GET | `/main/photo/{image_path}` | публично | Тело: байты изображения, заголовок `Content-Type` |
-
----
-
-## `/public/registration` — справочники для формы регистрации
-
-Все **GET**, публично. Пагинация: `page`, `size` (размер ограничен конфигом).
-
-| Путь | Ответ |
-|------|--------|
-| `/public/registration/specialities` | `PageResponse<SpecialityDTO>` |
-| `/public/registration/skills` | `PageResponse<SkillDTO>` |
-| `/public/registration/companies` | `PageResponse<CompanyDTO>` |
-| `/public/registration/educations` | `PageResponse<EducationDTO>` |
 
 ---
 
@@ -142,6 +125,7 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 | Метод | Путь | Роли | Описание |
 |-------|------|------|----------|
 | GET | `/student/me` | **STUDENT** | Своя карточка `StudentDTO`; **404** если нет привязки |
+| PATCH | `/student/me` | **STUDENT** | Частичное обновление анкеты (`PatchStudentMeReq`); `null` — не менять; `catalogVisible` студенту недоступен |
 | GET | `/student/{id}` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | Полный `StudentDTO`; `catalogVisible=false` для не-админа → **404**; требуется **APPROVED** (кроме ADMIN) |
 | POST | `/student/cardsFilter` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | `PageResponse<StudentCardDTO>`; тело `FilterStudentReq`; скрытые карточки только у админа; **APPROVED** обязателен (кроме ADMIN) |
 | POST | `/student/filter` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | `PageResponse<StudentDTO>`; те же правила |
@@ -253,12 +237,12 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 
 ## Справочники: `/company`, `/skill`, `/speciality`, `/education`
 
-Паттерн одинаковый:
+Чтение после входа (студент выбирает id для резюме). CUD только админ.
 
 | Метод | Путь | Роли |
 |-------|------|------|
-| GET | `/{resource}/{id}` | **GUEST**, **USER**, **ADMIN** |
-| POST | `/{resource}/filter` | **ADMIN** |
+| GET | `/{resource}/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** |
+| POST | `/{resource}/filter` | **STUDENT**, **RECRUITER**, **ADMIN** |
 | POST | `/{resource}` | **ADMIN** |
 | PUT | `/{resource}/{id}` | **ADMIN** |
 | DELETE | `/{resource}/{id}` | **ADMIN** |
@@ -269,46 +253,52 @@ WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP 
 
 ## `/experience` — опыт работы
 
+Своё всегда; чужое GET — только при `catalogVisible`. Запись: студент — только своя карточка (`studentId` в теле игнорируется), админ — любой `studentId`.
+
 | Метод | Путь | Роли |
 |-------|------|------|
-| GET | `/experience/{id}` | **GUEST**, **USER**, **ADMIN** |
-| POST | `/experience/filter` | **GUEST**, **USER**, **ADMIN** |
-| POST | `/experience` | **ADMIN** |
-| PUT | `/experience/{id}` | **ADMIN** |
-| DELETE | `/experience/{id}` | **ADMIN** |
+| GET | `/experience/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** |
+| POST | `/experience/filter` | **STUDENT**, **RECRUITER**, **ADMIN** |
+| POST | `/experience` | **STUDENT**, **ADMIN** |
+| PUT | `/experience/{id}` | **STUDENT**, **ADMIN** |
+| DELETE | `/experience/{id}` | **STUDENT**, **ADMIN** |
 
 ---
 
 ## `/portfolio` — портфолио
 
+Те же правила доступа, что у `/experience`.
+
 | Метод | Путь | Роли |
 |-------|------|------|
-| GET | `/portfolio/{id}` | **GUEST**, **USER**, **ADMIN** |
-| POST | `/portfolio/filter` | **GUEST**, **USER**, **ADMIN** |
-| POST | `/portfolio` | **ADMIN** |
-| PUT | `/portfolio/{id}` | **ADMIN** |
-| DELETE | `/portfolio/{id}` | **ADMIN** |
+| GET | `/portfolio/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** |
+| POST | `/portfolio/filter` | **STUDENT**, **RECRUITER**, **ADMIN** |
+| POST | `/portfolio` | **STUDENT**, **ADMIN** |
+| PUT | `/portfolio/{id}` | **STUDENT**, **ADMIN** |
+| DELETE | `/portfolio/{id}` | **STUDENT**, **ADMIN** |
 
 ---
 
 ## `/institution` — учёба студента (связь студент–образование)
 
+Те же правила доступа, что у `/experience`.
+
 | Метод | Путь | Роли | Примечание |
 |-------|------|------|------------|
-| GET | `/institution/{id}` | **GUEST**, **USER**, **ADMIN** | |
-| POST | `/institution/filter` | **GUEST**, **USER**, **ADMIN** | Если в фильтре передан `educationId`, внутри вызывается проверка **админа** (`SecurityHelper.checkAdminRoleForFilter`) |
-| POST | `/institution` | **ADMIN** | |
-| PUT | `/institution/{id}` | **ADMIN** | |
-| DELETE | `/institution/{id}` | **ADMIN** | |
+| GET | `/institution/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** | |
+| POST | `/institution/filter` | **STUDENT**, **RECRUITER**, **ADMIN** | Если в фильтре передан `educationId`, внутри вызывается проверка **админа** (`SecurityHelper.checkAdminRoleForFilter`) |
+| POST | `/institution` | **STUDENT**, **ADMIN** | |
+| PUT | `/institution/{id}` | **STUDENT**, **ADMIN** | |
+| DELETE | `/institution/{id}` | **STUDENT**, **ADMIN** | |
 
 ---
 
 ## Сводка по доступу к «фильтрам» справочников
 
-| Ресурс | `POST …/filter` для рекрутера (GUEST/USER) |
-|--------|---------------------------------------------|
-| company, skill, speciality, education | Нет, только **ADMIN** |
-| experience, portfolio, institution | Да (**GUEST**, **USER**, **ADMIN**) |
+| Ресурс | `POST …/filter` |
+|--------|-----------------|
+| company, skill, speciality, education | **STUDENT**, **RECRUITER**, **ADMIN** (CUD только **ADMIN**) |
+| experience, portfolio, institution | **STUDENT**, **RECRUITER**, **ADMIN**; CUD — **STUDENT** (своя карточка) и **ADMIN** |
 
 ---
 

@@ -61,7 +61,6 @@
 | Вход | `POST /auth/login` | Установка пары JWT-cookie |
 | Обновление access | `POST /auth/refresh` | Новый access по refresh-cookie |
 | Выход | `POST /auth/logout` | Очистка cookie |
-| Справочники для формы студента | `GET /public/registration/specialities`, `/skills`, `/companies`, `/educations` | Постраничные списки с ограничением размера страницы из `app.registration.max-catalog-page-size` |
 | Публичная витрина студентов | `GET /public/students/{id}`, `POST /public/students/cards` | Только карточки с `public_profile_consent = true` и `catalog_visible = true`; без cookie |
 | Лента проектов | `GET /public/projects` | Только `visible_to_anonymous` и в окне публикации |
 | Аналитика (first-party) | `POST /public/analytics/events` | Лимит `app.analytics.rate-limit-per-ip-per-minute`; без cookie |
@@ -96,7 +95,7 @@
 1. Подтверждение телефона через Telegram (`POST /verification/phone/start` → бот).
 2. `POST /auth/register-student` с телом `StudentAccountRegistrationReq`: логин, пароль, подтверждение, телефон, опционально имя/фамилия, город, дата рождения, курс (1–4).
 3. Ограничения: лимит попыток с одного IP (`app.registration.rate-limit-per-ip-per-hour`), политика пароля (`min-password-length`, `require-letter-and-digit`).
-4. Создаётся пользователь **`STUDENT`** (`PENDING_APPROVAL`) и **черновик** карточки (`catalogVisible=false`); сразу выдаются cookie, как при логине. Дозаполнение анкеты — `POST /student/onboarding/resume`.
+4. Создаётся пользователь **`STUDENT`** (`PENDING_APPROVAL`) и **черновик** карточки (`catalogVisible=false`); сразу выдаются cookie, как при логине. Дозаполнение анкеты — `PATCH /student/me` и CRUD `/experience`, `/institution`, `/portfolio`. Справочники (`POST /skill/filter`, `/company/filter`, `/education/filter`, `/speciality/filter`) студент только читает.
 
 **Путь B — администратор готовит витрину**
 
@@ -118,6 +117,8 @@
 | Возможность | Эндпоинт / механизм |
 |-------------|---------------------|
 | Просмотр своей карточки | `GET /student/me` |
+| Редактирование резюме | `PATCH /student/me`; CRUD `/experience`, `/institution`, `/portfolio` (только своя карточка; `catalogVisible` студенту недоступен) |
+| Справочники для анкеты | `POST /skill/filter`, `/company/filter`, `/education/filter`, `/speciality/filter` и GET по id (CUD справочников — только админ) |
 | Решение по заявке | `POST /request/{id}/student-decision` с `accept` и опциональным `comment` |
 | Чаты | `GET /chat`, `GET /chat/{chatId}/summary`, `GET /chat/{chatId}/messages`, отправка текста/вложений, отметка прочитанного, правка **своих** сообщений — по тем же правилам, что и у других ролей (кроме админского удаления) |
 | WebSocket | Подписка на `/topic/chats/{chatId}` для событий и переписки после «разрешения» заявки (см. раздел 7) |
