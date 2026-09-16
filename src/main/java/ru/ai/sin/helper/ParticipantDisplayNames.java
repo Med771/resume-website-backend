@@ -32,6 +32,25 @@ public final class ParticipantDisplayNames {
         return formatPerson(info != null ? info.getFirstName() : null, info != null ? info.getLastName() : null);
     }
 
+    /** ФИО в порядке «Фамилия Имя Отчество», как в {@code users.name}. */
+    public static String fromFio(String lastName, String firstName, String middleName) {
+        StringBuilder sb = new StringBuilder();
+        appendPart(sb, lastName);
+        appendPart(sb, firstName);
+        appendPart(sb, middleName);
+        return sb.isEmpty() ? null : sb.toString();
+    }
+
+    private static void appendPart(StringBuilder sb, String part) {
+        if (part == null || part.isBlank()) {
+            return;
+        }
+        if (!sb.isEmpty()) {
+            sb.append(' ');
+        }
+        sb.append(part.trim());
+    }
+
     private static String formatPerson(String first, String last) {
         String f = first != null ? first.trim() : "";
         String l = last != null ? last.trim() : "";

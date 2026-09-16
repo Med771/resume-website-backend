@@ -6,6 +6,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
@@ -18,6 +19,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,6 +49,7 @@ class AccountApprovalServiceImplTest {
         user.setId(USER_ID);
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
         user.setStudent(student);
+        user.setEmailVerified(true);
 
         when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
         when(securityHelper.getCurrentUsername()).thenReturn("admin");
@@ -56,5 +60,21 @@ class AccountApprovalServiceImplTest {
         verify(studentRepo).save(captor.capture());
         assertThat(captor.getValue().isCatalogVisible()).isTrue();
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+    }
+
+    @Test
+    void approve_studentWithoutEmailVerified_throwsBadRequest() {
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setEmailVerified(false);
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("почту");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        verify(userRepo, never()).save(user);
     }
 }

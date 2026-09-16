@@ -226,7 +226,7 @@ class StudentResumeAccessMvcTest {
     void patchMe_ok() throws Exception {
         when(studentService.patchMe(any())).thenReturn(new StudentDTO(
                 STUDENT_ID, "City", null, null, "bio", null,
-                CourseEnum.FIRST, BusynessEnum.FREE, "A", "B", null, null, null, 1L, "S",
+                CourseEnum.FIRST, BusynessEnum.FREE, "A", "B", null, null, null, null, null, 1L, "S",
                 List.of(new SkillDTO(1L, "Java")),
                 false, false, 0, null));
 

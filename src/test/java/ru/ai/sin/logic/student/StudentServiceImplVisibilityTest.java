@@ -101,7 +101,7 @@ class StudentServiceImplVisibilityTest {
         ent.setCourse(CourseEnum.FIRST);
         StudentDTO dto = new StudentDTO(
                 ID, "c", "h", LocalDate.of(1999, 5, 5), null, null,
-                CourseEnum.FIRST, BusynessEnum.FREE, "A", "B", null, null, null, 1L, "S",
+                CourseEnum.FIRST, BusynessEnum.FREE, "A", "B", null, null, null, null, null, 1L, "S",
                 List.of(new SkillDTO(1L, "x")),
                 false,
                 false,
