@@ -1,148 +1,92 @@
-# Устройство и возможности backend
+# Как устроен backend
 
-Сводный **паспорт проекта** (стек, архитектура, аспекты, сценарии): [project-passport.md](./project-passport.md).
+Краткий паспорт: [project-passport.md](./project-passport.md). Список URL: [api-endpoints.md](./api-endpoints.md). Таблицы: [database.md](./database.md).
 
-**Полный перечень эндпоинтов** (метод, путь, роли): [api-endpoints.md](./api-endpoints.md).
+## Слои
 
-## Стек и инфраструктура
+```
+ru.ai.sin
+├── config/          Security, WebSocket, свойства
+├── filter/          JwtCookieAuthenticationFilter
+├── helper/          JWT, файлы, текущий пользователь
+├── tools/           загрузка сущностей и сборка DTO
+├── models/          страницы, embeddable, enum
+├── exception/       общий обработчик ошибок
+└── logic/           домен: контроллер → сервис → репозиторий
+```
 
-| Компонент | Назначение |
-|-----------|------------|
-| **Java 21**, **Spring Boot 3.5.x** | REST API, безопасность, JPA |
-| **PostgreSQL** | основное хранилище |
-| **Flyway** | миграции (`classpath:db/migration`, `out-of-order: true`) |
-| **Spring Data JPA** | репозитории, спецификации для фильтров |
-| **JJWT** (через `JwtHelper`) | access / refresh токены |
-| **Spring WebSocket + STOMP** | простой брокер сообщений, SockJS endpoint |
-| **springdoc-openapi** | Swagger UI (`/swagger-ui.html`, `/v3/api-docs`) |
+Фильтры списков — классы `*Specifications`. Маппинг — MapStruct (`*Mapper`) и `*Tools`. `open-in-view: false`: ленивые связи читают внутри сервиса, обычно в `@Transactional(readOnly = true)`.
 
-Конфигурация по умолчанию в `application.yaml`: datasource (например `jdbc:postgresql://localhost:5501/resume`), JWT в **HttpOnly cookies** (`ACCESS_TOKEN`, `REFRESH_TOKEN`), CORS с `allow-credentials: true`, путь cookie `/`.
+## Безопасность
 
-## Доменная модель (упрощённо)
+Сессия stateless, CSRF выключен. Фильтр читает JWT из cookie и кладёт пользователя в `SecurityContext`.
 
-- **Компании, институты, специальности, навыки** — справочники и CRUD (см. соответствующие контроллеры).
-- **Студенты** (`students` + связанные сущности: опыт, портфолио, образование и т.д.) — карточки резюме, фильтры, загрузка фото.
-- **Рекрутеры** — отдельные сущности; к пользователю привязка через `users.recruiter_id`.
-- **Пользователи** (`users`) — роль, опционально связь **1:1** со студентом (`users.student_id`, уникальна).
-- **Заявки** (`requests`) — связь рекрутер + студент + **`app_chat_id`** (чат в приложении), результат (`result`), текст ответа студента.
-- **Чаты** (`chats`) — один чат на пару **рекрутер–студент** (уникальный индекс по паре).
-- **Сообщения** (`chat_messages`) — вид сообщения (`USER` / `SYSTEM`), тело, вложение (имя файла в хранилище), мягкое удаление админом.
-- **Прочитанность** (`chat_read_states`) — последнее прочитанное сообщение по паре (чат, пользователь).
+Без cookie открыты:
 
-Миграция **V0029** вводит чаты/сообщения/read state, `users.student_id`, переносит заявки на `app_chat_id`, убирает старые Telegram-поля с заявок.
+- `/auth/**`, кроме `POST /auth/confirm-email` и `POST /auth/resend-email-confirmation` (нужен вошедший студент)
+- `/verification/phone/**`, `/telegram/webhook`
+- `/public/vitrina/**`, `/public/analytics/**`
+- `/main/**`, `/ws/**`, Swagger, `/error`, `OPTIONS /**`
 
-## Роли и безопасность
+`/admin/**` — только **ADMIN**. Всё остальное требует вход, точные роли стоят на методах через `@PreAuthorize`.
 
-Роли: **`GUEST`**, **`USER`**, **`STUDENT`**, **`ADMIN`**. В Spring Security для `hasRole('X')` в JWT/Principal ожидается authority вида **`ROLE_X`** (формируется в `UserHelper` из `RoleEnum`).
+`/public/students/**` и `/public/vacancies/**` вход требуют. Анонимная главная — `GET /public/vitrina/home`.
 
-В `SecurityConfig`: кроме явных исключений всё требует **аутентификации**. Исключения: `/auth/**`, **`/public/vitrina/**`**, **`/public/analytics/**`**, `/main/**`, **`/ws/**`** (handshake WebSocket), Swagger, `/error`, `OPTIONS /**`. Справочники company/skill/education/speciality читаются после входа через обычные `GET /{id}` и `POST /filter`.
+Роли: **STUDENT**, **RECRUITER**, **ADMIN**. В токене authority вида `ROLE_STUDENT`. Админ входит через `/auth/admin/login`, студент и рекрутер — через `/auth/login`.
 
-**`JwtCookieAuthenticationFilter`**: читает access (и при необходимости refresh), валидирует JWT, поднимает `SecurityContext` с `UserDetails` по username из БД.
+Статус аккаунта (`users.account_status`): `PENDING_APPROVAL`, `APPROVED`, `REJECTED`.
 
-## Основные возможности по областям
+## Домены
 
-Перечень всех REST-путей с ролями: [api-endpoints.md](./api-endpoints.md). Ниже — поведение домена, а не таблица URL.
+**Студент.** Карточка: ФИО, контакты, курс (1–5), занятость, специальность, навыки, опыт, учёба, портфолио. `catalog_visible = false` скрывает карточку от всех, кроме админа (в том числе `GET /student/{id}` отвечает 404). `public_profile_consent` нужен, чтобы карточка попала в публичные выборки. Порядок в каталоге задаёт тело фильтра (`manualSortOrder`, затем аватар, `profile_text_score`, дата), query-параметр `sort` сервис студентов игнорирует.
 
-### Аутентификация (`/auth`)
+**Заявка.** Рекрутер (или админ) пишет студенту: `POST /request`. На пару рекрутер–студент один чат. Студент принимает или отклоняет. Свои заявки: `POST /request/mine/filter`.
 
-Регистрация студента и работодателя, login, refresh, logout; cookie и лимиты — в справочнике и `application.yaml`.
+**Чат.** Пока нет принятой заявки (`student_confirm`, `success`, `recruiter_conf`) и нет принятого отклика на вакансию, студент и рекрутер в REST видят только системные сообщения. Админ видит всё. После разрешения — обычная переписка. Первое сообщение админа в чате добавляет системное `ADMIN_JOINED`.
 
-### Публичное / служебное (`/main`)
+**Вакансия.** Рекрутер создаёт черновик, отправляет на модерацию, админ публикует или отклоняет. Студент откликается. Принятый отклик тоже открывает переписку в общем чате пары.
 
-Статус сервиса и раздача изображений из хранилища приложения.
+**Регистрация.** Студент: `POST /auth/register-student`, сразу cookie и черновик карточки (`catalog_visible = false`), код из 6 цифр на почту. Рекрутер: подтверждает телефон, `POST /auth/register-recruiter` сразу создаёт профиль и пользователя со статусом `PENDING_APPROVAL` и выдаёт cookie. Оба аккаунта одобряет админ в `/admin/account-approvals`. Одобрение студента включает показ карточки в каталоге. Студента без подтверждённой почты одобрить нельзя.
 
-### Заявки (`/request`)
+Таблица `recruiter_registration_requests` и `/admin/recruiter-registration-requests` в коде есть. Текущая саморегистрация новые строки туда не пишет.
 
-- Рекрутер (не **`STUDENT`**): создание заявки; чат get-or-create, системное сообщение **`REQUEST_SENT`**, ожидание решения (**`WAITING`** / в проверке решения студента также учитывается **`CREATION`**).
-- Студент: решение по заявке — `StudentRequestDecisionReq`: `accept`, опционально `comment`; **`STUDENT_CONFIRMED`** или **`REFUSAL`**, в чат — **`STUDENT_ACCEPTED`** / **`STUDENT_REJECTED`**.
-- Админ: просмотр по id, фильтр страницы, удаление.
+**Проекты сайта.** `/projects`: читать могут все три роли, создавать и менять — админ. На анонимной главной те же записи с `visible_to_anonymous` и окном публикации, без списка студентов.
 
-### Чаты (`/chat`)
+**Аналитика.** `POST /public/analytics/events` без входа, лимит по IP. Сводки — `/admin/analytics/**`.
 
-- Список «моих» чатов с превью и непрочитанным (админ — все; иначе по привязке рекрутер/студент).
-- Сводка, постраничные сообщения, отправка текста и **multipart** с вложением, правка сообщения, отметка прочитанного.
-- Админ: мягкое удаление сообщения.
+**Файлы.** Аватары и вложения лежат на диске (`app.file.path`). Картинки отдаёт `GET /main/photo/{image_path}`. Админ управляет файлами через `/admin/storage/files`.
 
-### Бизнес-логика видимости чата
+**Уведомления.** Отдельной таблицы нет. Событие уходит в WebSocket `/topic/users/{userId}/inbox`.
 
-- Пока по паре рекрутер–студент **нет** «разрешённого» результата заявки (**`STUDENT_CONFIRMED`**, **`SUCCESS`**, **`RECRUITER_CONFIRMED`**), **рекрутер и студент** в REST видят **только системные** сообщения. Обычные сообщения участников в этот период **не показываются** в списке и в превью.
-- **Админ** видит полную историю.
-- После принятия заявки студентом — полная переписка для сторон (при доступе к чату).
-- Первое **пользовательское** сообщение **админа** в чате инициирует системное **`ADMIN_JOINED`** (`ChatServiceImpl`).
+## WebSocket
 
-### WebSocket
+| | |
+|--|--|
+| Подключение | `/ws` (SockJS) |
+| Брокер | `/topic` |
+| Префикс приложения | `/app` |
+| Чат | `/topic/chats/{chatId}` |
+| Сообщения участников до открытия переписки | `/topic/chats/{chatId}/staff` |
+| Входящие | `/topic/users/{userId}/inbox` |
 
-- Endpoint: **`/ws`** (SockJS).
-- Брокер: префикс **`/topic`**.
-- **`/topic/chats/{chatId}`** — системные сообщения и (после «разрешения» заявки) пользовательские для общего топика.
-- До принятия заявки **пользовательские** сообщения публикуются в **`/topic/chats/{chatId}/staff`** — для real-time админу; рекрутер/студент подписываются только на основной топик.
+Handshake `/ws` на HTTP открыт всем. Токен на connect сервер не проверяет.
 
-Подробнее для клиентов: [frontend.md](./frontend.md).
+Системные коды в `chat_messages.system_event`: `REQUEST_SENT`, `STUDENT_ACCEPTED`, `STUDENT_REJECTED`, `ADMIN_JOINED`, `VACANCY_APPLICATION_ACCEPTED`, `TU_STUDENT_CONFIRMED`, `TU_RECRUITER_CONFIRMED`, `TU_CONFIRMED`, `TU_REJECTED`.
 
-### Пользователи (`/user`, админ)
+## Ошибки
 
-Фильтр, создание (в т.ч. **`STUDENT`** + `studentId`), удаление **`USER`** / **`STUDENT`**.
+`GlobalExceptionHandler` отдаёт единое тело ошибки:
 
-### Студент (`/student`)
+| Код | Когда |
+|-----|--------|
+| 400 | валидация, нечитаемое тело, своё `BadRequestException`, слишком большой файл |
+| 401 | нет или плохая аутентификация |
+| 403 | роль не подходит |
+| 404 | сущность не найдена |
+| 409 | конфликт данных, где это обрабатывается |
+| 429 | лимит регистрации, почты или аналитики |
+| 500 | всё остальное |
 
-Каталог для рекрутера (**RECRUITER**/**ADMIN**), админские CRUD и фото; ЛК — **`GET /student/me`** и **`PATCH /student/me`** только для **`STUDENT`**. Дозаполнение резюме — CRUD `/experience`, `/institution`, `/portfolio`. Публичная витрина без входа — **`/public/vitrina/home`**.
+## Конфиг
 
-### Рекрутер (`/recruiter`)
-
-Профиль «я» и чтение по id; CRUD справочника рекрутеров — админ.
-
-### Справочники и связанные сущности
-
-**company, skill, speciality, education:** `GET /{id}` и **`POST …/filter`** — **STUDENT**/**RECRUITER**/**ADMIN**; CUD — только **ADMIN**.  
-**experience, portfolio, institution:** чтение — **STUDENT**/**RECRUITER**/**ADMIN** (чужое — только при `catalogVisible`); CUD — **STUDENT** (своя карточка) и **ADMIN**.  
-**institution:** при фильтре с **`educationId`** требуется роль **ADMIN** (см. `SecurityHelper`).
-
-## Хранение файлов
-
-`app.file.path` (по умолчанию `file`) и лимит размера — вложения чата и фото студентов на диске; картинки — также через `/main/photo/...`.
-
-## Документация API
-
-- Сводная таблица эндпоинтов: [api-endpoints.md](./api-endpoints.md).
-- Swagger UI и OpenAPI — `springdoc` и `app.swagger` в `application.yaml` (`/swagger-ui.html`, `/v3/api-docs`).
-
-## Системные события чата (строки `systemEvent`)
-
-Константы в `ru.ai.sin.logic.chat.ChatSystemEvent`:
-
-- `REQUEST_SENT`
-- `STUDENT_ACCEPTED`
-- `STUDENT_REJECTED`
-- `ADMIN_JOINED`
-
-## Публичная витрина и сортировка студентов (без входа)
-
-- Колонки `students.public_profile_consent`, `students.profile_text_score` (Flyway `V0033`). Score пересчитывается при создании/обновлении карточки и саморегистрации.
-- **Сортировка:** `POST /student/cardsFilter` и `POST /student/filter` **игнорируют** произвольный `sort` из query; порядок задаётся полями в `FilterStudentReq`: `sortBy` (`StudentSortField`, в т.ч. `MANUAL_SORT_ORDER`), `sortDirection`, `useDefaultRanking` (по умолчанию: ручной номер `manualSortOrder` → аватар → `profileTextScore` → дата создания).
-- **Публичные студенты:** `GET /public/students/{id}`, `POST /public/students/cards` — только записи с `public_profile_consent = true` и `catalog_visible = true`; в `SecurityConfig` — `permitAll`.
-
-## Лента проектов
-
-- Таблица `site_projects` (Flyway `V0034`).
-- Один ресурс `/projects`: чтение **STUDENT** / **RECRUITER** / **ADMIN** (`POST /projects/filter`, `GET /projects/{id}`); CUD, `POST /projects/reorder`, `…/{id}/students` — только **ADMIN**.
-- Видимость: админ — все записи и `students` в DTO; рекрутер — окно публикации и `students`; студент — окно публикации, `students = null`. Вне окна / чужой id для не-админа — **404**.
-- Анонимная главная: `GET /public/vitrina/home` вызывает тот же сервисный list (`visibleToAnonymous` + окно, без участников, `limit` из `app.vitrina.home`). Отдельного `/public/projects` нет.
-
-## Аналитика посещений (first-party)
-
-- Таблица `analytics_events` (Flyway `V0035`).
-- Приём: `POST /public/analytics/events` (`permitAll`), лимит `app.analytics.rate-limit-per-ip-per-minute`, тип события пока **`PAGE_VIEW`**.
-- Отчёт админа: `POST /admin/analytics/summary` с телом `from` / `to` — агрегация `COUNT` по `path`.
-- Сводка по сущностям: `POST /admin/analytics/entity-population` — число пользователей по ролям, всего студентов и рекрутеров; опционально окно **`from`/`to`** для подсчёта **новых** студентов и рекрутеров по `created_at` (у таблицы `users` нет даты создания).
-
-## Зависимости OpenAPI
-
-- В `pom.xml` свойство **`swagger.version` = `2.8.15`** (`springdoc-openapi-starter-webmvc-ui`). Линейка **springdoc 3.x** ориентирована на **Spring Boot 4+** и подтягивает артефакты `spring-boot-webmvc:4.x`, что ломает запуск на Boot 3.5 (смешанный classpath, `NoClassDefFoundError` для классов error handling). После перехода на Boot 4 можно снова поднять springdoc до 3.x по [матрице совместимости](https://springdoc.org/).
-
-## Чеклист релиза / деплоя
-
-- Прогнать миграции Flyway на стейдже/проде: **`V0033`**, **`V0034`**, **`V0035`**, **`V0036`** (новые колонки и таблицы).
-- После наката проверить индексы (создаются миграциями): по `students` для публичной выдачи; по `analytics_events(occurred_at)` для отчётов; по `site_projects` для фильтра `visible_to_anonymous` и сортировки.
-- Убедиться, что **`app.analytics.rate-limit-per-ip-per-minute`** задан под ожидаемый трафик.
-- Версия OpenAPI в UI: **`app.swagger.version`** (сейчас **0.2.0**).
-- После обновления springdoc: открыть **`/swagger-ui.html`** и **`/v3/api-docs`**.
+`src/main/resources/application.yaml`: база, Flyway, CORS, JWT, лимиты регистрации и аналитики, Telegram, демо-логин админа (`app.user.logins`), путь к файлам.

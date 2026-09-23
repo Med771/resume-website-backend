@@ -1,335 +1,187 @@
-# Справочник HTTP API
-
-Актуально для кода в репозитории. **`server.servlet.context-path` не задан** — пути от корня хоста (например `https://api.example.com/auth/login`).
-
-- **Аутентификация:** JWT в **HttpOnly cookie** (имена из `application.yaml`, обычно `ACCESS_TOKEN`, `REFRESH_TOKEN`). Для браузера: `credentials: 'include'`.
-- **Роли в `@PreAuthorize`:** `GUEST`, `USER`, `STUDENT`, `ADMIN` (в токене/Principal — префикс `ROLE_`).
-- **Пагинация Spring Data:** query `page`, `size` (0-based). Параметр **`sort` в query для эндпоинтов с `Pageable` не используется** там, где в Swagger указано «без параметра sort» или для списков студентов (сортировка — в теле `FilterStudentReq`).
-- **Детали DTO, коды ошибок:** [Swagger UI](http://localhost:8080/swagger-ui.html) (`/swagger-ui.html`, `/v3/api-docs`).
-
----
-
-## Публичные пути (`permitAll`, без JWT)
-
-| Метод | Путь | Назначение |
-|-------|------|------------|
-| POST | `/auth/register-recruiter` | Заявка на регистрацию работодателя; **204**, cookie не выдаются |
-| POST | `/auth/register-student` | Саморегистрация студента + черновик карточки; **204** + Set-Cookie (см. `app.registration`). `email` обязателен; `phoneVerificationId` не нужен |
-| POST | `/auth/login` | Вход; **204** + Set-Cookie |
-| POST | `/auth/refresh` | Новый access; **204** + Set-Cookie |
-| POST | `/auth/logout` | Очистка cookie; **204** |
-| GET | `/public/vitrina/home` | Витрина главной: `{ students: StudentCardDTO[], projects: SiteProjectDTO[] }` |
-| POST | `/public/analytics/events` | Запись события аналитики; **204**; при лимите IP — **429** |
-| GET | `/main/status` | Liveness; **204** |
-| GET | `/main/photo/{image_path}` | Байты файла изображения из хранилища |
-| GET | `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**` | OpenAPI / UI |
-| OPTIONS | `/**` | CORS preflight |
-
-WebSocket handshake: **`/ws/**`** также `permitAll` на уровне HTTP (см. [backend.md](./backend.md)).
-
----
-
-## `/auth` — сессия и регистрация
-
-Публичные методы — в таблице выше. `confirm-email` / `resend-email-confirmation` требуют сессию **STUDENT**; `change-password` — любой вход.
-
-| Метод | Путь | Ответ | Примечание |
-|-------|------|-------|------------|
-| POST | `/auth/register-recruiter` | 204 | Тело `RecruiterSelfRegistrationReq` |
-| POST | `/auth/register-student` | 204 | Тело `StudentAccountRegistrationReq` (`username`, `password`, `passwordConfirm`, `email`, `phoneNumber`; опционально ФИО и город). Черновик карточки (`catalogVisible=false`); cookie как после login. На почту уходит 6-значный OTP |
-| POST | `/auth/confirm-email` | 204 | Только **STUDENT** (cookie). Тело `ConfirmEmailReq` `{ "code": "123456" }`. **401** без сессии |
-| POST | `/auth/resend-email-confirmation` | 204 | Только **STUDENT**. Повторная отправка OTP (лимиты `app.registration.email-*`) |
-| GET | `/auth/me` | 200 | `AuthMeDTO`, в т.ч. `emailVerified` и `accountStatus` |
-| POST | `/auth/change-password` | 204 | Тело `ChangePasswordReq`; нужен вход |
-| POST | `/auth/login` | 204 | `LoginRequest` |
-| POST | `/auth/refresh` | 204 | Refresh из cookie |
-| POST | `/auth/logout` | 204 | Очистка обеих cookie |
-
----
-
-## `/main` — служебное и файлы
-
-| Метод | Путь | Доступ | Описание |
-|-------|------|--------|----------|
-| GET | `/main/status` | публично | **204** — сервис жив |
-| GET | `/main/photo/{image_path}` | публично | Тело: байты изображения, заголовок `Content-Type` |
-
----
-
-## `/public/vitrina` — витрина главной (без входа)
-
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/public/vitrina/home` | `PublicHomeVitrinaDTO`: топ карточек студентов (`publicProfileConsent`, `catalogVisible`) и проектов (`visibleToAnonymous` + окно публикации); лимиты — `app.vitrina.home` |
-
----
-
-## `/public/students`, `/public/projects` — устаревший публичный доступ
-
-Отдельного `/public/projects` нет. Анонимный `GET /public/projects` вернёт **401**. Главная без входа — `GET /public/vitrina/home`. После входа — `POST /projects/filter` и `GET /projects/{id}`.
-
----
-
-## `/projects` — Projects
-
-Чтение: **STUDENT**, **RECRUITER**, **ADMIN**. CUD / reorder / students: только **ADMIN**. Список = `POST /filter` (пустого `GET /projects` нет).
-
-| Метод | Путь | Роли | Описание |
-|-------|------|------|----------|
-| POST | `/projects/filter` | **STUDENT**, **RECRUITER**, **ADMIN** | Тело `FilterSiteProjectReq` (`q`, `section`, `visibleToAnonymous`; пустое/частичное — без ограничений). Массив `SiteProjectDTO` в порядке `sortOrder`, без пагинации. **ADMIN** — все записи, с `students`. **RECRUITER** — окно публикации, с `students`. **STUDENT** — окно публикации, `students = null` |
-| GET | `/projects/{id}` | те же | `SiteProjectDTO`; **404** вне окна публикации для не-админа |
-| POST | `/projects` | **ADMIN** | Создание; **201** `CreateSiteProjectReq`; `sortOrder` в конец очереди |
-| PUT | `/projects/{id}` | **ADMIN** | Полная замена `UpdateSiteProjectReq` (включая `images`); не PATCH |
-| DELETE | `/projects/{id}` | **ADMIN** | **204** |
-| POST | `/projects/reorder` | **ADMIN** | Порядок `orderedIds`; **204** |
-| GET | `/projects/{id}/students` | **ADMIN** | UUID привязанных студентов |
-| POST | `/projects/{id}/students` | **ADMIN** | Привязка; тело `SiteProjectStudentsReq`; **204** |
-| DELETE | `/projects/{id}/students` | **ADMIN** | Отвязка; **204** |
-
----
-
-## `/vacancies` — Vacancies / VacancyApplications
-
-Витрина **только для авторизованных** (**STUDENT**, **GUEST**, **USER**). Публикация после модерации админом. Отдельного `/public/vacancies` нет.
-
-| Метод | Путь | Роли | Описание |
-|-------|------|------|----------|
-| GET | `/vacancies` | **STUDENT**, **GUEST**, **USER** | `PageResponse<VacancyCardDTO>` — только **PUBLISHED** в окне дат; query-фильтры `FilterVacancyReq` |
-| GET | `/vacancies/{id}` | те же | `VacancyDTO`; **404** для чужой неопубликованной |
-| GET | `/vacancies/mine` | **GUEST**, **USER** | Все вакансии текущего рекрутёра (включая модерацию) |
-| POST | `/vacancies` | **GUEST**, **USER** | Черновик **DRAFT**; нужен профиль рекрутёра |
-| PUT | `/vacancies/{id}` | владелец | Только **DRAFT** / **REJECTED** |
-| POST | `/vacancies/{id}/submit-for-review` | владелец | → **PENDING_REVIEW** |
-| POST | `/vacancies/{id}/close` | владелец | **PUBLISHED** → **CLOSED** |
-| DELETE | `/vacancies/{id}` | владелец / **ADMIN** | **ARCHIVED** или удаление пустого **DRAFT** |
-| POST | `/vacancies/{id}/applications` | **STUDENT** | Отклик; `catalogVisible=false` запрещён; **201** |
-| GET | `/vacancies/applications/mine` | **STUDENT** | Мои отклики |
-| POST | `/vacancies/applications/{applicationId}/withdraw` | **STUDENT** | **204**; только **SUBMITTED** |
-| GET | `/vacancies/{id}/applications` | владелец | Отклики на вакансию |
-| POST | `/vacancies/{id}/applications/{applicationId}/accept` | владелец | **ACCEPTED**, чат, system `VACANCY_APPLICATION_ACCEPTED` |
-| POST | `/vacancies/{id}/applications/{applicationId}/reject` | владелец | **REJECTED**; опционально `rejectionReason` |
-
-Переписка по отклику открывается **после accept** (как у заявок после `STUDENT_CONFIRMED`), через общий `MessagingGate` (заявка **или** принятый отклик).
-
----
-
-## `/admin/vacancies` — VacancyModerationAdmin
-
-`@PreAuthorize("hasRole('ADMIN')")`.
-
-| Метод | Путь | Описание |
-|-------|------|----------|
-| POST | `/admin/vacancies/filter` | Очередь; тело `FilterVacancyModerationReq` (по умолчанию **PENDING_REVIEW**) |
-| GET | `/admin/vacancies/{id}` | Полная карточка |
-| POST | `/admin/vacancies/{id}/approve` | → **PUBLISHED** |
-| POST | `/admin/vacancies/{id}/reject` | → **REJECTED**; тело `VacancyModerationRejectReq`; **204** |
-
----
-
-## `/public/analytics`
-
-| Метод | Путь | Описание |
-|-------|------|----------|
-| POST | `/public/analytics/events` | **204**; тело `AnalyticsEventInReq`; rate limit по IP (`app.analytics`) |
-
----
-
-## `/student` — карточки (вход обязателен)
-
-| Метод | Путь | Роли | Описание |
-|-------|------|------|----------|
-| GET | `/student/me` | **STUDENT** | Своя карточка `StudentDTO`; **404** если нет привязки |
-| PATCH | `/student/me` | **STUDENT** | Частичное обновление анкеты (`PatchStudentMeReq`: в т.ч. `middleName`, `gender`); `null` — не менять; `catalogVisible` студенту недоступен |
-| GET | `/student/{id}` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | Полный `StudentDTO`; `catalogVisible=false` для не-админа → **404**; требуется **APPROVED** (кроме ADMIN) |
-| POST | `/student/cardsFilter` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | `PageResponse<StudentCardDTO>`; тело `FilterStudentReq`; скрытые карточки только у админа; **APPROVED** обязателен (кроме ADMIN) |
-| POST | `/student/filter` | **STUDENT**, **GUEST**, **USER**, **ADMIN** | `PageResponse<StudentDTO>`; те же правила |
-| POST | `/student/photo/{id}` | **ADMIN** | `multipart/form-data`, часть **`avatarFile`**; **204** |
-| POST | `/student` | **ADMIN** | Создание; **201**; опционально **`publicProfileConsent`**, **`manualSortOrder`** в теле `AddStudentReq` |
-| POST | `/student/extended` | **ADMIN** | Создание с вложенными сущностями; **201**; те же опциональные поля, что и в `AddStudentReq` |
-| PUT | `/student/{id}` | **ADMIN** | Полное обновление `UpdateStudentReq`; **200**; ручной порядок: `manualSortOrder` / `clearManualSortOrder` |
-| PATCH | `/student/{id}` | **ADMIN** | Частичное `PatchStudentReq`; **200**; то же для `manualSortOrder` |
-| DELETE | `/student/{id}` | **ADMIN** | Каскадное удаление связанных данных; **204** |
-
-Роль **STUDENT** с **APPROVED** может читать каталог через `GET /student/{id}`, `POST /student/cardsFilter`, `POST /student/filter`. Пользователи **PENDING_APPROVAL** получают **403**.
-
-`CourseEnum` — курсы **1–5** (`FIRST`…`FIFTH`). Отчество — `middleName` (фамилия по-прежнему `lastName`). Пол — `gender` (`MALE`/`FEMALE`, `null` = не указан); фильтр каталога по полу не предусмотрен.
-
----
-
-## `/admin/account-approvals` — модерация аккаунтов
-
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/admin/account-approvals` | Очередь `PENDING_APPROVAL`; query `role`, `page`, `size`; `AccountApprovalUserDTO` (в т.ч. `emailVerified`) |
-| POST | `/admin/account-approvals/{userId}/approve` | **204**. Студенту — **400**, если почта не подтверждена |
-| POST | `/admin/account-approvals/{userId}/reject` | **204**; опционально `AccountRejectReq` |
-
----
-
-## `/request` — заявки
-
-| Метод | Путь | Роли | Описание |
-|-------|------|------|----------|
-| GET | `/request/{id}` | **ADMIN** | `RequestDTO` |
-| POST | `/request/filter` | **ADMIN** | Страница заявок по `FilterRequestReq` |
-| POST | `/request` | **GUEST**, **USER**, **ADMIN** | Создание заявки рекрутером; **STUDENT** — **403**; **201**; студент с `catalogVisible=false` для не-админа — **404** |
-| POST | `/request/{id}/student-decision` | **STUDENT** | Тело `StudentRequestDecisionReq`; **204** |
-| DELETE | `/request/{id}` | **ADMIN** | **204** |
-
----
-
-## `/chat` — REST чата
-
-Все требуют **`isAuthenticated()`**, кроме удаления сообщения.
-
-| Метод | Путь | Роли | Описание |
-|-------|------|------|----------|
-| GET | `/chat` | любой аутентифицированный | Список чатов с превью (`PageResponse<ChatSummaryDTO>`) |
-| GET | `/chat/{chatId}/summary` | любой | Сводка чата |
-| GET | `/chat/{chatId}/messages` | любой | Страница сообщений (видимость USER/SYSTEM по правилам домена) |
-| POST | `/chat/{chatId}/messages` | любой | Текст; **201** `ChatMessageDTO`; тело `PostChatMessageReq` |
-| POST | `/chat/{chatId}/messages/attachment` | любой | `multipart`: часть **`file`**, опционально **`body`**; **201** |
-| PATCH | `/chat/{chatId}/messages/{messageId}` | любой | Редактирование; `PatchChatMessageReq` |
-| POST | `/chat/{chatId}/read` | любой | Отметка прочитанного; `MarkChatReadReq`; **204** |
-| DELETE | `/chat/{chatId}/messages/{messageId}` | **ADMIN** | Мягкое удаление; **204** |
-| GET | `/chat/{chatId}/context` | **ADMIN** | Связанные заявки и отклики на вакансии (`ChatContextDTO`); **200** |
-| DELETE | `/chat/{chatId}` | **ADMIN** | Полное удаление чата, заявок и откликов по `appChatId`; **204** |
-
-Подробности видимости сообщений: [backend.md](./backend.md).
-
----
-
-## `/recruiter`
-
-| Метод | Путь | Роли | Описание |
-|-------|------|------|----------|
-| GET | `/recruiter/me` | **GUEST**, **USER**, **ADMIN** | Свой профиль или **404** (до первой заявки с данными) |
-| GET | `/recruiter/{id}` | **GUEST**, **USER**, **ADMIN** | Карточка по UUID |
-| POST | `/recruiter` | **ADMIN** | Создание; **201** |
-| POST | `/recruiter/filter` | **ADMIN** | Фильтр страниц |
-| PUT | `/recruiter/{id}` | **ADMIN** | Полное обновление |
-| PATCH | `/recruiter/{id}` | **ADMIN** | Частичное обновление |
-| DELETE | `/recruiter/{id}` | **ADMIN** | **204** |
-
----
-
-## `/user` — пользователи (админ)
-
-| Метод | Путь | Роли | Описание |
-|-------|------|------|----------|
-| POST | `/user/filter` | **ADMIN** | `FilterUserReq` |
-| POST | `/user` | **ADMIN** | Создание; для ЛК студента: роль **STUDENT** + `studentId`; **201** |
-| DELETE | `/user/{id}` | **ADMIN** | Удаление **USER** / **STUDENT** по UUID; **204** |
-
----
-
-## `/admin/analytics` — отчёты (админ)
-
-| Метод | Путь | Описание |
-|-------|------|----------|
-| POST | `/admin/analytics/summary` | Тело `AnalyticsSummaryReq`; ответ `AnalyticsSummaryDTO` (события `PAGE_VIEW` по `path`) |
-| POST | `/admin/analytics/entity-population` | Тело опционально `EntityPopulationSummaryReq` (`from`/`to` вместе или оба `null`); ответ `EntityPopulationSummaryDTO` — пользователи по ролям, всего студентов/рекрутеров, при окне — новые по `created_at` |
-
----
-
-## `/admin/recruiter-registration-requests` — модерация регистрации работодателей
-
-Класс: `@PreAuthorize("hasRole('ADMIN')")`.
-
-| Метод | Путь | Описание |
-|-------|------|----------|
-| POST | `/admin/recruiter-registration-requests/filter` | Тело опционально `FilterRecruiterRegistrationReq` |
-| POST | `/admin/recruiter-registration-requests/{id}/approve` | Одобрение; ответ `RecruiterRegistrationApproveResultDTO` |
-| POST | `/admin/recruiter-registration-requests/{id}/reject` | Отклонение; опционально тело `RecruiterRegistrationRejectReq`; **204** |
-
----
-
-## Справочники: `/company`, `/skill`, `/speciality`, `/education`
-
-Чтение после входа (студент выбирает id для резюме). CUD только админ.
-
-| Метод | Путь | Роли |
-|-------|------|------|
-| GET | `/{resource}/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** |
-| POST | `/{resource}/filter` | **STUDENT**, **RECRUITER**, **ADMIN** |
-| POST | `/{resource}` | **ADMIN** |
-| PUT | `/{resource}/{id}` | **ADMIN** |
-| DELETE | `/{resource}/{id}` | **ADMIN** |
-
-`{resource}` ∈ `company`, `skill`, `speciality`, `education`. Тела — DTO из пакета `…dto` соответствующего модуля.
-
----
-
-## `/experience` — опыт работы
-
-Своё всегда; чужое GET — только при `catalogVisible`. Запись: студент — только своя карточка (`studentId` в теле игнорируется), админ — любой `studentId`.
-
-| Метод | Путь | Роли |
-|-------|------|------|
-| GET | `/experience/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** |
-| POST | `/experience/filter` | **STUDENT**, **RECRUITER**, **ADMIN** |
-| POST | `/experience` | **STUDENT**, **ADMIN** |
-| PUT | `/experience/{id}` | **STUDENT**, **ADMIN** |
-| DELETE | `/experience/{id}` | **STUDENT**, **ADMIN** |
-
----
-
-## `/portfolio` — портфолио
-
-Те же правила доступа, что у `/experience`.
-
-| Метод | Путь | Роли |
-|-------|------|------|
-| GET | `/portfolio/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** |
-| POST | `/portfolio/filter` | **STUDENT**, **RECRUITER**, **ADMIN** |
-| POST | `/portfolio` | **STUDENT**, **ADMIN** |
-| PUT | `/portfolio/{id}` | **STUDENT**, **ADMIN** |
-| DELETE | `/portfolio/{id}` | **STUDENT**, **ADMIN** |
-
----
-
-## `/institution` — учёба студента (связь студент–образование)
-
-Те же правила доступа, что у `/experience`.
-
-| Метод | Путь | Роли | Примечание |
-|-------|------|------|------------|
-| GET | `/institution/{id}` | **STUDENT**, **RECRUITER**, **ADMIN** | |
-| POST | `/institution/filter` | **STUDENT**, **RECRUITER**, **ADMIN** | Если в фильтре передан `educationId`, внутри вызывается проверка **админа** (`SecurityHelper.checkAdminRoleForFilter`) |
-| POST | `/institution` | **STUDENT**, **ADMIN** | |
-| PUT | `/institution/{id}` | **STUDENT**, **ADMIN** | |
-| DELETE | `/institution/{id}` | **STUDENT**, **ADMIN** | |
-
----
-
-## Сводка по доступу к «фильтрам» справочников
-
-| Ресурс | `POST …/filter` |
-|--------|-----------------|
-| company, skill, speciality, education | **STUDENT**, **RECRUITER**, **ADMIN** (CUD только **ADMIN**) |
-| experience, portfolio, institution | **STUDENT**, **RECRUITER**, **ADMIN**; CUD — **STUDENT** (своя карточка) и **ADMIN** |
-
----
-
-## WebSocket (не HTTP REST)
-
-| Назначение | Путь / префикс |
-|------------|----------------|
-| SockJS | `/ws` |
-| STOMP broker | подписки на `/topic/...` |
-| Основной топик чата | `/topic/chats/{chatId}` |
-| Сообщения до принятия заявки (для админского UI) | `/topic/chats/{chatId}/staff` |
-| Inbox-уведомления пользователя (badge, toast, список чатов) | `/topic/users/{userId}/inbox` — payload `UserInboxNotificationDTO` |
-
-`{chatId}` — UUID прикладного чата (`appChatId` в `RequestDTO`).
-
----
-
-## Связанные документы
-
-- [backend.md](./backend.md) — домен, чаты, файлы, релизный чеклист  
-- [frontend.md](./frontend.md) — CORS, cookie, типичные ошибки  
-- [roles-product-journeys.md](./roles-product-journeys.md) — продуктовые сценарии  
-- [project-passport.md](./project-passport.md) — общий паспорт проекта  
-
-При изменении контроллеров обновляйте этот файл и при необходимости аннотации `@Operation` в коде.
+# HTTP API
+
+Роли: **S** студент, **R** рекрутер, **A** админ. «Вход» — любая из трёх ролей с cookie. «Открыто» — cookie не нужна.
+
+Тела запросов — в Swagger (`/swagger-ui.html`). Списки с фильтром почти везде: `POST .../filter` и query `page`, `size`.
+
+## Открыто
+
+| Метод | Путь | Зачем |
+|-------|------|--------|
+| POST | `/auth/register-student` | регистрация студента, сразу cookie |
+| POST | `/auth/register-recruiter` | регистрация рекрутера, сразу cookie |
+| POST | `/auth/login` | вход студента или рекрутера |
+| POST | `/auth/refresh` | новый access по refresh-cookie |
+| POST | `/auth/logout` | сбросить cookie |
+| GET | `/auth/me` | текущая сессия; без cookie — 401 |
+| POST | `/auth/admin/login` | вход админа |
+| POST | `/auth/admin/refresh` | обновить access админа |
+| POST | `/auth/admin/logout` | выход админа |
+| POST | `/verification/phone/start` | начать проверку телефона |
+| GET | `/verification/phone/{id}/status` | статус проверки |
+| POST | `/verification/phone/{id}/confirm-code` | ввести код |
+| GET, POST | `/telegram/webhook` | апдейты бота |
+| GET | `/public/vitrina/home` | анонимная главная: студенты и проекты |
+| POST | `/public/analytics/events` | событие аналитики |
+| GET | `/main/status` | 204, сервис жив |
+| GET | `/main/photo/{image_path}` | картинка с диска |
+| GET | `/swagger-ui.html`, `/v3/api-docs` | документация |
+
+`POST /auth/confirm-email` и `POST /auth/resend-email-confirmation` — только **S** (нужна cookie после регистрации).
+
+`POST /auth/change-password` — любой вошедший. `GET /auth/admin/me` и `POST /auth/admin/change-password` — **A**.
+
+## Студенты
+
+| Метод | Путь | Кто |
+|-------|------|-----|
+| GET | `/student/me` | S |
+| PATCH | `/student/me` | S |
+| GET | `/student/{id}` | S, R, A |
+| POST | `/student/cardsFilter` | S, R, A |
+| POST | `/student/filter` | S, R, A |
+| POST | `/student/photo/{id}` | S, A, multipart |
+| POST | `/student` | A |
+| POST | `/student/extended` | A, карточка сразу с опытом и учёбой |
+| PUT | `/student/{id}` | A |
+| PATCH | `/student/{id}` | A |
+| DELETE | `/student/{id}` | A |
+| POST | `/admin/students/reorder` | A |
+| POST | `/admin/students/bulk-visibility` | A |
+| GET | `/public/students/{id}` | вход |
+| POST | `/public/students/cards` | вход |
+
+Карточка с `catalog_visible = false` для студента и рекрутера — 404.
+
+## Заявки и чат
+
+| Метод | Путь | Кто |
+|-------|------|-----|
+| POST | `/request` | R, A |
+| POST | `/request/mine/filter` | S, R |
+| GET | `/request/{id}` | A |
+| POST | `/request/filter` | A |
+| POST | `/request/{id}/student-decision` | S |
+| POST | `/request/{id}/tu-decision` | S, R |
+| DELETE | `/request/{id}` | A |
+| GET | `/chat` | вход |
+| GET | `/chat/{chatId}/summary` | вход |
+| GET | `/chat/{chatId}/messages` | вход |
+| POST | `/chat/{chatId}/messages` | вход |
+| POST | `/chat/{chatId}/messages/attachment` | вход, multipart |
+| PATCH | `/chat/{chatId}/messages/{messageId}` | вход, своё сообщение |
+| POST | `/chat/{chatId}/read` | вход |
+| GET | `/chat/{chatId}/context` | A |
+| DELETE | `/chat/{chatId}` | A |
+| DELETE | `/chat/{chatId}/messages/{messageId}` | A |
+| GET | `/profile/communication-readiness` | вход |
+
+Пока переписка не открыта, студент и рекрутер получают только системные сообщения. Правила — в [backend.md](./backend.md).
+
+## Вакансии
+
+| Метод | Путь | Кто |
+|-------|------|-----|
+| GET | `/vacancies` | S, R, A |
+| GET | `/vacancies/mine` | R |
+| GET | `/vacancies/{id}` | S, R, A |
+| POST | `/vacancies` | R |
+| PUT | `/vacancies/{id}` | R |
+| POST | `/vacancies/{id}/submit-for-review` | R |
+| POST | `/vacancies/{id}/close` | R |
+| DELETE | `/vacancies/{id}` | R, A |
+| POST | `/vacancies/{id}/applications` | S |
+| GET | `/vacancies/applications/mine` | S |
+| POST | `/vacancies/applications/{applicationId}/withdraw` | S |
+| GET | `/vacancies/{id}/applications` | R |
+| POST | `/vacancies/{id}/applications/{applicationId}/accept` | R |
+| POST | `/vacancies/{id}/applications/{applicationId}/reject` | R |
+| POST | `/vacancies/applications/{applicationId}/tu-decision` | S, R |
+| POST | `/admin/vacancies/filter` | A |
+| GET | `/admin/vacancies/{id}` | A |
+| POST | `/admin/vacancies/{id}/approve` | A |
+| POST | `/admin/vacancies/{id}/reject` | A |
+| POST | `/admin/vacancies/reorder` | A |
+| PATCH | `/admin/vacancies/{id}/vitrina` | A |
+| GET | `/public/vacancies` | вход |
+| GET | `/public/vacancies/{id}` | вход |
+| POST | `/recruiter/onboarding/vacancy` | R |
+| GET | `/recruiter/onboarding/status` | R |
+
+## Рекрутер, пользователи, модерация
+
+| Метод | Путь | Кто |
+|-------|------|-----|
+| GET | `/recruiter/me` | R, A |
+| GET | `/recruiter/{id}` | R, A |
+| PATCH | `/recruiter/{id}` | R, A |
+| POST | `/recruiter` | A |
+| POST | `/recruiter/filter` | A |
+| PUT | `/recruiter/{id}` | A |
+| DELETE | `/recruiter/{id}` | A |
+| POST | `/user/filter` | A |
+| POST | `/user` | A |
+| DELETE | `/user/{id}` | A |
+| GET | `/admin/account-approvals` | A |
+| POST | `/admin/account-approvals/{userId}/approve` | A |
+| POST | `/admin/account-approvals/{userId}/reject` | A |
+| POST | `/admin/recruiter-registration-requests/filter` | A |
+| POST | `/admin/recruiter-registration-requests/{id}/approve` | A |
+| POST | `/admin/recruiter-registration-requests/{id}/reject` | A |
+
+Живая регистрация рекрутера идёт через `POST /auth/register-recruiter` и очередь `/admin/account-approvals`. Методы `/admin/recruiter-registration-requests` работают со строками таблицы `recruiter_registration_requests`; текущая форма новые строки туда не добавляет.
+
+Студента без подтверждённой почты админ одобрить не может (400).
+
+## Проекты
+
+| Метод | Путь | Кто |
+|-------|------|-----|
+| POST | `/projects/filter` | S, R, A |
+| GET | `/projects/{id}` | S, R, A |
+| POST | `/projects` | A |
+| PUT | `/projects/{id}` | A |
+| DELETE | `/projects/{id}` | A |
+| POST | `/projects/reorder` | A |
+| GET | `/projects/{id}/students` | A |
+| POST | `/projects/{id}/students` | A |
+| DELETE | `/projects/{id}/students` | A |
+
+Аноним видит проекты внутри `GET /public/vitrina/home`.
+
+## Справочники
+
+Один и тот же набор методов.
+
+Чтение (`GET /{id}`, `POST /filter`) — **S, R, A**. Создание, правка, удаление — **A**, кроме опыта, портфолио и учёбы студента: их меняет ещё и **S** (свою карточку).
+
+| Ресурс | Создание / правка / удаление |
+|--------|------------------------------|
+| `/company` | A |
+| `/skill` | A |
+| `/speciality` | A |
+| `/education` | A |
+| `/experience` | S, A |
+| `/portfolio` | S, A |
+| `/institution` | S, A |
+
+Фильтр `/institution/filter` с полем `educationId` доступен только админу.
+
+## Аналитика и файлы админа
+
+| Метод | Путь | Кто |
+|-------|------|-----|
+| POST | `/admin/analytics/summary` | A |
+| POST | `/admin/analytics/entity-population` | A |
+| POST | `/admin/analytics/funnel` | A |
+| GET | `/admin/storage/files` | A |
+| POST | `/admin/storage/files` | A, multipart |
+| DELETE | `/admin/storage/files/{fileName}` | A |
+
+## WebSocket
+
+Подключение: `/ws`. Топики:
+
+- `/topic/chats/{chatId}`
+- `/topic/chats/{chatId}/staff`
+- `/topic/users/{userId}/inbox`
