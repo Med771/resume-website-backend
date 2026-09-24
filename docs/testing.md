@@ -1,82 +1,15 @@
-# Тестирование: стратегия и снятие с «холда»
+# Тесты
 
-## Что сделано в репозитории (кратко)
+Запуск: `.\mvnw.cmd test` (или `mvn test`).
 
-- Базовый класс интеграционных тестов с PostgreSQL: [`AbstractPostgresIntegrationTest`](../src/test/java/ru/ai/sin/integration/AbstractPostgresIntegrationTest.java) (`@DynamicPropertySource` + Testcontainers), наследуют `ResumeWebSiteBackendApplicationTests`, `FullRoleJourneysIntegrationTest`, `NewFeaturesIntegrationTest`.
+Отчёт покрытия JaCoCo: `target/site/jacoco/index.html`. Порог покрытия сборку не валит.
 
-## Что мешало запуску тестов
+## Два вида
 
-1. **Подключение к БД** — единственный тест `contextLoads` поднимал весь контекст Spring и тянул `application.yaml` с фиксированным `jdbc:postgresql://localhost:...`. Если PostgreSQL не поднят локально, контекст не стартует.
-2. **JaCoCo `check` с порогом 95%** по покрытию строк на уровне класса — при почти отсутствии тестов фаза `verify` (и иногда ожидание зелёного CI) постоянно **красная**, хотя модуль компилируется.
+**Без базы.** Mockito и `@WebMvcTest`: сервис или один контроллер, безопасность метода через тестовый `SecurityFilterChain`. Так проверяют заявки, чат, вакансии, регистрацию, доступ к опыту и портфолио.
 
-## Что сделано в репозитории
+**С PostgreSQL.** `AbstractPostgresIntegrationTest` поднимает контейнер `postgres:16-alpine`, гоняет Flyway и ходит в API с cookie. Класс помечен `disabledWithoutDocker = true`: нет Docker — тест пропускается, `mvn test` не краснеет.
 
-| Изменение | Зачем |
-|-----------|--------|
-| **Testcontainers + PostgreSQL** в smoke-тесте | Один и тот же прогон не зависит от порта `5501` на машине разработчика; миграции Flyway гоняются против реального Postgres. |
-| **Удалён обязательный JaCoCo `check`** из основного lifecycle | `mvn test` / `mvn verify` не падают из‑за нереалистичного порога покрытия. Отчёт **`jacoco:report`** по-прежнему строится после `test` (см. `pom.xml`). |
-| **Модульные и срезовые тесты** (см. ниже) | Критичная бизнес-логика и `@PreAuthorize` на заявках без подъёма БД. |
+Интеграционные сценарии: путь ролей (`FullRoleJourneysIntegrationTest`), вакансии и отклик, проекты и студенты, порядок навыков, публичная главная и закрытый каталог без cookie (`PublicCatalogSecurityMvcTest`).
 
-## Набор тестов (приоритетные компоненты)
-
-| Класс | Что проверяет |
-|-------|----------------|
-| `ResumeWebSiteBackendApplicationTests` | Подъём полного Spring-контекста + Flyway на PostgreSQL в Docker (без Docker — **Disabled**). |
-| `FullRoleJourneysIntegrationTest` | Сквозной HTTP с ролями; после создания студента — **`POST /student/filter`** с `{}` для **ADMIN** (`page=0&size=200`) и **GUEST** (`size=20`): полный `StudentDTO` + LAZY `bio`, пустой фильтр у админа (`cb.conjunction()`). |
-| `RequestServiceImplTest` | Студент не создаёт заявку; создание; `companyName` без привязанного рекрутера; заявка с уже привязанным рекрутером без полей компании; принятие/отклонение (`STUDENT_REJECTED`); `CREATION` → решение студента; чужая заявка; уже решённая. |
-| `ChatServiceImplTest` | Gated-история для рекрутера и для ADMIN; пустой текст при разрешённой переписке; удаление сообщения не админом; правка чужого сообщения; нет доступа к чужому чату. |
-| `ChatWsPublisherTest` | Маршрутизация WS: SYSTEM; USER `/staff` vs общий топик; DTO с `messageKind == null` → общий топик. |
-| `UserServiceImplTest` | Создание: STUDENT/USER валидации; запрет ADMIN/GUEST; удаление только USER/STUDENT (не ADMIN). |
-| `RequestControllerMvcTest` | `@WebMvcTest`: `POST /request` запрещён для роли STUDENT, разрешён для USER; решение студента только для STUDENT. |
-| `ChatControllerMvcTest` | `@WebMvcTest` чата: 401 без пользователя, список чатов и отправка текста, `markRead`/`edit`, удаление сообщения только ADMIN. |
-| `AuthServiceImplTest` | `login` → пара токенов; `refresh` без cookie / с cookie. |
-| `MethodSecurityTestConfig` | Тестовая `SecurityFilterChain` + `@EnableMethodSecurity` для WebMvc-среза. |
-| `FileHelperTest` | Защита от выхода за каталог хранилища в `getFileContent`, пустое имя файла. |
-
-Зависимость **`spring-security-test`** нужна для `@WithMockUser` и `csrf()` в `RequestControllerMvcTest`. **`JwtCookieAuthenticationFilter`** в этом тесте замокан (`@MockBean`), чтобы не тянуть `JwtHelper` и остальную цепочку JWT.
-
-В **`pom.xml`** для Surefire задано **`@{argLine} -XX:+EnableDynamicAgentLoading`** (совместно с JaCoCo), чтобы уменьшить предупреждения JVM о динамической подгрузке агента в тестах.
-
-## Как запускать
-
-- **С Docker** (daemon работает, образ можно стянуть): `mvn test` или `mvn verify` — smoke-тест поднимает PostgreSQL в контейнере и прогоняет Flyway.
-- **Без Docker**: у `ResumeWebSiteBackendApplicationTests` включено `disabledWithoutDocker = true` — тест **не падает**, а помечается как **Disabled**, сборка остаётся зелёной. Это снимает «вечный красный» прогон там, где нет сокета Docker.
-
-Первый прогон с Docker может подтянуть образ `postgres:16-alpine`.
-
-### Обязательный прогон интеграции в CI
-
-В pipeline должен быть доступен Docker (или эквивалент). Тогда smoke-тест **выполнится** и поймает ошибки контекста/миграций. Если в CI тесты всегда Disabled — проверьте, что Docker доступен job’у.
-
-### Альтернатива без Testcontainers
-
-- Поднять PostgreSQL как сервис в CI и передать `spring.datasource.*` через переменные окружения — отдельный профиль или тестовый `application.yaml` (в репозитории не зафиксировано, при необходимости добавьте).
-
-## Пирамида тестов (куда развиваться)
-
-1. **Модульные (быстрые)** — сервисы с `@ExtendWith(MockitoExtension.class)`, моки репозиториев; без Spring-контекста. Подходят для `ChatServiceImpl`, `RequestServiceImpl`, мапперов (или чистой логики).
-2. **Срезовые Web** — `@WebMvcTest(…Controller.class)` + `@MockBean` сервисов; проверка статусов, валидации, security-правил на уровне MVC.
-3. **Интеграционные** — `@SpringBootTest` + Testcontainers (как сейчас) или общая база для сценариев «создать заявку → сообщение в чате» с `TestRestTemplate` / MockMvc и реальными cookie/JWT (сложнее, но ближе к продакшену).
-
-Рекомендация: не гнаться за E2E на всё сразу; закрывать регрессии по критичным веткам (заявки, чат, решение студента) интеграционными или контрактными тестами.
-
-## Покрытие (JaCoCo)
-
-- Отчёт: `target/site/jacoco/index.html` после `mvn test`.
-- Когда появится устойчивое покрытие, можно **вернуть** `jacoco:check` отдельным Maven-профилем (например `-Pcoverage-gate`) с порогом по **пакету** или **BUNDLE**, а не 0.95 на каждый класс — иначе любой новый класс без тестов ломает сборку.
-
-## CI
-
-- Убедиться, что раннер поддерживает **Docker** (или используйте сервис `postgres` + те же свойства вместо Testcontainers).
-- Команда: `mvn -B verify`.
-- Секреты JWT/БД в CI — через переменные окружения или `application-ci.yaml`, не коммитить пароли.
-
-## Связь с «холдом»
-
-**Холд** в смысле «тесты не гоняем / не доверяем» снимается, если:
-
-1. Локально и в CI одна и та же команда `mvn verify` **стабильно зелёная** (Docker + отсутствие жёсткого JaCoCo без тестов).
-2. Зафиксирован минимум один smoke-тест на контекст + по мере сил — тесты на бизнес-правила.
-3. Регрессии чинятся по принципу: **сначала тест, воспроизводящий баг (или расширение существующего), потом фикс**.
-
-Подробности API для ручной проверки см. [frontend.md](./frontend.md) и Swagger.
+Первый прогон с Docker скачивает образ Postgres.
