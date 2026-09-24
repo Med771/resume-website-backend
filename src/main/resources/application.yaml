@@ -1,6 +1,6 @@
 spring:
   application:
-    name: resume-web-site-backend
+    name: resume-backend
 
   servlet:
     multipart:
@@ -8,20 +8,15 @@ spring:
       max-request-size: 12MB
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/resume
-    username: Resume
-    password: Resume!01156
-    name: resume
+    url: jdbc:postgresql://database:${DATABASE_PORT}/${DATABASE_DB}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: validate
     show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
-
     open-in-view: false
 
   flyway:
@@ -30,11 +25,20 @@ spring:
     locations: classpath:db/migration
     out-of-order: true
 
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.ssl.enable: true
+      mail.smtp.starttls.enable: false
+
 logging:
   level:
     root: INFO
     ru.ai.sin: INFO
-
   file:
     name: logs/app.log
 
@@ -50,7 +54,7 @@ app:
 
   registration:
     rate-limit-per-ip-per-hour: 10
-    rate-limit-recruiter-per-ip-per-hour: 5
+    rate-limit-recruiter-per-ip-per-hour: 50
     max-skills-per-profile: 30
     max-experiences-in-registration: 12
     max-institutions-in-registration: 8
@@ -61,26 +65,35 @@ app:
   analytics:
     rate-limit-per-ip-per-minute: 300
 
+  vitrina:
+    home:
+      students-limit: 100
+      projects-limit: 100
+
   telegram:
-    enabled: ${APP_TELEGRAM_ENABLED:false}
-    bot-token: ${TELEGRAM_BOT_TOKEN:}
-    bot-username: ${TELEGRAM_BOT_USERNAME:}
-    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+    enabled: true
+    bot-token: ${TELEGRAM_BOT_TOKEN}
+    bot-username: ${TELEGRAM_BOT_USERNAME}
+    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET}
     verification-ttl-minutes: 15
-    allow-dev-confirm: true
-    dev-confirm-code: "7890"
+    allow-dev-confirm: false
+
+  mail:
+    enabled: true
+    from: ${MAIL_FROM}
 
   user:
     logins:
-      - username: admin
-        password: admin
+      - username: ${ADMIN_USERNAME}
+        password: ${ADMIN_PASSWORD}
         role: ADMIN
 
   security:
     cors:
       allowed-origins:
+        - "https://singularity-resume.ru"
+        - "https://admin.singularity-resume.ru"
         - "https://test-api.singularity-resume.ru"
-        - "https://test-www.singularity-resume.ru"
         - "https://test-admin.singularity-resume.ru"
       allowed-methods:
         - "GET"
@@ -100,37 +113,30 @@ app:
       policy: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; frame-ancestors 'none';"
 
   jwt:
-    access-secret: "x9KJ7vD8H2kLQ1vM4b5XzF0cQ7pA3sR2dLwY6nT8gV1eB0cU"
-    refresh-secret: "mF2pL8bV5qT3nC1xJ0zK9dE4rW7yU6hG2sQ8aX5oB3cV1tY0"
-
+    access-secret: ${JWT_ACCESS_SECRET}
+    refresh-secret: ${JWT_REFRESH_SECRET}
     issuer: "Singularity-backend"
     audience: "Singularity-frontend"
-
-    access-token-ttl: 864000
-    refresh-token-ttl: 8640000
-
+    access-token-ttl: 3600
+    refresh-token-ttl: 604800
     cookie:
       access-token-name: "ACCESS_TOKEN"
       refresh-token-name: "REFRESH_TOKEN"
       http-only: true
-      secure: true       # включить для HTTPS
-      same-site: Strict    # разрешает кросс-домен
+      secure: ${JWT_COOKIE_SECURE}
+      same-site: ${JWT_COOKIE_SAME_SITE}
       path: "/"
 
   swagger:
     title: "Resume API"
     description: "Документация API"
     version: "0.1.0"
-
     servers:
-      - url: "http://localhost:8080"
-        description: "Local Dev Server"
+      - url: "https://test-api.singularity-resume.ru/"
+        description: "Dev Server"
 
 springdoc:
   swagger-ui:
-    enabled: true
-
+    enabled: false
   api-docs:
-    enabled: true
-
-kind: Application
+    enabled: false
