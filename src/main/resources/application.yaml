@@ -1,3 +1,143 @@
 spring:
   application:
-    name: resume-web-site-backend
+    name: resume-backend
+
+  servlet:
+    multipart:
+      max-file-size: 12MB
+      max-request-size: 12MB
+
+  datasource:
+    url: jdbc:postgresql://database:${DATABASE_PORT}/${DATABASE_DB}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    out-of-order: true
+
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.ssl.enable: true
+      mail.smtp.starttls.enable: false
+
+logging:
+  level:
+    root: INFO
+    ru.ai.sin: INFO
+  file:
+    name: logs/app.log
+
+app:
+  logging:
+    pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
+    max-history: 7
+    rotation-pattern: "logs/app.%d{yyyy-MM-dd}.gz"
+
+  file:
+    path: file
+    max-size-bytes: 10485760
+
+  registration:
+    rate-limit-per-ip-per-hour: 10
+    rate-limit-recruiter-per-ip-per-hour: 50
+    max-skills-per-profile: 30
+    max-experiences-in-registration: 12
+    max-institutions-in-registration: 8
+    min-password-length: 12
+    require-letter-and-digit: true
+    max-catalog-page-size: 50
+
+  analytics:
+    rate-limit-per-ip-per-minute: 300
+
+  vitrina:
+    home:
+      students-limit: 100
+      projects-limit: 100
+
+  # Deprecated
+  telegram:
+    enabled: false
+    bot-token: ${TELEGRAM_BOT_TOKEN}
+    bot-username: ${TELEGRAM_BOT_USERNAME}
+    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET}
+    verification-ttl-minutes: 15
+    allow-dev-confirm: false
+
+  mail:
+    enabled: true
+    from: ${MAIL_FROM}
+
+  user:
+    logins:
+      - username: ${ADMIN_USERNAME}
+        password: ${ADMIN_PASSWORD}
+        role: ADMIN
+
+  security:
+    cors:
+      allowed-origins:
+        - "https://singularity-resume.ru"
+        - "https://admin.singularity-resume.ru"
+        - "https://test-api.singularity-resume.ru"
+        - "https://test-admin.singularity-resume.ru"
+      allowed-methods:
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "PATCH"
+        - "DELETE"
+        - "OPTIONS"
+        - "HEAD"
+      allowed-headers:
+        - "Content-Type"
+        - "Authorization"
+      allow-credentials: true
+      max-age: 3600
+
+    csp:
+      policy: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; frame-ancestors 'none';"
+
+  jwt:
+    access-secret: ${JWT_ACCESS_SECRET}
+    refresh-secret: ${JWT_REFRESH_SECRET}
+    issuer: "Singularity-backend"
+    audience: "Singularity-frontend"
+    access-token-ttl: 3600
+    refresh-token-ttl: 604800
+    cookie:
+      access-token-name: "ACCESS_TOKEN"
+      refresh-token-name: "REFRESH_TOKEN"
+      http-only: true
+      secure: ${JWT_COOKIE_SECURE}
+      same-site: ${JWT_COOKIE_SAME_SITE}
+      path: "/"
+
+  swagger:
+    title: "Resume API"
+    description: "Документация API"
+    version: "0.1.0"
+    servers:
+      - url: "https://test-api.singularity-resume.ru/"
+        description: "Dev Server"
+
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false

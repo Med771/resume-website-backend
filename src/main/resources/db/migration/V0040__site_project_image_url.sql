@@ -1,0 +1,2 @@
+ALTER TABLE site_projects
+    ADD COLUMN IF NOT EXISTS image_url VARCHAR(1024);

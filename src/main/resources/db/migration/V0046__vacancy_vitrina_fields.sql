@@ -1,0 +1,5 @@
+ALTER TABLE vacancies
+    ADD COLUMN IF NOT EXISTS manual_sort_order INTEGER;
+
+ALTER TABLE vacancies
+    ADD COLUMN IF NOT EXISTS visible_to_anonymous BOOLEAN NOT NULL DEFAULT FALSE;

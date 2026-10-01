@@ -1,0 +1,2 @@
+ALTER TABLE recruiters
+    ADD COLUMN IF NOT EXISTS city VARCHAR(255);

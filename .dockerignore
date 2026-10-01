@@ -1,0 +1,41 @@
+# Исключаем билд-артефакты Maven
+target/
+
+# Maven local settings (не нужны в контейнере)
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+.mvn/timing.properties
+
+# Исходники, генерируемые IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# VS Code
+.vscode/
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# NetBeans
+nbproject/
+build/
+
+# Логи
+*.log
+
+# Операционные системы
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+docker-compose.override.yml
+.env
