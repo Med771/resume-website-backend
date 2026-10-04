@@ -21,6 +21,7 @@ public record UpdateVacancyReq(
         List<@Positive Long> skillIds,
         LocalDateTime publishedFrom,
         LocalDateTime publishedTo,
-        Integer slotsCount
+        Integer slotsCount,
+        Boolean visibleToAnonymous
 ) {
 }

@@ -14,7 +14,7 @@ import java.util.List;
         description = """
                 Базовое создание карточки (`POST /student`), только **ADMIN**.
 
-                **Публичная витрина** (`publicProfileConsent`): если поле **не** передать или `false` — в БД будет **false**; если **`true`** — сразу разрешён показ на `/public/students/...` (при курсе не `NEW` и прочих правилах каталога).
+                **Публичная витрина** (`publicProfileConsent`): если поле **не** передать или `false` — в БД будет **false**; если **`true`** — сразу разрешён показ на `/public/students/...` (при `catalogVisible=true` и прочих правилах каталога).
 
                 **Ручной порядок** (`manualSortOrder`): опционально; `null` — не задавать (колонка `NULL` в БД).""")
 public record AddStudentReq(
@@ -36,7 +36,7 @@ public record AddStudentReq(
         @Size(max = 2000, message = "Additional info must be less than 2000 characters")
         String bio,
 
-        @Schema(description = "Текущий курс обучения")
+        @Schema(description = "Текущий курс обучения (1–5)")
         @NotNull
         CourseEnum course,
 
@@ -51,6 +51,13 @@ public record AddStudentReq(
         @Schema(description = "Фамилия")
         @NotBlank
         String lastName,
+
+        @Schema(description = "Отчество")
+        @Size(max = 255)
+        String middleName,
+
+        @Schema(description = "Пол; null — не указан")
+        ru.ai.sin.models.enums.GenderEnum gender,
 
         @Schema(description = "Email")
         @Email(message = "Email should be valid")

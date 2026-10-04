@@ -6,7 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import org.springframework.stereotype.Service;
 
@@ -43,9 +45,14 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public PageResponse<SkillDTO> getAllByFilter(Pageable pageable, FilterSkillReq filterSkillReq) {
+        Pageable ordered = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.ASC, "timestamps.createdAt", "id")
+        );
         Page<SkillEnt> page = skillRepo.findAll(
                 SkillSpecifications.byFilters(filterSkillReq),
-                pageable
+                ordered
         );
 
         return new PageResponse<>(

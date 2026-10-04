@@ -7,8 +7,12 @@ import ru.ai.sin.logic.registration.dto.StudentAccountRegistrationReq;
 public interface StudentRegistrationService {
 
     /**
-     * Создаёт пользователя STUDENT (без карточки резюме), выполняет аутентификацию.
-     * Резюме — {@code POST /student/onboarding/resume}.
+     * Создаёт пользователя STUDENT и черновик карточки ({@code catalogVisible=false}), выполняет аутентификацию.
+     * Письмо с кодом уходит сразу; подтверждение — {@code POST /auth/confirm-email}.
      */
     TokenPair registerAndIssueTokens(StudentAccountRegistrationReq req, HttpServletRequest httpRequest);
+
+    void confirmEmail(String code);
+
+    void resendEmailConfirmation();
 }

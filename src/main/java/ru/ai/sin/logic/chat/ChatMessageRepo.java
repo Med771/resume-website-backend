@@ -67,4 +67,6 @@ public interface ChatMessageRepo extends JpaRepository<ChatMessageEnt, UUID> {
             @Param("chatId") UUID chatId,
             @Param("kind") ChatMessageKind kind,
             @Param("role") RoleEnum role);
+
+    long countByChat_IdAndDeletedAtIsNull(UUID chatId);
 }

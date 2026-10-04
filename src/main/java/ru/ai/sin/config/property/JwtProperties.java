@@ -29,5 +29,7 @@ public class JwtProperties {
 
         private String sameSite;
         private String path;
+        /** Optional, e.g. .singularity-resume.ru for shared cookies across subdomains */
+        private String domain;
     }
 }

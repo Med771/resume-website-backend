@@ -23,6 +23,12 @@ public class RegistrationProperties {
      */
     private int rateLimitRecruiterPerIpPerHour = 5;
 
+    /** Неверные попытки confirm-email с одного user за час. */
+    private int emailConfirmMaxAttemptsPerHour = 8;
+
+    /** Повторная отправка OTP на почту с одного user за час. */
+    private int emailResendMaxPerHour = 5;
+
     /**
      * Максимум навыков в одной анкете при саморегистрации.
      */
@@ -74,6 +80,21 @@ public class RegistrationProperties {
         String n = username.toLowerCase(Locale.ROOT).trim();
         for (String x : extraReservedUsernames) {
             if (n.equals(x.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean isReservedUsername(String username, UserProperties userProperties) {
+        if (isReservedUsername(username)) {
+            return true;
+        }
+        if (userProperties == null || userProperties.getLogins() == null) {
+            return false;
+        }
+        for (UserProperties.Login login : userProperties.getLogins()) {
+            if (login.getUsername() != null && login.getUsername().equalsIgnoreCase(username)) {
                 return true;
             }
         }

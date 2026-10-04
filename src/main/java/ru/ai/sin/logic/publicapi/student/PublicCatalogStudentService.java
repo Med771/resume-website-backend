@@ -15,7 +15,6 @@ import ru.ai.sin.logic.student.StudentSpecifications;
 import ru.ai.sin.logic.student.dto.FilterStudentReq;
 import ru.ai.sin.logic.student.dto.StudentCardDTO;
 import ru.ai.sin.models.PageResponse;
-import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.tools.StudentTools;
 
 import java.util.UUID;
@@ -31,7 +30,7 @@ public class PublicCatalogStudentService {
     public StudentCardDTO getCardById(UUID id) {
         StudentEnt student = studentRepo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Failed to find student by id " + id));
-        if (!student.isPublicProfileConsent() || student.getCourse() == CourseEnum.NEW) {
+        if (!student.isPublicProfileConsent() || !student.isCatalogVisible()) {
             throw new NotFoundException("Failed to find student by id " + id);
         }
         return studentTools.mapToCardDTO(student);

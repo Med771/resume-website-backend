@@ -3,20 +3,31 @@ package ru.ai.sin.logic.recruiter.registration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import ru.ai.sin.config.property.RegistrationProperties;
 import ru.ai.sin.config.property.UserProperties;
 import ru.ai.sin.exception.models.BadRequestException;
+import ru.ai.sin.helper.JwtHelper;
+import ru.ai.sin.helper.ParticipantDisplayNames;
+import ru.ai.sin.logic.auth.dto.TokenPair;
+import ru.ai.sin.logic.recruiter.RecruiterEnt;
+import ru.ai.sin.logic.recruiter.RecruiterMapper;
 import ru.ai.sin.logic.recruiter.RecruiterRepo;
+import ru.ai.sin.logic.recruiter.dto.AddRecruiterReq;
 import ru.ai.sin.logic.recruiter.registration.dto.RecruiterSelfRegistrationReq;
 import ru.ai.sin.logic.registration.ClientIpResolver;
 import ru.ai.sin.logic.registration.RegistrationIpRateLimiter;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
+import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.logic.verification.PhoneVerificationService;
-import ru.ai.sin.models.enums.RecruiterRegistrationStatus;
+import ru.ai.sin.models.enums.AccountStatus;
+import ru.ai.sin.models.enums.RoleEnum;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -33,13 +44,14 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
 
     private final UserRepo userRepo;
     private final RecruiterRepo recruiterRepo;
-    private final RecruiterRegistrationRequestRepo registrationRequestRepo;
-
+    private final RecruiterMapper recruiterMapper;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtHelper jwtHelper;
 
     @Override
     @Transactional
-    public void submit(RecruiterSelfRegistrationReq req, HttpServletRequest httpRequest) {
+    public TokenPair registerAndIssueTokens(RecruiterSelfRegistrationReq req, HttpServletRequest httpRequest) {
         registrationIpRateLimiter.check(
                 RegistrationIpRateLimiter.RegistrationRateBucket.RECRUITER,
                 ClientIpResolver.resolve(httpRequest));
@@ -50,7 +62,7 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         passwordPolicy.validate(req.password());
 
         String username = req.username().trim();
-        String email = req.email().trim();
+        String email = trimToNull(req.email());
         String phone = trimToNull(req.phoneNumber());
 
         if (phone != null) {
@@ -59,81 +71,89 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
             throw new BadRequestException("Укажите и подтвердите номер телефона в Telegram");
         }
 
-        if (userRepo.existsByUsername(username)) {
-            log.warn("Recruiter registration: username already taken");
-            throw conflict();
-        }
-        if (registrationRequestRepo.existsByStatusAndUsernameIgnoreCase(RecruiterRegistrationStatus.PENDING, username)) {
-            log.warn("Recruiter registration: pending username exists");
-            throw conflict();
-        }
-        if (registrationProperties.isReservedUsername(username)) {
-            throw new BadRequestException("Этот логин зарезервирован");
-        }
-        if (userProperties.getLogins() != null) {
-            for (UserProperties.Login login : userProperties.getLogins()) {
-                if (login.getUsername() != null && login.getUsername().equalsIgnoreCase(username)) {
-                    throw new BadRequestException("Этот логин зарезервирован");
-                }
-            }
-        }
+        validateUsernameAvailable(username);
 
-        if (recruiterRepo.existsByNormalizedEmail(email)) {
-            log.warn("Recruiter registration: email already used by recruiter profile");
-            throw conflict();
-        }
-        if (registrationRequestRepo.existsByStatusAndNormalizedEmail(RecruiterRegistrationStatus.PENDING, email)) {
-            log.warn("Recruiter registration: pending email exists");
+        if (email != null && recruiterRepo.existsByNormalizedEmail(email)) {
             throw conflict();
         }
 
-        RecruiterRegistrationRequestEnt ent = new RecruiterRegistrationRequestEnt();
-        ent.setUsername(username);
-        ent.setPasswordHash(passwordEncoder.encode(req.password()));
-        ent.setName(buildDisplayName(req));
-        ent.setCompanyName(req.companyName().trim());
-        ent.setCity(trimToNull(req.city()));
-        ent.setFirstName(trimToNull(req.firstName()));
-        ent.setLastName(trimToNull(req.lastName()));
-        ent.setMiddleName(trimToNull(req.middleName()));
-        ent.setEmail(email);
-        ent.setPhoneNumber(phone);
-        ent.setTelegramUsername(trimToNull(req.telegramUsername()));
-        ent.setPhoneVerificationId(req.phoneVerificationId());
-        ent.setMarketingConsent(Boolean.TRUE.equals(req.marketingConsent()));
-        ent.setStatus(RecruiterRegistrationStatus.PENDING);
+        String companyName = trimToNull(req.companyName());
+        String firstName = trimToNull(req.firstName());
+        String lastName = trimToNull(req.lastName());
+        String city = trimToNull(req.city());
+        if (!StringUtils.hasText(companyName)) {
+            throw new BadRequestException("Укажите название компании");
+        }
+        if (!StringUtils.hasText(firstName) || !StringUtils.hasText(lastName)) {
+            throw new BadRequestException("Укажите имя и фамилию");
+        }
+        if (email == null) {
+            throw new BadRequestException("Укажите email");
+        }
+        if (!StringUtils.hasText(city)) {
+            throw new BadRequestException("Укажите город");
+        }
+
+        AddRecruiterReq addRecruiterReq = new AddRecruiterReq(
+                companyName,
+                firstName,
+                lastName,
+                email,
+                phone,
+                trimToNull(req.telegramUsername())
+        );
+        RecruiterEnt recruiter = recruiterMapper.toEntity(addRecruiterReq);
+        recruiter.setCity(city);
+        try {
+            recruiter = recruiterRepo.save(recruiter);
+        } catch (DataIntegrityViolationException ex) {
+            throw conflict();
+        }
+
+        UserEnt user = new UserEnt(
+                RoleEnum.RECRUITER,
+                buildDisplayName(req),
+                username,
+                passwordEncoder.encode(req.password())
+        );
+        user.setRecruiter(recruiter);
+        user.setPhoneVerified(true);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
 
         try {
-            registrationRequestRepo.save(ent);
+            userRepo.save(user);
         } catch (DataIntegrityViolationException ex) {
-            log.warn("Recruiter registration conflict: {}", ex.getMessage());
             throw conflict();
         }
-        log.info("Recruiter registration submitted: id={} username={}", ent.getId(), username);
+
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(username, req.password()));
+        log.info("Recruiter registered with PENDING approval: username={} recruiterId={}", username, recruiter.getId());
+        return new TokenPair(
+                jwtHelper.generateAccessToken(username),
+                jwtHelper.generateRefreshToken(username)
+        );
+    }
+
+    private void validateUsernameAvailable(String username) {
+        if (userRepo.existsByUsername(username)) {
+            throw conflict();
+        }
+        if (registrationProperties.isReservedUsername(username, userProperties)) {
+            throw new BadRequestException("Этот логин зарезервирован");
+        }
     }
 
     private static String buildDisplayName(RecruiterSelfRegistrationReq req) {
         if (req.name() != null && !req.name().isBlank()) {
             return req.name().trim();
         }
-        StringBuilder sb = new StringBuilder();
-        if (req.lastName() != null && !req.lastName().isBlank()) {
-            sb.append(req.lastName().trim());
-        }
-        if (req.firstName() != null && !req.firstName().isBlank()) {
-            if (!sb.isEmpty()) sb.append(' ');
-            sb.append(req.firstName().trim());
-        }
-        if (req.middleName() != null && !req.middleName().isBlank()) {
-            if (!sb.isEmpty()) sb.append(' ');
-            sb.append(req.middleName().trim());
-        }
-        return sb.isEmpty() ? null : sb.toString();
+        return ParticipantDisplayNames.fromFio(req.lastName(), req.firstName(), req.middleName());
     }
 
     private static BadRequestException conflict() {
         return new BadRequestException(
-                "Не удалось отправить заявку. Проверьте данные или дождитесь рассмотрения предыдущей заявки.");
+                "Не удалось завершить регистрацию. Проверьте данные или войдите, если аккаунт уже есть.");
     }
 
     private static String trimToNull(String s) {

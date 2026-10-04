@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import ru.ai.sin.logic.request.dto.TuDecisionReq;
 import ru.ai.sin.logic.vacancy.dto.ApplyVacancyReq;
 import ru.ai.sin.logic.vacancy.dto.CreateVacancyReq;
 import ru.ai.sin.logic.vacancy.dto.FilterVacancyReq;
@@ -42,6 +43,7 @@ public class VacancyController {
 
     private final VacancyService vacancyService;
     private final VacancyApplicationService vacancyApplicationService;
+    private final VacancyApplicationTuDecisionService vacancyApplicationTuDecisionService;
 
     @Operation(summary = "Лента опубликованных вакансий")
     @GetMapping
@@ -161,5 +163,16 @@ public class VacancyController {
             @RequestBody(required = false) RejectApplicationReq req
     ) {
         return ResponseEntity.ok(vacancyApplicationService.reject(id, applicationId, req));
+    }
+
+    @Operation(summary = "Решение по ТУ (отклик на вакансию)")
+    @PostMapping("/applications/{applicationId}/tu-decision")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void tuDecision(
+            @PathVariable UUID applicationId,
+            @Valid @RequestBody TuDecisionReq req
+    ) {
+        vacancyApplicationTuDecisionService.decide(applicationId, req);
     }
 }

@@ -6,14 +6,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.exception.models.BadRequestException;
+import ru.ai.sin.helper.AccountAccessHelper;
+import ru.ai.sin.logic.chat.ChatService;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.vacancy.dto.ApplyVacancyReq;
-import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
 import ru.ai.sin.models.enums.VacancyStatus;
 import ru.ai.sin.tools.StudentTools;
+import ru.ai.sin.tools.VacancyApplicationTools;
 import ru.ai.sin.tools.UserTools;
 
 import java.util.Optional;
@@ -33,6 +35,12 @@ class VacancyApplicationServiceImplTest {
     private UserTools userTools;
     @Mock
     private StudentTools studentTools;
+    @Mock
+    private ChatService chatService;
+    @Mock
+    private AccountAccessHelper accountAccessHelper;
+    @Mock
+    private VacancyApplicationTools vacancyApplicationTools;
 
     private VacancyApplicationServiceImpl service;
 
@@ -42,14 +50,15 @@ class VacancyApplicationServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new VacancyApplicationServiceImpl(
-                vacancyApplicationRepo, vacancyRepo, userTools, studentTools, null);
+                vacancyApplicationRepo, vacancyRepo, userTools, studentTools,
+                vacancyApplicationTools, chatService, accountAccessHelper);
     }
 
     @Test
-    void apply_rejectsNewCourseStudent() {
+    void apply_rejectsHiddenFromCatalogStudent() {
         StudentEnt student = new StudentEnt();
         student.setId(studentId);
-        student.setCourse(CourseEnum.NEW);
+        student.setCatalogVisible(false);
         UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "stu", "p");
         user.setStudent(student);
 
@@ -57,14 +66,14 @@ class VacancyApplicationServiceImplTest {
 
         assertThatThrownBy(() -> service.apply(vacancyId, new ApplyVacancyReq(null)))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("NEW");
+                .hasMessageContaining("каталог");
     }
 
     @Test
     void apply_rejectsUnpublishedVacancy() {
         StudentEnt student = new StudentEnt();
         student.setId(studentId);
-        student.setCourse(CourseEnum.FIRST);
+        student.setCatalogVisible(true);
         UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "stu", "p");
         user.setStudent(student);
 

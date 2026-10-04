@@ -24,13 +24,23 @@ public interface StudentMapper {
     @Mapping(target = "manualSortOrder", ignore = true)
     @Mapping(target = "userInformation.firstName", source = "firstName")
     @Mapping(target = "userInformation.lastName", source = "lastName")
+    @Mapping(target = "userInformation.email", source = "email")
+    @Mapping(target = "contactInformation.phoneNumber", source = "phoneNumber")
+    @Mapping(target = "contactInformation.telegramUsername", source = "telegramUsername")
     StudentEnt toEntity(AddStudentReq studentReq);
 
     // ---------------- StudentEnt -> StudentDTO ----------------
     @Mapping(source = "student.userInformation.firstName", target = "firstName")
     @Mapping(source = "student.userInformation.lastName", target = "lastName")
+    @Mapping(source = "student.middleName", target = "middleName")
+    @Mapping(source = "student.gender", target = "gender")
+    @Mapping(source = "student.userInformation.email", target = "email")
+    @Mapping(source = "student.contactInformation.phoneNumber", target = "phoneNumber")
+    @Mapping(source = "student.contactInformation.telegramUsername", target = "telegramUsername")
+    @Mapping(source = "student.speciality.id", target = "specialityId")
     @Mapping(source = "student.speciality.name", target = "speciality")
     @Mapping(source = "student.publicProfileConsent", target = "publicProfileConsent")
+    @Mapping(source = "student.catalogVisible", target = "catalogVisible")
     @Mapping(source = "student.profileTextScore", target = "profileTextScore")
     @Mapping(source = "student.manualSortOrder", target = "manualSortOrder")
     StudentDTO toDTO(StudentEnt student, List<SkillDTO> skills);
@@ -38,6 +48,7 @@ public interface StudentMapper {
     // ---------------- StudentEnt -> StudentCardDTO ----------------
     @Mapping(source = "student.userInformation.firstName", target = "firstName")
     @Mapping(source = "student.userInformation.lastName", target = "lastName")
+    @Mapping(source = "student.middleName", target = "middleName")
     @Mapping(source = "student.speciality.name", target = "speciality")
     @Mapping(source = "student.manualSortOrder", target = "manualSortOrder")
     StudentCardDTO toCardDTO(StudentEnt student, List<SkillDTO> skills);

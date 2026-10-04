@@ -1,10 +1,14 @@
 package ru.ai.sin.logic.user;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import ru.ai.sin.models.enums.AccountStatus;
+import ru.ai.sin.models.enums.RoleEnum;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,4 +33,8 @@ public interface UserRepo extends JpaRepository<UserEnt, UUID>, JpaSpecification
 
     @Query("select u.role, count(u) from UserEnt u group by u.role")
     List<Object[]> countAllGroupedByRole();
+
+    Page<UserEnt> findByAccountStatus(AccountStatus accountStatus, Pageable pageable);
+
+    Page<UserEnt> findByAccountStatusAndRole(AccountStatus accountStatus, RoleEnum role, Pageable pageable);
 }

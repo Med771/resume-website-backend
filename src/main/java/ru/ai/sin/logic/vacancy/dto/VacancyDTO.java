@@ -31,6 +31,8 @@ public record VacancyDTO(
         String moderationRejectionReason,
         long applicationsCount,
         Boolean hasApplied,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Integer manualSortOrder,
+        boolean visibleToAnonymous
 ) {
 }

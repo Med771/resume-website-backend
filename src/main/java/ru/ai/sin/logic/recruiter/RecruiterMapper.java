@@ -19,6 +19,7 @@ public interface RecruiterMapper {
     RecruiterEnt toEntity(AddRecruiterReq dto);
 
     // ---------------- RecruiterEnt -> RecruiterDTO ----------------
+    @Mapping(source = "city", target = "city")
     @Mapping(source = "userInformation.firstName", target = "firstName")
     @Mapping(source = "userInformation.lastName", target = "lastName")
     @Mapping(source = "userInformation.email", target = "email")
@@ -43,6 +44,7 @@ public interface RecruiterMapper {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "timestamps", ignore = true)
+    @Mapping(target = "city", source = "city")
     @Mapping(target = "userInformation.firstName", source = "firstName")
     @Mapping(target = "userInformation.lastName", source = "lastName")
     @Mapping(target = "userInformation.email", source = "email")

@@ -47,4 +47,10 @@ public class PhoneVerificationEnt {
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
+
+    @Column(name = "email", length = 255)
+    private String email;
+
+    @Column(name = "otp_code_hash", length = 255)
+    private String otpCodeHash;
 }

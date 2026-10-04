@@ -86,6 +86,12 @@ public class VacancyEnt {
     @Column(name = "moderation_rejection_reason", columnDefinition = "TEXT")
     private String moderationRejectionReason;
 
+    @Column(name = "manual_sort_order")
+    private Integer manualSortOrder;
+
+    @Column(name = "visible_to_anonymous", nullable = false)
+    private boolean visibleToAnonymous = false;
+
     @Embedded
     private TimeStamped timestamps = new TimeStamped();
 

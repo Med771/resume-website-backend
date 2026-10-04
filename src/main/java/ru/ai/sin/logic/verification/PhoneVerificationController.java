@@ -21,12 +21,13 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/verification/phone")
 @RequiredArgsConstructor
-@Tag(name = "PhoneVerification", description = "Подтверждение номера телефона через Telegram-бота")
+@Tag(name = "PhoneVerification", description = "Подтверждение телефона: Telegram-бот, OTP на почту или тестовый код")
 public class PhoneVerificationController {
 
     private final PhoneVerificationService phoneVerificationService;
 
-    @Operation(summary = "Начать верификацию телефона", description = "Возвращает ссылку на Telegram-бота для подтверждения номера")
+    @Operation(summary = "Начать верификацию телефона",
+            description = "Возвращает ссылку на Telegram-бота. При передаче email и включённой почте — отправляет OTP на почту.")
     @PostMapping("/start")
     public ResponseEntity<PhoneVerificationStartRes> start(@Valid @RequestBody PhoneVerificationStartReq req) {
         return ResponseEntity.ok(phoneVerificationService.startVerification(req));
@@ -38,7 +39,8 @@ public class PhoneVerificationController {
         return ResponseEntity.ok(phoneVerificationService.getStatus(verificationId));
     }
 
-    @Operation(summary = "Подтвердить тестовым кодом", description = "Только при app.telegram.allow-dev-confirm=true (локальные тесты)")
+    @Operation(summary = "Подтвердить кодом",
+            description = "OTP из письма или тестовый код при app.telegram.allow-dev-confirm=true")
     @PostMapping("/{verificationId}/confirm-code")
     public ResponseEntity<PhoneVerificationStatusRes> confirmCode(
             @PathVariable UUID verificationId,

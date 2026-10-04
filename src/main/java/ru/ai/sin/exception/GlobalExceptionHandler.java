@@ -19,6 +19,8 @@ import ru.ai.sin.exception.models.ApiException;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.ErrorResponse;
 import ru.ai.sin.exception.models.NotFoundException;
+import ru.ai.sin.exception.models.ProfileIncompleteErrorResponse;
+import ru.ai.sin.exception.models.ProfileIncompleteException;
 
 @Slf4j
 @RestControllerAdvice
@@ -86,6 +88,14 @@ public class GlobalExceptionHandler {
                         "CONFLICT",
                         "Data constraint violation (e.g. duplicate key or foreign key)"
                 ));
+    }
+
+    @ExceptionHandler(ProfileIncompleteException.class)
+    public ResponseEntity<ProfileIncompleteErrorResponse> handleProfileIncomplete(ProfileIncompleteException ex) {
+        log.warn("Profile incomplete: missingFields={}", ex.getMissingFields());
+        return ResponseEntity
+                .status(ex.getStatus())
+                .body(new ProfileIncompleteErrorResponse(ex.getCode(), ex.getMessage(), ex.getMissingFields()));
     }
 
     @ExceptionHandler(ApiException.class)

@@ -18,6 +18,7 @@ import ru.ai.sin.logic.student.StudentEnt;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.UuidGenerator;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import ru.ai.sin.models.embeddables.TimeStamped;
@@ -72,6 +73,7 @@ public class SiteProjectEnt {
     @OrderBy("sortOrder ASC")
     private List<SiteProjectImageEnt> images = new ArrayList<>();
 
+    @BatchSize(size = 32)
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "site_project_skills",
@@ -80,6 +82,7 @@ public class SiteProjectEnt {
     )
     private Set<SkillEnt> skills = new HashSet<>();
 
+    @BatchSize(size = 32)
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "site_project_students",

@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.ai.sin.config.MethodSecurityTestConfig;
 import ru.ai.sin.filter.JwtCookieAuthenticationFilter;
@@ -28,8 +28,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.mock.web.MockMultipartFile;
 
 @WebMvcTest(controllers = StudentController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -42,10 +44,10 @@ class StudentControllerMvcTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private StudentService studentService;
 
-    @MockBean
+    @MockitoBean
     private JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;
 
     private static StudentDTO sampleStudentDto() {
@@ -60,9 +62,16 @@ class StudentControllerMvcTest {
                 BusynessEnum.EMPLOYED,
                 "Ivan",
                 "Petrov",
+                null,
+                null,
+                "ivan@test.ru",
+                null,
+                null,
+                1L,
                 "Spec",
                 List.of(new SkillDTO(1L, "Java")),
                 false,
+                true,
                 0,
                 null
         );
@@ -92,9 +101,11 @@ class StudentControllerMvcTest {
 
     @Test
     @WithMockUser(roles = "STUDENT")
-    void getById_forbiddenStudentCannotOpenCatalogCard() throws Exception {
+    void getById_okForStudent() throws Exception {
+        when(studentService.getById(STUDENT_ID)).thenReturn(sampleStudentDto());
+
         mockMvc.perform(get("/student/{id}", STUDENT_ID))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -121,12 +132,15 @@ class StudentControllerMvcTest {
 
     @Test
     @WithMockUser(roles = "STUDENT")
-    void cardsFilter_forbiddenForStudent() throws Exception {
+    void cardsFilter_okForStudent() throws Exception {
+        when(studentService.getAllCardsByFilter(any(), any()))
+                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
         mockMvc.perform(post("/student/cardsFilter")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(FILTER_JSON)
                         .with(csrf()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -148,7 +162,7 @@ class StudentControllerMvcTest {
         String body = """
                 {"city":"C","hhLink":"https://h","birthDate":"2000-01-01","bio":null,"course":"FIRST","busyness":"EMPLOYED",\
                 "firstName":"A","lastName":"B","email":"a@b.c","phoneNumber":"+79001234567","telegramUsername":"tg",\
-                "specialityId":1,"skillsIds":[1]}""";
+                "specialityId":1,"skillsIds":[1],"username":"stu_user","password":"pass1234"}""";
 
         mockMvc.perform(post("/student")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -165,13 +179,33 @@ class StudentControllerMvcTest {
         String body = """
                 {"city":"C","hhLink":"https://h","birthDate":"2000-01-01","bio":null,"course":"FIRST","busyness":"EMPLOYED",\
                 "firstName":"A","lastName":"B","email":"a@b.c","phoneNumber":"+79001234567","telegramUsername":"tg",\
-                "specialityId":1,"skillsIds":[1]}""";
+                "specialityId":1,"skillsIds":[1],"username":"stu_user","password":"pass1234"}""";
 
         mockMvc.perform(post("/student")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body)
                         .with(csrf()))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void setPhoto_okForStudent() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("avatarFile", "photo.jpg", "image/jpeg", new byte[] {1, 2, 3});
+
+        mockMvc.perform(multipart("/student/photo/{id}", STUDENT_ID).file(file).with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(studentService).setPhoto(STUDENT_ID, file);
+    }
+
+    @Test
+    @WithMockUser(roles = "RECRUITER")
+    void setPhoto_forbiddenForRecruiter() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("avatarFile", "photo.jpg", "image/jpeg", new byte[] {1, 2, 3});
+
+        mockMvc.perform(multipart("/student/photo/{id}", STUDENT_ID).file(file).with(csrf()))
+                .andExpect(status().isForbidden());
     }
 
     @Test

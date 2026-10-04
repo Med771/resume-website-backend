@@ -1,0 +1,2 @@
+ALTER TABLE specialities
+    ADD COLUMN IF NOT EXISTS icon_path VARCHAR(512);

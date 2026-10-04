@@ -18,7 +18,7 @@ import java.util.Set;
                 **Сортировка:** только поля ниже; query-параметр `sort` у `Pageable` на сервере **не используется** (белый список полей).
 
                 **useDefaultRanking:** если `null` или `true`, и `sortBy` не задан или равен `RELEVANCE`, порядок такой:
-                `manualSortOrder` ASC (на PostgreSQL NULL в конце по умолчанию), затем `imagePath` ASC, затем `profileTextScore` DESC, затем дата создания DESC.
+                `manualSortOrder` ASC (на PostgreSQL NULL в конце по умолчанию), затем `profileTextScore` DESC, затем `imagePath` ASC, затем дата создания DESC.
                 Явный NULLS LAST в Spring Sort недоступен вместе с Specification — см. StudentSortResolver.
 
                 Если `useDefaultRanking=false`, используется `sortBy` (по умолчанию `CREATED_AT`, если null) и `sortDirection` (по умолчанию DESC).""")
@@ -51,7 +51,13 @@ public record FilterStudentReq(
         StudentSortDirection sortDirection,
 
         @Schema(description = """
-                `null` или `true` — режим релевантности при `sortBy=null` или `RELEVANCE` (ручной номер → аватар → score текста → дата создания).
+                `null` или `true` — режим релевантности при `sortBy=null` или `RELEVANCE` (ручной номер → score текста → аватар → дата создания).
                 `false` — явная сортировка по `sortBy` / `sortDirection`.""")
-        Boolean useDefaultRanking) {
+        Boolean useDefaultRanking,
+
+        @Schema(description = "Фильтр по видимости в каталоге рекрутёров; `null` — без ограничения")
+        Boolean catalogVisible,
+
+        @Schema(description = "Фильтр по согласию на публичную витрину; `null` — без ограничения")
+        Boolean publicProfileConsent) {
 }

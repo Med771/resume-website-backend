@@ -5,26 +5,31 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-
-import org.springframework.web.bind.annotation.*;
-
-import ru.ai.sin.logic.auth.dto.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import ru.ai.sin.helper.CookieHelper;
+import ru.ai.sin.logic.auth.dto.AuthMeDTO;
+import ru.ai.sin.logic.auth.dto.ChangePasswordReq;
+import ru.ai.sin.logic.auth.dto.ConfirmEmailReq;
+import ru.ai.sin.logic.auth.dto.LoginRequest;
+import ru.ai.sin.logic.auth.dto.TokenPair;
 import ru.ai.sin.logic.recruiter.registration.RecruiterSelfRegistrationService;
 import ru.ai.sin.logic.recruiter.registration.dto.RecruiterSelfRegistrationReq;
 import ru.ai.sin.logic.registration.StudentRegistrationService;
 import ru.ai.sin.logic.registration.dto.StudentAccountRegistrationReq;
 
-import ru.ai.sin.helper.CookieHelper;
-
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-@Tag(name = "Auth", description = "Операции аутентификации и управления сессией")
+@Tag(name = "Auth", description = "Аутентификация основного сайта (STUDENT / RECRUITER)")
 public class AuthController {
 
     private final AuthService authService;
@@ -33,22 +38,24 @@ public class AuthController {
     private final CookieHelper cookieHelper;
 
     @Operation(
-            summary = "Заявка на регистрацию работодателя",
-            description = "Создаёт заявку со статусом PENDING. Вход возможен только после одобрения администратором "
-                    + "(эндпоинты /admin/recruiter-registration-requests). Cookie не выдаются.")
+            summary = "Регистрация работодателя",
+            description = "Создаёт профиль рекрутера и пользователя со статусом PENDING_APPROVAL. Выдаёт cookie для входа в ЛК.")
     @PostMapping("/register-recruiter")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void registerRecruiter(
             @Valid @RequestBody RecruiterSelfRegistrationReq req,
-            HttpServletRequest httpRequest
+            HttpServletRequest httpRequest,
+            HttpServletResponse response
     ) {
-        recruiterSelfRegistrationService.submit(req, httpRequest);
+        setAuthCookies(response, recruiterSelfRegistrationService.registerAndIssueTokens(req, httpRequest));
     }
 
     @Operation(
-            summary = "Саморегистрация студента (учётная запись)",
-            description = "Создаёт аккаунт STUDENT после подтверждения телефона в Telegram. "
-                    + "Карточка резюме — POST /student/onboarding/resume. Cookie как при входе.")
+            summary = "Саморегистрация студента",
+            description = """
+                    Создаёт User STUDENT и черновик карточки (`catalogVisible=false`, `PENDING_APPROVAL`) в одной транзакции.
+                    Сразу ставит cookie. На почту уходит 6-значный код — `POST /auth/confirm-email`.
+                    Дозаполнение анкеты — PATCH /student/me и CRUD /experience, /institution, /portfolio.""")
     @PostMapping("/register-student")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void registerStudent(
@@ -56,42 +63,68 @@ public class AuthController {
             HttpServletRequest httpRequest,
             HttpServletResponse response
     ) {
-        TokenPair tokens = studentRegistrationService.registerAndIssueTokens(req, httpRequest);
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieHelper.createAccessTokenCookie(tokens.accessToken()).toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieHelper.createRefreshTokenCookie(tokens.refreshToken()).toString());
+        setAuthCookies(response, studentRegistrationService.registerAndIssueTokens(req, httpRequest));
     }
 
-    @Operation(summary = "Вход в систему", description = "Проверяет логин/пароль и устанавливает access и refresh токены в cookie")
+    @Operation(summary = "Подтвердить почту кодом из письма", description = "Только STUDENT. 204, если уже подтверждена.")
+    @PostMapping("/confirm-email")
+    @PreAuthorize("hasRole('STUDENT')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmEmail(@Valid @RequestBody ConfirmEmailReq req) {
+        studentRegistrationService.confirmEmail(req.code());
+    }
+
+    @Operation(summary = "Повторно отправить код подтверждения почты", description = "Только STUDENT.")
+    @PostMapping("/resend-email-confirmation")
+    @PreAuthorize("hasRole('STUDENT')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resendEmailConfirmation() {
+        studentRegistrationService.resendEmailConfirmation();
+    }
+
+    @Operation(summary = "Вход на основной сайт", description = "STUDENT / RECRUITER. Администраторы — /auth/admin/login")
     @PostMapping("/login")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void login(@RequestBody LoginRequest request, HttpServletResponse response) {
-        TokenPair tokens = authService.login(request);
+        setAuthCookies(response, authService.login(request));
+    }
 
-        // Устанавливаем cookies
+    @Operation(summary = "Обновить access-токен основного сайта")
+    @PostMapping("/refresh")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void refresh(HttpServletRequest request, HttpServletResponse response) {
+        String accessToken = authService.refresh(request);
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieHelper.createAccessTokenCookie(accessToken).toString());
+    }
+
+    @Operation(summary = "Выход из основного сайта")
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(HttpServletResponse response) {
+        clearAuthCookies(response);
+    }
+
+    @Operation(summary = "Текущая сессия основного сайта")
+    @GetMapping("/me")
+    public AuthMeDTO me() {
+        return authService.getCurrentSession();
+    }
+
+    @Operation(summary = "Сменить пароль текущего пользователя")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/change-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@Valid @RequestBody ChangePasswordReq req) {
+        authService.changePassword(req);
+    }
+
+    private void setAuthCookies(HttpServletResponse response, TokenPair tokens) {
         response.addHeader(HttpHeaders.SET_COOKIE, cookieHelper.createAccessTokenCookie(tokens.accessToken()).toString());
         response.addHeader(HttpHeaders.SET_COOKIE, cookieHelper.createRefreshTokenCookie(tokens.refreshToken()).toString());
     }
 
-    @Operation(summary = "Обновить access токен", description = "Использует refresh токен из cookie и выдает новый access токен")
-    @PostMapping("/refresh")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void refresh(HttpServletRequest request, HttpServletResponse response) {
-        String newAccessToken = authService.refresh(request);
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieHelper.createAccessTokenCookie(newAccessToken).toString());
-    }
-
-    @Operation(summary = "Выход из системы", description = "Очищает access и refresh cookie")
-    @PostMapping("/logout")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(HttpServletResponse response) {
+    private void clearAuthCookies(HttpServletResponse response) {
         response.addHeader(HttpHeaders.SET_COOKIE, cookieHelper.clearAccessTokenCookie().toString());
         response.addHeader(HttpHeaders.SET_COOKIE, cookieHelper.clearRefreshTokenCookie().toString());
-    }
-
-    @Operation(summary = "Текущая сессия", description = "Логин и роль авторизованного пользователя")
-    @GetMapping("/me")
-    public AuthMeDTO me() {
-        return authService.getCurrentSession();
     }
 }

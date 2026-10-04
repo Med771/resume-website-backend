@@ -27,16 +27,19 @@ import ru.ai.sin.logic.user.UserRepo;
 
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
+import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 
-import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.ResultEnum;
 import ru.ai.sin.models.enums.RoleEnum;
+import ru.ai.sin.models.enums.UserInboxNotificationType;
 
 import ru.ai.sin.tools.RecruiterTools;
 import ru.ai.sin.tools.RequestTools;
 import ru.ai.sin.tools.StudentTools;
 import ru.ai.sin.tools.UserTools;
+import ru.ai.sin.helper.ParticipantDisplayNames;
+import ru.ai.sin.logic.notification.UserInboxNotificationService;
 
 import java.util.Optional;
 
@@ -58,6 +61,9 @@ public class RequestServiceImpl implements RequestService {
     private final SecurityHelper securityHelper;
 
     private final ChatService chatService;
+
+    private final AccountAccessHelper accountAccessHelper;
+    private final UserInboxNotificationService inboxNotificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -111,6 +117,7 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public RequestDTO create(AddRequestReq addRequestReq) {
+        accountAccessHelper.requireApprovedAccount();
         Optional<UserEnt> currentUserOpt = userTools.findCurrentUserFetchingLinks();
         currentUserOpt.ifPresent(u -> {
             if (u.getRole() == RoleEnum.STUDENT) {
@@ -121,7 +128,7 @@ public class RequestServiceImpl implements RequestService {
         RecruiterEnt recruiterEnt = resolveRecruiterForNewRequest(addRequestReq, currentUserOpt);
 
         StudentEnt studentEnt = studentTools.getStudentOrThrow(addRequestReq.studentId());
-        if (studentEnt.getCourse() == CourseEnum.NEW && !securityHelper.isCurrentUserAdmin()) {
+        if (!studentEnt.isCatalogVisible() && !securityHelper.isCurrentUserAdmin()) {
             throw new NotFoundException("Failed to find student by id " + addRequestReq.studentId());
         }
 
@@ -145,6 +152,20 @@ public class RequestServiceImpl implements RequestService {
                 ChatSystemEvent.REQUEST_SENT,
                 "Заявка №" + requestEnt.getId() + " отправлена. Ожидается решение студента."
         );
+
+        String preview = "Новая заявка №" + requestEnt.getId();
+        long createdRequestId = requestEnt.getId();
+        inboxNotificationService.userIdForStudent(studentEnt).ifPresent(userId ->
+                inboxNotificationService.notifyUser(
+                        userId,
+                        UserInboxNotificationType.NEW_REQUEST,
+                        chat.getId(),
+                        createdRequestId,
+                        null,
+                        preview,
+                        ChatSystemEvent.REQUEST_SENT,
+                        ParticipantDisplayNames.recruiter(recruiterEnt)
+                ));
 
         RequestDTO requestDTO = requestTools.mapToDTO(requestEnt);
         log.info("Created new request: {} for recruiter: {} and student: {}",
@@ -180,11 +201,33 @@ public class RequestServiceImpl implements RequestService {
         requestRepo.save(r);
         ChatEnt chat = r.getAppChat();
         if (req.accept()) {
-            chatService.postSystemMessage(chat, ChatSystemEvent.STUDENT_ACCEPTED,
-                    "Студент принял заявку №" + requestId + ".");
+            String body = "Студент принял заявку №" + requestId + ".";
+            chatService.postSystemMessage(chat, ChatSystemEvent.STUDENT_ACCEPTED, body);
+            inboxNotificationService.userIdForRecruiter(r.getRecruiter()).ifPresent(userId ->
+                    inboxNotificationService.notifyUser(
+                            userId,
+                            UserInboxNotificationType.REQUEST_DECISION,
+                            chat.getId(),
+                            requestId,
+                            null,
+                            body,
+                            ChatSystemEvent.STUDENT_ACCEPTED,
+                            ParticipantDisplayNames.student(r.getStudent())
+                    ));
         } else {
-            chatService.postSystemMessage(chat, ChatSystemEvent.STUDENT_REJECTED,
-                    "Студент отклонил заявку №" + requestId + ".");
+            String body = "Студент отклонил заявку №" + requestId + ".";
+            chatService.postSystemMessage(chat, ChatSystemEvent.STUDENT_REJECTED, body);
+            inboxNotificationService.userIdForRecruiter(r.getRecruiter()).ifPresent(userId ->
+                    inboxNotificationService.notifyUser(
+                            userId,
+                            UserInboxNotificationType.REQUEST_DECISION,
+                            chat.getId(),
+                            requestId,
+                            null,
+                            body,
+                            ChatSystemEvent.STUDENT_REJECTED,
+                            ParticipantDisplayNames.student(r.getStudent())
+                    ));
         }
     }
 

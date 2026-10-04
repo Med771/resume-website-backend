@@ -33,7 +33,7 @@ public class SpecialityController {
     private final SpecialityService specialityService;
 
     @Operation(summary = "Получить специальность по ID", description = "Возвращает запись специальности")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<SpecialityDTO> getById(@PathVariable @Min(1) long id) {
         SpecialityDTO specialityDTO = specialityService.getById(id);
@@ -42,7 +42,7 @@ public class SpecialityController {
     }
 
     @Operation(summary = "Фильтр специальностей", description = "Принимает DTO фильтра в request body и Pageable без параметра sort")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<SpecialityDTO>> filter(
             @PageableDefault Pageable pageable,

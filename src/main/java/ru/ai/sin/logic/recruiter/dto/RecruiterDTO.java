@@ -12,6 +12,9 @@ public record RecruiterDTO(
         @Size(min = 1, max = 255, message = "Company name must be less than 255 characters")
         String companyName,
 
+        @Size(max = 255, message = "City must be less than 255 characters")
+        String city,
+
         @Size(min = 1, max = 255, message = "First name must be less than 255 characters")
         String firstName,
 

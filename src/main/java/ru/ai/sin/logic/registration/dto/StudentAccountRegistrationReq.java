@@ -1,14 +1,17 @@
 package ru.ai.sin.logic.registration.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import java.util.UUID;
-
-@Schema(name = "StudentAccountRegistrationReq", description = "Регистрация аккаунта студента после подтверждения телефона в Telegram")
+@Schema(
+        name = "StudentAccountRegistrationReq",
+        description = """
+                Саморегистрация студента: сразу создаёт User и черновик карточки, выдаёт cookie.
+                Код с почты подтверждается отдельно (`POST /auth/confirm-email`).
+                `lastName` — фамилия (как в проде), `firstName` — имя, `middleName` — отчество.""")
 public record StudentAccountRegistrationReq(
         @Schema(description = "Логин")
         @NotBlank
@@ -24,10 +27,6 @@ public record StudentAccountRegistrationReq(
         @NotBlank
         String passwordConfirm,
 
-        @Schema(description = "Отображаемое имя (необязательно)")
-        @Size(max = 255)
-        String name,
-
         @Schema(description = "Имя")
         @Size(max = 255)
         String firstName,
@@ -40,13 +39,19 @@ public record StudentAccountRegistrationReq(
         @Size(max = 255)
         String middleName,
 
-        @Schema(description = "Номер телефона (должен совпадать с подтверждённым в Telegram)")
+        @Schema(description = "Email — на него уйдёт код подтверждения")
+        @NotBlank
+        @Email
+        @Size(max = 255)
+        String email,
+
+        @Schema(description = "Город / кампус (необязательно)")
+        @Size(max = 255)
+        String city,
+
+        @Schema(description = "Номер телефона (контакт, без Telegram-подтверждения)")
         @NotBlank
         @Pattern(regexp = "\\+?\\d{7,15}", message = "Phone number must contain 7-15 digits and optional + at start")
-        String phoneNumber,
-
-        @Schema(description = "ID сессии верификации из POST /verification/phone/start")
-        @NotNull
-        UUID phoneVerificationId
+        String phoneNumber
 ) {
 }

@@ -15,9 +15,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.CookieHelper;
 import ru.ai.sin.helper.JwtHelper;
 import ru.ai.sin.config.property.JwtProperties;
@@ -31,9 +32,7 @@ public class JwtCookieAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtHelper jwtHelper;
     private final CookieHelper cookieHelper;
-
     private final JwtProperties jwtProperties;
-
     private final UserDetailsService userDetailsService;
 
     @Override
@@ -46,54 +45,87 @@ public class JwtCookieAuthenticationFilter extends OncePerRequestFilter {
             String refreshToken = extractCookie(request, jwtProperties.getCookie().getRefreshTokenName());
 
             if (accessToken != null && !accessToken.isBlank()) {
-                String username = jwtHelper.getUsernameFromAccessToken(accessToken);
-                setAuthentication(username, request);
+                try {
+                    String username = jwtHelper.getUsernameFromAccessToken(accessToken);
+                    trySetAuthentication(username, request);
+                } catch (ExpiredJwtException e) {
+                    log.debug("Access token expired: {}", e.getMessage());
+                    clearAuthCookies(response);
+                } catch (JwtException e) {
+                    log.warn("Invalid access JWT: {}", e.getMessage());
+                    clearAuthCookies(response);
+                } catch (UserNotFoundInTokenException e) {
+                    log.warn("Access token for unknown user {}, clearing cookies", e.username);
+                    clearAuthCookies(response);
+                }
                 filterChain.doFilter(request, response);
                 return;
             }
 
             if (refreshToken != null && !refreshToken.isBlank()) {
-                String username = jwtHelper.getUsernameFromRefreshToken(refreshToken);
-                if (username != null) {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                    String newAccessToken = jwtHelper.generateAccessToken(userDetails.getUsername());
+                try {
+                    String username = jwtHelper.getUsernameFromRefreshToken(refreshToken);
+                    if (username != null) {
+                        UserDetails userDetails = loadUserOrThrow(username);
+                        String newAccessToken = jwtHelper.generateAccessToken(userDetails.getUsername());
 
-                    ResponseCookie newAccessCookie = cookieHelper.createAccessTokenCookie(newAccessToken);
-                    response.addHeader(HttpHeaders.SET_COOKIE, newAccessCookie.toString());
+                        ResponseCookie newAccessCookie = cookieHelper.createAccessTokenCookie(newAccessToken);
+                        response.addHeader(HttpHeaders.SET_COOKIE, newAccessCookie.toString());
 
-                    setAuthentication(username, request);
+                        setAuthentication(userDetails, request);
+                    }
+                } catch (ExpiredJwtException e) {
+                    log.debug("Refresh token expired: {}", e.getMessage());
+                    clearAuthCookies(response);
+                } catch (JwtException e) {
+                    log.warn("Invalid refresh JWT: {}", e.getMessage());
+                    clearAuthCookies(response);
+                } catch (UserNotFoundInTokenException e) {
+                    log.warn("Refresh token for unknown user {}, clearing cookies", e.username);
+                    clearAuthCookies(response);
                 }
             }
 
             filterChain.doFilter(request, response);
-        } catch (ExpiredJwtException e) {
-            log.debug("Access token expired: {}", e.getMessage());
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        } catch (JwtException e) {
-            log.warn("Invalid JWT: {}", e.getMessage());
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         } catch (Exception e) {
             log.error("Authentication error", e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
 
-    private void setAuthentication(String username, HttpServletRequest request) {
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+    private void trySetAuthentication(String username, HttpServletRequest request) {
+        if (username == null || username.isBlank()
+                || SecurityContextHolder.getContext().getAuthentication() != null) {
+            return;
+        }
+        UserDetails userDetails = loadUserOrThrow(username);
+        setAuthentication(userDetails, request);
+    }
 
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-
-            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-            SecurityContextHolder.getContext().setAuthentication(auth);
+    private UserDetails loadUserOrThrow(String username) {
+        try {
+            return userDetailsService.loadUserByUsername(username);
+        } catch (NotFoundException | UsernameNotFoundException e) {
+            throw new UserNotFoundInTokenException(username);
         }
     }
 
-    /**
-     * Извлекает значение cookie по имени
-     */
+    private void setAuthentication(UserDetails userDetails, HttpServletRequest request) {
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            return;
+        }
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+        auth.setDetails(new org.springframework.security.web.authentication.WebAuthenticationDetailsSource()
+                .buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
+    private void clearAuthCookies(HttpServletResponse response) {
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieHelper.clearAccessTokenCookie().toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieHelper.clearRefreshTokenCookie().toString());
+    }
+
     private String extractCookie(HttpServletRequest request, String cookieName) {
         if (request.getCookies() == null) {
             return null;
@@ -103,5 +135,14 @@ public class JwtCookieAuthenticationFilter extends OncePerRequestFilter {
                 .map(Cookie::getValue)
                 .findFirst()
                 .orElse(null);
+    }
+
+    private static final class UserNotFoundInTokenException extends RuntimeException {
+        private final String username;
+
+        private UserNotFoundInTokenException(String username) {
+            super("User not found: " + username);
+            this.username = username;
+        }
     }
 }

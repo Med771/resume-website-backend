@@ -12,7 +12,6 @@ public record UpdateExperienceReq(
         @Positive
         long companyId,
 
-        @NotNull
         UUID studentId,
 
         @NotBlank

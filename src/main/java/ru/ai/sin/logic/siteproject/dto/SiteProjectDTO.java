@@ -32,7 +32,7 @@ public record SiteProjectDTO(
         List<SkillDTO> skills,
         @Schema(description = "Порядок сортировки (меньше — выше в списке при одинаковых условиях фильтра)")
         int sortOrder,
-        @Schema(description = "Показывать на анонимной витрине `GET /public/projects`; при false — только на `GET /projects` (авторизованные)")
+        @Schema(description = "Показывать на анонимной витрине `GET /public/vitrina/home`; при false — только в `POST /projects/filter` для авторизованных (плюс окно публикации)")
         boolean visibleToAnonymous,
         @Schema(description = "Начало окна публикации; null — без нижней границы")
         LocalDateTime publishedFrom,

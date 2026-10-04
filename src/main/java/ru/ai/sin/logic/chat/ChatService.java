@@ -30,4 +30,8 @@ public interface ChatService {
     void adminSoftDeleteMessage(UUID chatId, UUID messageId);
 
     void markRead(UUID chatId, MarkChatReadReq req);
+
+    ChatContextDTO getChatContext(UUID chatId);
+
+    void adminDeleteChat(UUID chatId);
 }

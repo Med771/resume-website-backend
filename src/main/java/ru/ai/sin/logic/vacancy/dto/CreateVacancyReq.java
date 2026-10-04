@@ -22,6 +22,8 @@ public record CreateVacancyReq(
         LocalDateTime publishedFrom,
         LocalDateTime publishedTo,
         @Schema(description = "Максимум откликов; null — без лимита")
-        Integer slotsCount
+        Integer slotsCount,
+        @Schema(description = "Показывать анонимам на витрине после публикации")
+        Boolean visibleToAnonymous
 ) {
 }

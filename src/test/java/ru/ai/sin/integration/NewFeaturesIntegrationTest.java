@@ -28,8 +28,8 @@ class NewFeaturesIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void publicProjects_list_noAuth_returns200() throws Exception {
-        mockMvc.perform(get("/public/projects"))
+    void publicVitrinaHome_list_noAuth_returns200() throws Exception {
+        mockMvc.perform(get("/public/vitrina/home"))
                 .andExpect(status().isOk());
     }
 }

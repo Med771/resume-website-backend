@@ -27,7 +27,7 @@ import java.util.UUID;
         name = "PublicStudents",
         description = """
                 Публичная витрина карточек **без JWT и без cookie** (`permitAll`).
-                В выдачу попадают только студенты с `publicProfileConsent=true`, курс **не** `NEW`, карточка не скрыта иными правилами каталога.
+                В выдачу попадают только студенты с `publicProfileConsent=true`, `catalogVisible=true` и прочими правилами каталога.
                 Контакты и прочие PII в `StudentCardDTO` не расширяются специально для анонимов — см. описание полей DTO.""")
 public class PublicStudentController {
 
@@ -38,10 +38,10 @@ public class PublicStudentController {
             description = """
                     Возвращает **укороченную** карточку (`StudentCardDTO`) для лендинга/каталога без авторизации.
 
-                    **Успех (200):** студент найден, `publicProfileConsent=true`, курс не `NEW`.
+                    **Успех (200):** студент найден, `publicProfileConsent=true`, `catalogVisible=true`.
 
                     **Ошибки:**
-                    - **404** — нет записи, нет согласия на публичный показ, курс `NEW` или карточка скрыта по тем же правилам, что и для рекрутера на `GET /student/{id}`.
+                    - **404** — нет записи, нет согласия на публичный показ, карточка скрыта (`catalogVisible=false`) или иные правила каталога.
 
                     Параметр сортировки из query **не** используется; пагинация здесь не применяется.""")
     @GetMapping("/{id}")
@@ -55,7 +55,7 @@ public class PublicStudentController {
             summary = "Список карточек для витрины (постранично)",
             description = """
                     Тело — тот же `FilterStudentReq`, что и у `POST /student/cardsFilter` (фильтры по строке поиска, курсам, навыкам и т.д.).
-                    Дополнительно сервер **всегда** накладывает условие: `publicProfileConsent=true` и курс **не** `NEW`.
+                    Дополнительно сервер **всегда** накладывает условие: `publicProfileConsent=true` и `catalogVisible=true`.
 
                     **Пагинация:** стандартные query-параметры Spring Data — `page`, `size` (например `?page=0&size=20`).
 
@@ -75,6 +75,6 @@ public class PublicStudentController {
     }
 
     private static FilterStudentReq emptyFilter() {
-        return new FilterStudentReq(null, null, null, null, null, null, null, null, null, null);
+        return new FilterStudentReq(null, null, null, null, null, null, null, null, null, null, null, null);
     }
 }

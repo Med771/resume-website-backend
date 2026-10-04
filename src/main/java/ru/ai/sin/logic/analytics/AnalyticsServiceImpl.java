@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.logic.analytics.dto.AnalyticsEventInReq;
+import ru.ai.sin.logic.analytics.dto.AnalyticsFunnelDTO;
+import ru.ai.sin.logic.analytics.dto.AnalyticsFunnelRow;
 import ru.ai.sin.logic.analytics.dto.AnalyticsPathCountRow;
 import ru.ai.sin.logic.analytics.dto.AnalyticsSummaryDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsSummaryReq;
@@ -15,6 +17,7 @@ import ru.ai.sin.logic.registration.ClientIpResolver;
 import ru.ai.sin.logic.recruiter.RecruiterRepo;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.user.UserRepo;
+import ru.ai.sin.tools.UserTools;
 import ru.ai.sin.models.enums.AnalyticsEventType;
 import ru.ai.sin.models.enums.RoleEnum;
 
@@ -36,6 +39,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final UserRepo userRepo;
     private final StudentRepo studentRepo;
     private final RecruiterRepo recruiterRepo;
+    private final UserTools userTools;
 
     @Override
     @Transactional
@@ -64,6 +68,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         e.setSessionId(req.sessionId());
         e.setUserAgent(trimTo(req.userAgent(), 512));
         e.setIpHash(sha256Hex(ip));
+        userTools.findCurrentUserFetchingLinks().ifPresent(u -> e.setUserId(u.getId()));
         analyticsEventRepo.save(e);
     }
 
@@ -123,6 +128,19 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 totalRecruiters,
                 newStudents,
                 newRecruiters);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AnalyticsFunnelDTO summarizeFunnel(AnalyticsSummaryReq req) {
+        if (!req.to().isAfter(req.from())) {
+            throw new BadRequestException("Parameter 'to' must be after 'from'");
+        }
+        List<Object[]> rows = analyticsEventRepo.countByEventTypeBetween(req.from(), req.to());
+        List<AnalyticsFunnelRow> mapped = rows.stream()
+                .map(r -> new AnalyticsFunnelRow((String) r[0], ((Number) r[1]).longValue()))
+                .toList();
+        return new AnalyticsFunnelDTO(mapped);
     }
 
     private static String trimTo(String s, int max) {

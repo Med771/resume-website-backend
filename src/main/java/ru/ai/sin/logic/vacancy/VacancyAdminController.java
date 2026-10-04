@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import ru.ai.sin.logic.vacancy.dto.FilterVacancyModerationReq;
+import ru.ai.sin.logic.vacancy.dto.PatchVacancyVitrinaReq;
+import ru.ai.sin.logic.vacancy.dto.ReorderVacanciesReq;
 import ru.ai.sin.logic.vacancy.dto.VacancyDTO;
 import ru.ai.sin.logic.vacancy.dto.VacancyModerationRejectReq;
 import ru.ai.sin.models.PageResponse;
@@ -63,5 +66,21 @@ public class VacancyAdminController {
             @RequestBody(required = false) VacancyModerationRejectReq body
     ) {
         vacancyModerationAdminService.reject(id, body);
+    }
+
+    @Operation(summary = "Изменить порядок вакансий на витрине")
+    @PostMapping("/reorder")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reorder(@Valid @RequestBody ReorderVacanciesReq req) {
+        vacancyModerationAdminService.reorder(req);
+    }
+
+    @Operation(summary = "Настройки витрины вакансии (consent, sort)")
+    @PatchMapping("/{id}/vitrina")
+    public ResponseEntity<VacancyDTO> patchVitrina(
+            @PathVariable UUID id,
+            @Valid @RequestBody PatchVacancyVitrinaReq req
+    ) {
+        return ResponseEntity.ok(vacancyModerationAdminService.patchVitrina(id, req));
     }
 }

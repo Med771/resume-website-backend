@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.ai.sin.logic.analytics.dto.AnalyticsFunnelDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsSummaryDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsSummaryReq;
 import ru.ai.sin.logic.analytics.dto.EntityPopulationSummaryDTO;
@@ -59,5 +60,11 @@ public class AdminAnalyticsController {
             @Valid @RequestBody(required = false) EntityPopulationSummaryReq req) {
         EntityPopulationSummaryReq body = req == null ? new EntityPopulationSummaryReq(null, null) : req;
         return ResponseEntity.ok(analyticsService.summarizeEntityPopulation(body));
+    }
+
+    @Operation(summary = "Воронка по типам событий за интервал")
+    @PostMapping("/funnel")
+    public ResponseEntity<AnalyticsFunnelDTO> funnel(@Valid @RequestBody AnalyticsSummaryReq req) {
+        return ResponseEntity.ok(analyticsService.summarizeFunnel(req));
     }
 }

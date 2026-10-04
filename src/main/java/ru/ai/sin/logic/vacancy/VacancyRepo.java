@@ -3,6 +3,7 @@ package ru.ai.sin.logic.vacancy;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -29,4 +30,5 @@ public interface VacancyRepo extends JpaRepository<VacancyEnt, UUID>, JpaSpecifi
             """)
     boolean existsApplicationByVacancyAndStudent(@Param("vacancyId") UUID vacancyId, @Param("studentId") UUID studentId);
 
+    void deleteByRecruiter_Id(UUID recruiterId);
 }

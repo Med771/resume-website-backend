@@ -30,4 +30,6 @@ public interface ExperienceRepo extends JpaRepository<ExperienceEnt, Long>, JpaS
     Page<ExperienceEnt> findAll(Specification<ExperienceEnt> spec, @NonNull Pageable pageable);
 
     void deleteByStudent_Id(UUID studentId);
+
+    List<ExperienceEnt> findAllByStudent_Id(UUID studentId);
 }

@@ -34,7 +34,7 @@ public class SkillController {
     private final SkillService skillService;
 
     @Operation(summary = "Получить навык по ID", description = "Возвращает карточку навыка")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<SkillDTO> getById(@PathVariable @Min(1) long id) {
         SkillDTO skillDTO = skillService.getById(id);
@@ -43,7 +43,7 @@ public class SkillController {
     }
 
     @Operation(summary = "Фильтр навыков", description = "Принимает DTO фильтра в request body и Pageable без параметра sort")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<SkillDTO>> filter(
             @PageableDefault Pageable pageable,

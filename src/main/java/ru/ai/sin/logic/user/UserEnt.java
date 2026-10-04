@@ -10,9 +10,12 @@ import org.hibernate.annotations.UuidGenerator;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.models.enums.AccountStatus;
+import ru.ai.sin.models.enums.convertor.AccountStatusConverter;
 import ru.ai.sin.models.enums.convertor.RoleEnumConverter;
 import ru.ai.sin.models.enums.RoleEnum;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -42,6 +45,30 @@ public class UserEnt {
 
     @Column(name = "phone_verified", nullable = false)
     private boolean phoneVerified = false;
+
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+
+    @Column(name = "email_otp_hash", length = 128)
+    private String emailOtpHash;
+
+    @Column(name = "email_otp_expires_at")
+    private LocalDateTime emailOtpExpiresAt;
+
+    @Column(name = "account_status", length = 32, nullable = false)
+    @Convert(converter = AccountStatusConverter.class)
+    private AccountStatus accountStatus = AccountStatus.APPROVED;
+
+    @Column(name = "hints_disabled", nullable = false)
+    private boolean hintsDisabled = false;
+
+    /** Телефон, подтверждённый при регистрации (для предзаполнения резюме) */
+    @Column(name = "registration_phone", length = 32)
+    private String registrationPhone;
+
+    /** Email, указанный при регистрации (для предзаполнения резюме) */
+    @Column(name = "registration_email", length = 255)
+    private String registrationEmail;
 
     /** Профиль рекрутера для повторных заявок без повторного ввода данных */
     @ManyToOne(fetch = FetchType.LAZY)

@@ -33,6 +33,9 @@ class RequestControllerMvcTest {
     @MockBean
     private RequestService requestService;
 
+    @MockBean
+    private TuDecisionService tuDecisionService;
+
     /** Не поднимаем реальный JWT-фильтр и JwtHelper в срезе WebMvc. */
     @MockBean
     private JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;

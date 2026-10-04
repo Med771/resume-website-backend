@@ -97,7 +97,7 @@ public class RecruiterController {
     @Operation(
             summary = "Частично обновить рекрутера",
             description = "PATCH: в теле только изменяемые поля; отсутствующие или null не меняют значения в БД")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
     @PatchMapping(path = "/{id}")
     public ResponseEntity<RecruiterDTO> patchById(
             @PathVariable @NotNull UUID id,

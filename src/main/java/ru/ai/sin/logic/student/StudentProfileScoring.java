@@ -12,6 +12,7 @@ public final class StudentProfileScoring {
             n += len(student.getUserInformation().getFirstName());
             n += len(student.getUserInformation().getLastName());
         }
+        n += len(student.getMiddleName());
         return n;
     }
 

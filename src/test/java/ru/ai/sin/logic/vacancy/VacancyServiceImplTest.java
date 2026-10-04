@@ -91,7 +91,7 @@ class VacancyServiceImplTest {
         when(userTools.findCurrentUserFetchingRecruiter()).thenReturn(Optional.of(user));
 
         CreateVacancyReq req = new CreateVacancyReq(
-                "Title", "Description long enough here", null, null, null, null, null, null, null, null);
+                "Title", "Description long enough here", null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.create(req))
                 .isInstanceOf(BadRequestException.class);

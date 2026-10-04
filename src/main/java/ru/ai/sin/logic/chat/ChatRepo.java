@@ -24,4 +24,6 @@ public interface ChatRepo extends JpaRepository<ChatEnt, UUID> {
     Optional<ChatEnt> findByRecruiter_IdAndStudent_Id(UUID recruiterId, UUID studentId);
 
     void deleteByStudent_Id(UUID studentId);
+
+    void deleteByRecruiter_Id(UUID recruiterId);
 }

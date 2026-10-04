@@ -24,6 +24,8 @@ import ru.ai.sin.models.embeddables.TimeStamped;
 import ru.ai.sin.models.embeddables.UserInformation;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
+import ru.ai.sin.models.enums.GenderEnum;
+import ru.ai.sin.models.enums.convertor.GenderEnumConverter;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -44,7 +46,7 @@ public class StudentEnt {
 
     private String hhLink;
 
-    @Column(name = "birth_date", nullable = false)
+    @Column(name = "birth_date")
     private LocalDate birthDate;
 
     @Column(columnDefinition = "TEXT")
@@ -62,6 +64,14 @@ public class StudentEnt {
     @Column(name = "busyness", length = 32)
     @Convert(converter = BusynessEnumConverter.class)
     private BusynessEnum busyness;
+
+    /** Отчество (не фамилия — фамилия в {@code userInformation.lastName}). */
+    @Column(name = "middle_name")
+    private String middleName;
+
+    @Column(name = "gender", length = 16)
+    @Convert(converter = GenderEnumConverter.class)
+    private GenderEnum gender;
 
     @Embedded
     private UserInformation userInformation = new UserInformation();
@@ -92,6 +102,9 @@ public class StudentEnt {
 
     @OneToMany(mappedBy = "student", fetch = FetchType.LAZY)
     private List<ExperienceEnt> companies = new ArrayList<>();
+
+    @Column(name = "catalog_visible", nullable = false)
+    private boolean catalogVisible = true;
 
     @Column(name = "public_profile_consent", nullable = false)
     private boolean publicProfileConsent;

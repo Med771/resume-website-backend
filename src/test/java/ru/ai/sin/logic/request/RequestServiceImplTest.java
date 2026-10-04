@@ -19,10 +19,13 @@ import ru.ai.sin.logic.request.dto.StudentRequestDecisionReq;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
+import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.ResultEnum;
 import ru.ai.sin.models.enums.RoleEnum;
+import ru.ai.sin.logic.notification.UserInboxNotificationService;
+import ru.ai.sin.models.enums.TuPhase;
 import ru.ai.sin.tools.RecruiterTools;
 import ru.ai.sin.tools.RequestTools;
 import ru.ai.sin.tools.StudentTools;
@@ -58,6 +61,10 @@ class RequestServiceImplTest {
     private SecurityHelper securityHelper;
     @Mock
     private ChatService chatService;
+    @Mock
+    private AccountAccessHelper accountAccessHelper;
+    @Mock
+    private UserInboxNotificationService inboxNotificationService;
 
     private RequestServiceImpl service;
 
@@ -75,8 +82,17 @@ class RequestServiceImplTest {
                 userRepo,
                 userTools,
                 securityHelper,
-                chatService
+                chatService,
+                accountAccessHelper,
+                inboxNotificationService
         );
+    }
+
+    private static RequestDTO sampleDto(
+            long id, UUID chatId, ResultEnum result, UUID recruiterId, UUID studentId) {
+        return new RequestDTO(
+                id, chatId, result, null, null, null, recruiterId, studentId,
+                null, null, null, null, null, null, TuPhase.NOT_APPLICABLE);
     }
 
     @Test
@@ -98,7 +114,7 @@ class RequestServiceImplTest {
     }
 
     @Test
-    void create_throwsNotFoundWhenStudentIsNewAndUserNotAdmin() {
+    void create_throwsNotFoundWhenStudentHiddenFromCatalogAndUserNotAdmin() {
         when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.empty());
 
         RecruiterEnt recruiter = new RecruiterEnt();
@@ -107,7 +123,7 @@ class RequestServiceImplTest {
 
         StudentEnt student = new StudentEnt();
         student.setId(studentId);
-        student.setCourse(CourseEnum.NEW);
+        student.setCatalogVisible(false);
         when(studentTools.getStudentOrThrow(studentId)).thenReturn(student);
         when(securityHelper.isCurrentUserAdmin()).thenReturn(false);
 
@@ -124,7 +140,7 @@ class RequestServiceImplTest {
     }
 
     @Test
-    void create_allowsWhenStudentIsNewAndUserIsAdmin() {
+    void create_allowsWhenStudentHiddenFromCatalogAndUserIsAdmin() {
         RecruiterEnt recruiter = new RecruiterEnt();
         recruiter.setId(recruiterId);
         UserEnt admin = new UserEnt(RoleEnum.ADMIN, "a", "admin", "x");
@@ -134,7 +150,7 @@ class RequestServiceImplTest {
 
         StudentEnt student = new StudentEnt();
         student.setId(studentId);
-        student.setCourse(CourseEnum.NEW);
+        student.setCatalogVisible(false);
         when(studentTools.getStudentOrThrow(studentId)).thenReturn(student);
 
         ChatEnt chat = new ChatEnt();
@@ -147,9 +163,7 @@ class RequestServiceImplTest {
             return saved;
         });
 
-        RequestDTO dto = new RequestDTO(
-                200L, chatId, ResultEnum.WAITING, null, null, null, recruiterId, studentId
-        );
+        RequestDTO dto = sampleDto(200L, chatId, ResultEnum.WAITING, recruiterId, studentId);
         when(requestTools.mapToDTO(any(RequestEnt.class))).thenReturn(dto);
 
         AddRequestReq req = new AddRequestReq(
@@ -186,9 +200,7 @@ class RequestServiceImplTest {
             return saved;
         });
 
-        RequestDTO dto = new RequestDTO(
-                100L, chatId, ResultEnum.WAITING, null, null, null, recruiterId, studentId
-        );
+        RequestDTO dto = sampleDto(100L, chatId, ResultEnum.WAITING, recruiterId, studentId);
         when(requestTools.mapToDTO(any(RequestEnt.class))).thenReturn(dto);
 
         AddRequestReq req = new AddRequestReq(
@@ -327,7 +339,7 @@ class RequestServiceImplTest {
         });
 
         when(requestTools.mapToDTO(any(RequestEnt.class))).thenReturn(
-                new RequestDTO(55L, chatId, ResultEnum.WAITING, null, null, null, recruiterId, studentId)
+                sampleDto(55L, chatId, ResultEnum.WAITING, recruiterId, studentId)
         );
 
         AddRequestReq req = new AddRequestReq(

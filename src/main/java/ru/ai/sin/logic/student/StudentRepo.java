@@ -18,7 +18,7 @@ import ru.ai.sin.logic.skill.SkillEnt;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.Set;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -34,10 +34,13 @@ public interface StudentRepo extends
     @EntityGraph(attributePaths = {"speciality", "skills"}, type = EntityGraph.EntityGraphType.LOAD)
     Page<StudentEnt> findAll(Specification<StudentEnt> specification, @NonNull Pageable pageable);
 
-    @Query("SELECT s.skills FROM StudentEnt s WHERE s.id = :studentId")
-    Set<SkillEnt> findSkillsByStudentId(UUID studentId);
-
-    Optional<StudentEnt> findByContactInformationTelegramUserId(String telegramUserId);
+    @Query("""
+        SELECT sk FROM StudentEnt s
+        JOIN s.skills sk
+        WHERE s.id = :studentId
+        ORDER BY sk.timestamps.createdAt ASC, sk.id ASC
+        """)
+    List<SkillEnt> findSkillsByStudentId(UUID studentId);
 
     @Query("""
             SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END
@@ -45,6 +48,14 @@ public interface StudentRepo extends
             WHERE LOWER(TRIM(s.userInformation.email)) = LOWER(TRIM(:email))
             """)
     boolean existsByNormalizedEmail(@Param("email") String email);
+
+    @Query("""
+            SELECT s FROM StudentEnt s
+            WHERE EXISTS (
+                SELECT 1 FROM UserEnt u
+                WHERE u.student = s AND u.accountStatus = ru.ai.sin.models.enums.AccountStatus.APPROVED
+            )""")
+    java.util.List<StudentEnt> findAllWithApprovedAccount();
 
     @Query("select count(s) from StudentEnt s")
     long countAllStudents();

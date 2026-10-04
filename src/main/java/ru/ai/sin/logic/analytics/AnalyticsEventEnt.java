@@ -38,7 +38,7 @@ public class AnalyticsEventEnt {
     private UUID sessionId;
 
     @Column(name = "user_id")
-    private Long userId;
+    private UUID userId;
 
     @Column(name = "ip_hash", length = 128)
     private String ipHash;

@@ -16,6 +16,7 @@ import ru.ai.sin.models.PageResponse;
 
 import ru.ai.sin.exception.models.BadRequestException;
 
+import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 
 import ru.ai.sin.logic.experience.dto.*;
@@ -43,6 +44,7 @@ public class ExperienceServiceImpl implements ExperienceService {
     private final StudentTools studentTools;
 
     private final SecurityHelper securityHelper;
+    private final AccountAccessHelper accountAccessHelper;
 
     private void updateActiveCompanyOrThrow(long companyId, ExperienceEnt experienceEnt) {
         experienceEnt.setCompany(companyTools.getCompanyOrThrow(companyId));
@@ -55,12 +57,16 @@ public class ExperienceServiceImpl implements ExperienceService {
     @Override
     @Transactional(readOnly = true)
     public ExperienceDTO getById(long id) {
-        return experienceTools.mapToDTO(experienceTools.getExperienceOrThrow(id));
+        ExperienceEnt experienceEnt = experienceTools.getExperienceOrThrow(id);
+        accountAccessHelper.requireCanReadStudentResumeDetails(experienceEnt.getStudent().getId());
+        return experienceTools.mapToDTO(experienceEnt);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ExperienceDTO> getAllByFilter(Pageable pageable, FilterExperienceReq filterExperienceReq) {
+        accountAccessHelper.requireCanReadStudentResumeDetails(filterExperienceReq.studentId());
+
         Page<ExperienceEnt> page = experienceRepo.findAll(
                 ExperienceSpecifications.byFilters(filterExperienceReq),
                 pageable);
@@ -76,10 +82,13 @@ public class ExperienceServiceImpl implements ExperienceService {
     @Override
     @Transactional
     public ExperienceDTO create(AddExperienceReq addExperienceReq) {
+        UUID studentId = accountAccessHelper.resolveStudentIdForResumeMutation(addExperienceReq.studentId());
+        accountAccessHelper.requireStudentCanMutateResume(studentId);
+
         ExperienceEnt experienceEnt = experienceMapper.toEntity(addExperienceReq);
 
         updateActiveCompanyOrThrow(addExperienceReq.companyId(), experienceEnt);
-        updateActiveStudentOrThrow(addExperienceReq.studentId(), experienceEnt);
+        updateActiveStudentOrThrow(studentId, experienceEnt);
 
         try {
             experienceEnt = experienceRepo.save(experienceEnt);
@@ -104,6 +113,7 @@ public class ExperienceServiceImpl implements ExperienceService {
             UpdateExperienceReq updateExperienceReq
     ) {
         ExperienceEnt experienceEnt = experienceTools.getExperienceOrThrow(id);
+        accountAccessHelper.requireStudentCanMutateResume(experienceEnt.getStudent().getId());
 
         experienceMapper.updateEntityFromDto(updateExperienceReq, experienceEnt);
 
@@ -111,8 +121,12 @@ public class ExperienceServiceImpl implements ExperienceService {
             updateActiveCompanyOrThrow(updateExperienceReq.companyId(), experienceEnt);
         }
 
-        if (!Objects.equals(experienceEnt.getStudent().getId(), updateExperienceReq.studentId())) {
-            updateActiveStudentOrThrow(updateExperienceReq.studentId(), experienceEnt);
+        UUID targetStudentId = accountAccessHelper.resolveStudentIdForResumeMutation(
+                updateExperienceReq.studentId() != null
+                        ? updateExperienceReq.studentId()
+                        : experienceEnt.getStudent().getId());
+        if (!Objects.equals(experienceEnt.getStudent().getId(), targetStudentId)) {
+            updateActiveStudentOrThrow(targetStudentId, experienceEnt);
         }
 
         ExperienceDTO experienceDTO = experienceTools.mapToDTO(experienceEnt);
@@ -126,6 +140,7 @@ public class ExperienceServiceImpl implements ExperienceService {
     @Transactional
     public void deleteById(long id) {
         ExperienceEnt experienceEnt = experienceTools.getExperienceOrThrow(id);
+        accountAccessHelper.requireStudentCanMutateResume(experienceEnt.getStudent().getId());
 
         try {
             experienceRepo.delete(experienceEnt);

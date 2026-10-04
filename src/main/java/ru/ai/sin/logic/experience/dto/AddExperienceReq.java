@@ -12,7 +12,6 @@ public record AddExperienceReq(
         @Positive
         long companyId,
 
-        @NotNull
         UUID studentId,
 
         @NotBlank

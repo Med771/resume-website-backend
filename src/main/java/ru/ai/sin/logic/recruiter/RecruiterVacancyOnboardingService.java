@@ -9,4 +9,6 @@ public interface RecruiterVacancyOnboardingService {
     VacancyDTO createFirstVacancy(CreateVacancyReq req);
 
     boolean hasVacancyForCurrentUser();
+
+    boolean isProfileCompleteForCurrentUser();
 }

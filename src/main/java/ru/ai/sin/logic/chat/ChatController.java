@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import ru.ai.sin.logic.chat.dto.ChatContextDTO;
 import ru.ai.sin.logic.chat.dto.ChatMessageDTO;
 import ru.ai.sin.logic.chat.dto.ChatSummaryDTO;
 import ru.ai.sin.logic.chat.dto.MarkChatReadReq;
@@ -104,6 +105,21 @@ public class ChatController {
             @PathVariable UUID messageId,
             @Valid @RequestBody PatchChatMessageReq req) {
         return ResponseEntity.ok(chatService.editMessage(chatId, messageId, req));
+    }
+
+    @Operation(summary = "Контекст чата для админ-панели", description = "Связанные заявки и отклики на вакансии")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping(path = "/{chatId}/context")
+    public ResponseEntity<ChatContextDTO> context(@PathVariable UUID chatId) {
+        return ResponseEntity.ok(chatService.getChatContext(chatId));
+    }
+
+    @Operation(summary = "Удалить чат целиком (админ)", description = "Каскадно удаляет заявки, отклики, сообщения и чат")
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping(path = "/{chatId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void adminDeleteChat(@PathVariable UUID chatId) {
+        chatService.adminDeleteChat(chatId);
     }
 
     @Operation(summary = "Удалить сообщение (админ, мягкое удаление)")

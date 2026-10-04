@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -21,6 +22,11 @@ public class TelegramWebhookController {
 
     private final PhoneVerificationService phoneVerificationService;
     private final TelegramProperties telegramProperties;
+
+    @GetMapping("/webhook")
+    public ResponseEntity<Void> webhookHealthCheck() {
+        return ResponseEntity.ok().build();
+    }
 
     @PostMapping("/webhook")
     public ResponseEntity<Void> webhook(

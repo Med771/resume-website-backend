@@ -29,6 +29,9 @@ public class RecruiterEnt {
     @Column(name = "company_name", nullable = false)
     private String companyName;
 
+    @Column(name = "city")
+    private String city;
+
     @Embedded
     private UserInformation userInformation = new UserInformation();
 

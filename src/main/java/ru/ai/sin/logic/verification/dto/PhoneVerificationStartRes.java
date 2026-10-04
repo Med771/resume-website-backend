@@ -1,7 +1,6 @@
 package ru.ai.sin.logic.verification.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import ru.ai.sin.models.enums.PhoneVerificationStatus;
 
 import java.util.UUID;
 
@@ -10,6 +9,8 @@ public record PhoneVerificationStartRes(
         UUID verificationId,
         String botUsername,
         String botDeepLink,
-        int ttlMinutes
+        int ttlMinutes,
+        @Schema(description = "true, если OTP успешно отправлен на email")
+        boolean emailOtpSent
 ) {
 }

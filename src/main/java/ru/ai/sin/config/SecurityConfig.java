@@ -54,17 +54,17 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
+                        .requestMatchers("/auth/confirm-email", "/auth/resend-email-confirmation").authenticated()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/verification/phone/**").permitAll()
                         .requestMatchers("/telegram/webhook").permitAll()
-                        .requestMatchers("/public/registration/**").permitAll()
-                        .requestMatchers("/public/students/**").permitAll()
-                        .requestMatchers("/public/projects/**").permitAll()
+                        .requestMatchers("/public/vitrina/**").permitAll()
                         .requestMatchers("/public/analytics/**").permitAll()
                         .requestMatchers("/main/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
 

@@ -51,6 +51,18 @@ public class VacancyApplicationEnt {
     @JoinColumn(name = "app_chat_id")
     private ChatEnt appChat;
 
+    @Column(name = "student_tu_confirmed_at")
+    private java.time.LocalDateTime studentTuConfirmedAt;
+
+    @Column(name = "recruiter_tu_confirmed_at")
+    private java.time.LocalDateTime recruiterTuConfirmedAt;
+
+    @Column(name = "rejection_reason_code", length = 64)
+    private String rejectionReasonCode;
+
+    @Column(name = "rejection_comment", columnDefinition = "TEXT")
+    private String rejectionComment;
+
     @Embedded
     private TimeStamped timestamps = new TimeStamped();
 }

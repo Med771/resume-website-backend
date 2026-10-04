@@ -16,6 +16,7 @@ import ru.ai.sin.models.PageResponse;
 
 import ru.ai.sin.exception.models.BadRequestException;
 
+import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 
 import ru.ai.sin.logic.recruiter.dto.*;
@@ -40,6 +41,9 @@ public class RecruiterServiceImpl implements RecruiterService {
     private final UserTools userTools;
 
     private final SecurityHelper securityHelper;
+    private final AccountAccessHelper accountAccessHelper;
+
+    private final RecruiterDeletionService recruiterDeletionService;
 
     @Override
     @Transactional(readOnly = true)
@@ -106,6 +110,7 @@ public class RecruiterServiceImpl implements RecruiterService {
     @Override
     @Transactional
     public RecruiterDTO patch(UUID id, PatchRecruiterReq patchRecruiterReq) {
+        accountAccessHelper.requireRecruiterOwnsProfile(id);
         RecruiterEnt recruiterEnt = recruiterTools.getRecruiterOrThrow(id);
 
         recruiterMapper.patchEntityFromDto(patchRecruiterReq, recruiterEnt);
@@ -120,17 +125,8 @@ public class RecruiterServiceImpl implements RecruiterService {
     @Override
     @Transactional
     public void deleteById(UUID id) {
-        RecruiterEnt recruiterEnt = recruiterTools.getRecruiterOrThrow(id);
-
-        try {
-            recruiterRepo.deleteById(id);
-        }
-        catch (DataIntegrityViolationException ex) {
-            log.warn("Error while deleting recruiter: {}", ex.getMessage());
-
-            throw new BadRequestException("Error while deleting recruiter");
-        }
-
+        recruiterTools.getRecruiterOrThrow(id);
+        recruiterDeletionService.deleteRecruiterCascade(id);
         log.info("User {} deleted recruiter id={}", securityHelper.getCurrentUsername(), id);
     }
 }

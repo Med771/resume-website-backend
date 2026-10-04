@@ -27,11 +27,13 @@ public record StudentCardDTO(
         String firstName,
         @Schema(description = "Фамилия")
         String lastName,
+        @Schema(description = "Отчество")
+        String middleName,
 
         @Schema(description = "Путь к изображению профиля")
         String imagePath,
 
-        @Schema(description = "Текущий курс")
+        @Schema(description = "Текущий курс (1–5)")
         @NotNull
         CourseEnum course,
 

@@ -39,7 +39,7 @@ public record StudentDTO(
         @Schema(description = "Путь к изображению профиля")
         String imagePath,
 
-        @Schema(description = "Текущий курс")
+        @Schema(description = "Текущий курс (1–5)")
         @NotNull
         CourseEnum course,
 
@@ -51,6 +51,22 @@ public record StudentDTO(
         String firstName,
         @Schema(description = "Фамилия")
         String lastName,
+        @Schema(description = "Отчество")
+        String middleName,
+        @Schema(description = "Пол; null — не указан")
+        ru.ai.sin.models.enums.GenderEnum gender,
+
+        @Schema(description = "Email (только для владельца и админки)")
+        String email,
+
+        @Schema(description = "Телефон")
+        String phoneNumber,
+
+        @Schema(description = "Telegram username")
+        String telegramUsername,
+
+        @Schema(description = "ID специальности")
+        Long specialityId,
 
         @Schema(description = "Название специальности")
         @NotNull
@@ -63,8 +79,11 @@ public record StudentDTO(
         @Schema(
                 description = """
                         Согласие владельца карточки (выставляется **админом**) на показ **укороченной** анкеты без JWT.
-                        Сам по себе флаг не публикует курс `NEW` — публичные методы дополнительно отфильтровывают такие записи.""")
+                        Для публичной витрины также требуется `catalogVisible=true`.""")
         boolean publicProfileConsent,
+
+        @Schema(description = "Видимость карточки в каталоге для рекрутёров и одобренных пользователей")
+        boolean catalogVisible,
 
         @Schema(description = "Денормализованная метрика объёма текстовых полей; обновляется при сохранении карточки; участвует в сортировке")
         int profileTextScore,

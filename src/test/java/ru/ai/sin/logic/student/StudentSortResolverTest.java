@@ -19,11 +19,11 @@ class StudentSortResolverTest {
         assertThat(orders.get(0).getProperty()).isEqualTo("manualSortOrder");
         assertThat(orders.get(0).getDirection()).isEqualTo(Sort.Direction.ASC);
         assertThat(orders.get(0).getNullHandling()).isEqualTo(Sort.NullHandling.NATIVE);
-        assertThat(orders.get(1).getProperty()).isEqualTo("imagePath");
-        assertThat(orders.get(1).getDirection()).isEqualTo(Sort.Direction.ASC);
-        assertThat(orders.get(1).getNullHandling()).isEqualTo(Sort.NullHandling.NATIVE);
-        assertThat(orders.get(2).getProperty()).isEqualTo("profileTextScore");
-        assertThat(orders.get(2).getDirection()).isEqualTo(Sort.Direction.DESC);
+        assertThat(orders.get(1).getProperty()).isEqualTo("profileTextScore");
+        assertThat(orders.get(1).getDirection()).isEqualTo(Sort.Direction.DESC);
+        assertThat(orders.get(2).getProperty()).isEqualTo("imagePath");
+        assertThat(orders.get(2).getDirection()).isEqualTo(Sort.Direction.ASC);
+        assertThat(orders.get(2).getNullHandling()).isEqualTo(Sort.NullHandling.NATIVE);
         assertThat(orders.get(3).getProperty()).isEqualTo("timestamps.createdAt");
     }
 
@@ -33,7 +33,9 @@ class StudentSortResolverTest {
                 null, null, null, null, null, null, null,
                 StudentSortField.LAST_NAME,
                 StudentSortDirection.ASC,
-                false
+                false,
+                null,
+                null
         );
         Sort sort = StudentSortResolver.resolve(f);
         assertThat(sort.toList().getFirst().getProperty()).isEqualTo("userInformation.lastName");
@@ -46,7 +48,9 @@ class StudentSortResolverTest {
                 null, null, null, null, null, null, null,
                 StudentSortField.MANUAL_SORT_ORDER,
                 StudentSortDirection.DESC,
-                false
+                false,
+                null,
+                null
         );
         Sort sort = StudentSortResolver.resolve(f);
         assertThat(sort.toList().getFirst().getProperty()).isEqualTo("manualSortOrder");
@@ -54,6 +58,6 @@ class StudentSortResolverTest {
     }
 
     private static FilterStudentReq emptyFilter() {
-        return new FilterStudentReq(null, null, null, null, null, null, null, null, null, null);
+        return new FilterStudentReq(null, null, null, null, null, null, null, null, null, null, null, null);
     }
 }

@@ -10,7 +10,6 @@ import org.springframework.data.jpa.domain.Specification;
 import ru.ai.sin.logic.student.dto.FilterStudentReq;
 
 import ru.ai.sin.logic.skill.SkillEnt;
-import ru.ai.sin.models.enums.CourseEnum;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,12 +19,12 @@ public final class StudentSpecifications {
     private StudentSpecifications() {}
 
     /**
-     * @param includeNewCourseStudents если false, студенты с курсом {@link CourseEnum#NEW} исключаются из выборки
+     * @param includeHiddenFromCatalog если false, студенты с catalog_visible = false исключаются из выборки
      * @param requirePublicConsent если true, только студенты с public_profile_consent = true
      */
     public static Specification<StudentEnt> byFilters(
             FilterStudentReq filterStudentReq,
-            boolean includeNewCourseStudents,
+            boolean includeHiddenFromCatalog,
             boolean requirePublicConsent
     ) {
 
@@ -43,10 +42,8 @@ public final class StudentSpecifications {
                 predicates.add(cb.isTrue(root.get("publicProfileConsent")));
             }
 
-            if (!includeNewCourseStudents) {
-                predicates.add(cb.or(
-                        cb.isNull(root.get("course")),
-                        cb.notEqual(root.get("course"), CourseEnum.NEW)));
+            if (!includeHiddenFromCatalog) {
+                predicates.add(cb.isTrue(root.get("catalogVisible")));
             }
 
             if (filterStudentReq.findString() != null && !filterStudentReq.findString().isBlank()) {
@@ -61,9 +58,11 @@ public final class StudentSpecifications {
 
                 Expression<String> fullName = cb.lower(cb.concat(
                         cb.concat(
-                                root.get("userInformation").get("firstName"), " "),
-                                root.get("userInformation").get("lastName"))
-                );
+                                cb.concat(
+                                        root.get("userInformation").get("firstName"), " "),
+                                root.get("userInformation").get("lastName")),
+                        cb.concat(" ", root.get("middleName"))
+                ));
 
                 Expression<String> bio = cb.lower(root.get("bio"));
 
@@ -104,6 +103,14 @@ public final class StudentSpecifications {
                 Join<StudentEnt, SkillEnt> skillsJoin = root.join("skills", JoinType.INNER);
 
                 predicates.add(skillsJoin.get("id").in(filterStudentReq.skillsIds()));
+            }
+
+            if (filterStudentReq.catalogVisible() != null) {
+                predicates.add(cb.equal(root.get("catalogVisible"), filterStudentReq.catalogVisible()));
+            }
+
+            if (filterStudentReq.publicProfileConsent() != null) {
+                predicates.add(cb.equal(root.get("publicProfileConsent"), filterStudentReq.publicProfileConsent()));
             }
 
             if (predicates.isEmpty()) {

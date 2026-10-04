@@ -42,6 +42,31 @@ public final class VacancySpecifications {
         };
     }
 
+    public static Specification<VacancyEnt> anonymousVisible(FilterVacancyReq filter) {
+        return (root, query, cb) -> {
+            if (query == null) {
+                return null;
+            }
+            query.distinct(true);
+            List<Predicate> predicates = new ArrayList<>();
+            LocalDateTime now = LocalDateTime.now();
+
+            predicates.add(cb.equal(root.get("status"), VacancyStatus.PUBLISHED));
+            predicates.add(cb.isTrue(root.get("visibleToAnonymous")));
+            predicates.add(cb.or(
+                    cb.isNull(root.get("publishedFrom")),
+                    cb.lessThanOrEqualTo(root.get("publishedFrom"), now)
+            ));
+            predicates.add(cb.or(
+                    cb.isNull(root.get("publishedTo")),
+                    cb.greaterThanOrEqualTo(root.get("publishedTo"), now)
+            ));
+
+            applyCommonFilters(filter, root, cb, predicates);
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
     public static Specification<VacancyEnt> moderationFilters(FilterVacancyModerationReq filter) {
         return (root, query, cb) -> {
             if (query == null) {

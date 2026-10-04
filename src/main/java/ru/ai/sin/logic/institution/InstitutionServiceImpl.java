@@ -16,6 +16,7 @@ import ru.ai.sin.models.PageResponse;
 
 import ru.ai.sin.exception.models.BadRequestException;
 
+import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 
 import ru.ai.sin.logic.institution.dto.*;
@@ -42,6 +43,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     private final StudentTools studentTools;
 
     private final SecurityHelper securityHelper;
+    private final AccountAccessHelper accountAccessHelper;
 
     private void updateActiveEducationOrThrow(long educationId, InstitutionEnt institutionEnt) {
         institutionEnt.setEducation(educationTools.getEducationOrThrow(educationId));
@@ -55,6 +57,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     @Transactional(readOnly = true)
     public InstitutionDTO getById(long id) {
         InstitutionEnt institutionEnt = institutionTools.getInstitutionOrThrow(id);
+        accountAccessHelper.requireCanReadStudentResumeDetails(institutionEnt.getStudent().getId());
 
         return institutionTools.mapToDTO(institutionEnt);
     }
@@ -62,6 +65,8 @@ public class InstitutionServiceImpl implements InstitutionService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<InstitutionDTO> getAllByFilter(Pageable pageable, FilterInstitutionReq filterInstitutionReq) {
+        accountAccessHelper.requireCanReadStudentResumeDetails(filterInstitutionReq.studentId());
+
         Page<InstitutionEnt> page = institutionRepo.findAll(
                 InstitutionSpecifications.byFilters(filterInstitutionReq),
                 pageable);
@@ -77,10 +82,13 @@ public class InstitutionServiceImpl implements InstitutionService {
     @Override
     @Transactional
     public InstitutionDTO create(AddInstitutionReq addInstitutionReq) {
+        UUID studentId = accountAccessHelper.resolveStudentIdForResumeMutation(addInstitutionReq.studentId());
+        accountAccessHelper.requireStudentCanMutateResume(studentId);
+
         InstitutionEnt institutionEnt = institutionMapper.toEntity(addInstitutionReq);
 
         updateActiveEducationOrThrow(addInstitutionReq.educationId(), institutionEnt);
-        updateActiveStudentOrThrow(addInstitutionReq.studentId(), institutionEnt);
+        updateActiveStudentOrThrow(studentId, institutionEnt);
 
         try {
             institutionEnt = institutionRepo.save(institutionEnt);
@@ -105,14 +113,19 @@ public class InstitutionServiceImpl implements InstitutionService {
             UpdateInstitutionReq updateInstitutionReq
     ) {
         InstitutionEnt institutionEnt = institutionTools.getInstitutionOrThrow(id);
+        accountAccessHelper.requireStudentCanMutateResume(institutionEnt.getStudent().getId());
 
         institutionMapper.updateEntityFromDto(updateInstitutionReq, institutionEnt);
 
         if (!Objects.equals(institutionEnt.getEducation().getId(), updateInstitutionReq.educationId())) {
             updateActiveEducationOrThrow(updateInstitutionReq.educationId(), institutionEnt);
         }
-        if (!Objects.equals(institutionEnt.getStudent().getId(), updateInstitutionReq.studentId())) {
-            updateActiveStudentOrThrow(updateInstitutionReq.studentId(), institutionEnt);
+        UUID targetStudentId = accountAccessHelper.resolveStudentIdForResumeMutation(
+                updateInstitutionReq.studentId() != null
+                        ? updateInstitutionReq.studentId()
+                        : institutionEnt.getStudent().getId());
+        if (!Objects.equals(institutionEnt.getStudent().getId(), targetStudentId)) {
+            updateActiveStudentOrThrow(targetStudentId, institutionEnt);
         }
 
         InstitutionDTO institutionDTO = institutionTools.mapToDTO(institutionEnt);
@@ -126,6 +139,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     @Transactional
     public void deleteById(long id) {
         InstitutionEnt institutionEnt = institutionTools.getInstitutionOrThrow(id);
+        accountAccessHelper.requireStudentCanMutateResume(institutionEnt.getStudent().getId());
 
         try {
             institutionRepo.delete(institutionEnt);

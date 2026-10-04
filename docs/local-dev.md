@@ -1,64 +1,33 @@
-# Локальная разработка
+# Локальный запуск
 
-## Быстрый старт
+Нужны Java 21 и PostgreSQL. Приложение читает базу из `src/main/resources/application.yaml`:
 
-```powershell
-# 1. PostgreSQL
-cd C:\work_space\resume
-copy .env.example .env
-docker compose up database
+`jdbc:postgresql://localhost:5432/resume`, пользователь `Resume`.
 
-# 2. Backend (Java 21)
-cd resume-website-backend
-.\mvnw spring-boot:run
-
-# 3. Website frontend
-cd resume-website-frontend
-npm install
-npm run dev
-
-# 4. Admin frontend
-cd resume-admin-frontend
-copy .env.example .env
-npm install
-npm run dev
-```
-
-## Порты
-
-| Сервис | URL |
-|--------|-----|
-| PostgreSQL | `localhost:5400` |
-| Backend API | http://localhost:8080 |
-| Swagger | http://localhost:8080/swagger-ui.html |
-| Website | http://localhost:5173 |
-| Admin | http://localhost:3000 |
-
-## Credentials
-
-- PostgreSQL: из корневого `.env` (`DATABASE_*`)
-- Backend datasource: `application.yaml` → `localhost:5400`
-- Admin по умолчанию: `admin` / `admin`
-
-## Демо-проекты (опционально)
-
-После первого запуска backend (Flyway создаст схему) можно залить 10 тестовых проектов — **только для локальной БД**:
+Пароль лежит в том же файле. При старте Flyway сам накатывает миграции.
 
 ```powershell
-psql -h localhost -p 5400 -U Resume -d resume -f resume-website-backend/scripts/dev/site_project_demo_seed.sql
+.\mvnw.cmd spring-boot:run
 ```
 
-Скрипт ничего не делает, если в `site_projects` уже есть строки. Чтобы пересоздать сид: очистите таблицы проектов и запустите скрипт снова.
+Сервер: http://localhost:8080  
+Swagger: http://localhost:8080/swagger-ui.html
 
-## Telegram (регистрация студента)
+Демо-админ создаётся из `app.user.logins` (сейчас логин `admin`). На проде этот блок нужно сменить или убрать.
 
-См. [telegram-setup.md](./telegram-setup.md). Для локальной проверки нужен публичный HTTPS webhook (ngrok) или staging API.
+## Демо-данные
 
-## Тесты backend
+Скрипты в `scripts/dev/` не входят в Flyway. Их запускают вручную в ту же базу, что в `application.yaml`.
+
+- `demo_seed.sql` — пара справочников, если таблица ещё пустая.
+- `site_project_demo_seed.sql` — 10 проектов. Если в `site_projects` уже есть строки, скрипт ничего не пишет.
+
+## Тесты
 
 ```powershell
-cd resume-website-backend
-.\mvnw test
+.\mvnw.cmd test
 ```
 
-Интеграционные тесты (Testcontainers) требуют **Docker Desktop**.
+Интеграционные тесты поднимают PostgreSQL 16 в Docker. Без Docker они помечаются как пропущенные, сборка остаётся зелёной. Подробнее: [testing.md](./testing.md).
+
+Телефон рекрутера локально можно подтвердить кодом из `app.telegram.dev-confirm-code`, пока `allow-dev-confirm: true`. Как включить бота: [telegram-setup.md](./telegram-setup.md).

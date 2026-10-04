@@ -11,4 +11,7 @@ public interface AnalyticsEventRepo extends JpaRepository<AnalyticsEventEnt, Lon
 
     @Query("SELECT e.path, COUNT(e) FROM AnalyticsEventEnt e WHERE e.occurredAt >= :from AND e.occurredAt < :to GROUP BY e.path ORDER BY COUNT(e) DESC")
     List<Object[]> countByPathBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT e.eventType, COUNT(e) FROM AnalyticsEventEnt e WHERE e.occurredAt >= :from AND e.occurredAt < :to GROUP BY e.eventType ORDER BY COUNT(e) DESC")
+    List<Object[]> countByEventTypeBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 }

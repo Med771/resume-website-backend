@@ -12,7 +12,7 @@ import java.util.List;
 
 @Schema(
         name = "UpdateSiteProjectReq",
-        description = "Полная замена полей проекта (`PUT /admin/projects/{id}`), только ADMIN.")
+        description = "Полная замена полей проекта (`PUT /projects/{id}`), только ADMIN. Не PATCH.")
 public record UpdateSiteProjectReq(
         @NotBlank @Size(max = 255)
         @Schema(description = "Заголовок")
@@ -29,7 +29,7 @@ public record UpdateSiteProjectReq(
         List<SiteProjectImageReq> images,
         @Schema(description = "ID навыков из справочника; полная замена списка")
         List<@Positive Long> skillIds,
-        @Schema(description = "Видимость анонимам на публичной ленте")
+        @Schema(description = "Видимость анонимам на `GET /public/vitrina/home`")
         boolean visibleToAnonymous,
         @Schema(description = "Начало окна публикации")
         LocalDateTime publishedFrom,

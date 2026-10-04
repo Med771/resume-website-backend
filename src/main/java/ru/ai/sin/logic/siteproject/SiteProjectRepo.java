@@ -11,21 +11,23 @@ import java.util.UUID;
 
 public interface SiteProjectRepo extends JpaRepository<SiteProjectEnt, UUID> {
 
-    @EntityGraph(attributePaths = {"images", "skills"}, type = EntityGraph.EntityGraphType.LOAD)
-    @Query("SELECT p FROM SiteProjectEnt p ORDER BY p.sortOrder ASC")
+    /**
+     * Только images через JOIN FETCH: нельзя грузить images и skills/students в одном EntityGraph —
+     * Hibernate размножает элементы List (bag) из-за декартова произведения.
+     */
+    @Query("SELECT DISTINCT p FROM SiteProjectEnt p LEFT JOIN FETCH p.images ORDER BY p.sortOrder ASC")
     List<SiteProjectEnt> findAllWithImagesByOrderBySortOrderAsc();
 
-    @EntityGraph(attributePaths = {"images", "skills", "students", "students.speciality"}, type = EntityGraph.EntityGraphType.LOAD)
-    @Query("SELECT p FROM SiteProjectEnt p ORDER BY p.sortOrder ASC")
+    @Query("SELECT DISTINCT p FROM SiteProjectEnt p LEFT JOIN FETCH p.images ORDER BY p.sortOrder ASC")
     List<SiteProjectEnt> findAllWithDetailsByOrderBySortOrderAsc();
 
-    @EntityGraph(attributePaths = {"images", "skills"}, type = EntityGraph.EntityGraphType.LOAD)
-    Optional<SiteProjectEnt> findWithImagesById(UUID id);
+    @Query("SELECT DISTINCT p FROM SiteProjectEnt p LEFT JOIN FETCH p.images WHERE p.id = :id")
+    Optional<SiteProjectEnt> findWithImagesById(@Param("id") UUID id);
 
-    @EntityGraph(attributePaths = {"images", "skills", "students", "students.speciality"}, type = EntityGraph.EntityGraphType.LOAD)
-    Optional<SiteProjectEnt> findWithDetailsById(UUID id);
+    @Query("SELECT DISTINCT p FROM SiteProjectEnt p LEFT JOIN FETCH p.images WHERE p.id = :id")
+    Optional<SiteProjectEnt> findWithDetailsById(@Param("id") UUID id);
 
-    @EntityGraph(attributePaths = {"images", "students"}, type = EntityGraph.EntityGraphType.LOAD)
+    @EntityGraph(attributePaths = {"students"}, type = EntityGraph.EntityGraphType.LOAD)
     Optional<SiteProjectEnt> findWithStudentsById(UUID id);
 
     @Query("""

@@ -38,6 +38,11 @@ public class RecruiterOnboardingController {
     @PreAuthorize("hasRole('RECRUITER')")
     @GetMapping("/status")
     public ResponseEntity<OnboardingStatusRes> status() {
-        return ResponseEntity.ok(new OnboardingStatusRes(recruiterVacancyOnboardingService.hasVacancyForCurrentUser()));
+        boolean profileCompleted = recruiterVacancyOnboardingService.isProfileCompleteForCurrentUser();
+        boolean vacancyCompleted = recruiterVacancyOnboardingService.hasVacancyForCurrentUser();
+        return ResponseEntity.ok(new OnboardingStatusRes(
+                profileCompleted,
+                vacancyCompleted,
+                profileCompleted));
     }
 }

@@ -3,6 +3,7 @@ package ru.ai.sin.helper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import ru.ai.sin.config.property.JwtProperties;
 
 import java.time.Duration;
@@ -16,13 +17,16 @@ public class CookieHelper {
     private ResponseCookie createCookie(String name, String value, Duration duration) {
         JwtProperties.CookieProperties cookieProps = jwtProperties.getCookie();
 
-        return ResponseCookie.from(name, value)
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(cookieProps.isHttpOnly())
                 .secure(cookieProps.isSecure())
                 .sameSite(cookieProps.getSameSite())
                 .path(cookieProps.getPath())
-                .maxAge(duration)
-                .build();
+                .maxAge(duration);
+        if (StringUtils.hasText(cookieProps.getDomain())) {
+            builder.domain(cookieProps.getDomain().trim());
+        }
+        return builder.build();
     }
 
     /**

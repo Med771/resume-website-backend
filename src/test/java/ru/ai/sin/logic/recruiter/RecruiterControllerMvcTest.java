@@ -44,6 +44,7 @@ class RecruiterControllerMvcTest {
         return new RecruiterDTO(
                 REC_ID,
                 "ACME",
+                "Moscow",
                 "Ann",
                 "Bee",
                 "ann_user",

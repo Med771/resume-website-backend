@@ -38,7 +38,7 @@ import java.util.UUID;
         name = "Student",
         description = """
                 Управление карточками студентов для **вошедших** пользователей (роли см. на методах).
-                Публичная витрина без входа — `PublicStudents` (`/public/students/...`).
+                Публичная витрина главной — `GET /public/vitrina/home` (без входа).
 
                 **Сортировка списков** (`POST /student/cardsFilter`, `POST /student/filter`): порядок задаётся полями `FilterStudentReq.sortBy`, `sortDirection`, `useDefaultRanking`;
                 параметр query `sort` **игнорируется**.
@@ -62,14 +62,25 @@ public class StudentController {
     }
 
     @Operation(
+            summary = "Обновить свою карточку",
+            description = """
+                    Только **STUDENT**. Частичный PATCH: `null` — поле не менять.
+                    Навыки — только существующие `skillsIds`. Видимость в каталоге рекрутёров (`catalogVisible`) здесь не меняется.""")
+    @PreAuthorize("hasRole('STUDENT')")
+    @PatchMapping(path = "/me")
+    public ResponseEntity<StudentDTO> patchMe(@Valid @RequestBody PatchStudentMeReq req) {
+        return ResponseEntity.ok(studentService.patchMe(req));
+    }
+
+    @Operation(
             summary = "Получить студента по UUID",
             description = """
-                    **RECRUITER** или **ADMIN**. Полная карточка `StudentDTO`.
+                    **STUDENT**, **RECRUITER** или **ADMIN** с одобренным аккаунтом. Полная карточка `StudentDTO`.
 
-                    Студенты с курсом **NEW** для не-админов возвращают **404** (как при отсутствии id).
+                    Карточки с `catalogVisible=false` для не-админов возвращают **404** (как при отсутствии id).
 
-                    Это **не** публичная витрина: требуется аутентификация по cookie/JWT.""")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+                    Требуется аутентификация по cookie/JWT и статус аккаунта **APPROVED** (кроме ADMIN).""")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<StudentDTO> getById(@PathVariable @NotNull UUID id) {
         StudentDTO studentDTO = studentService.getById(id);
@@ -82,12 +93,12 @@ public class StudentController {
             description = """
                     Постраничная выдача `StudentCardDTO` по фильтрам из тела.
 
-                    **Видимость курса NEW:** в списке только для **ADMIN**; для RECRUITER такие карточки отфильтровываются.
+                    **Скрытые карточки** (`catalogVisible=false`): в списке только для **ADMIN**; для остальных ролей отфильтровываются.
 
                     **Пагинация:** `page`, `size` в query. **Сортировка:** только из JSON (`sortBy`, `sortDirection`, `useDefaultRanking`), не из `sort=`.
 
-                    При `useDefaultRanking=true` (или null — см. серверные умолчания) применяется авто-ранжирование (аватар, `profileTextScore`, дата создания и т.д. в зависимости от `sortBy`).""")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+                    Требуется статус аккаунта **APPROVED** (кроме ADMIN).""")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/cardsFilter")
     public ResponseEntity<PageResponse<StudentCardDTO>> getCardsAllByFilters(
             @PageableDefault Pageable pageable,
@@ -104,8 +115,8 @@ public class StudentController {
             description = """
                     Как `POST /student/cardsFilter`, но элементы страницы — полные `StudentDTO` (включая `publicProfileConsent`, `profileTextScore`).
 
-                    Правила **NEW**, пагинации и сортировки — те же.""")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+                    Правила видимости, пагинации и сортировки — те же. Требуется **APPROVED** (кроме ADMIN).""")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<StudentDTO>> getAllByFilters(
             @PageableDefault Pageable pageable,
@@ -120,12 +131,12 @@ public class StudentController {
     @Operation(
             summary = "Загрузить или заменить фото студента",
             description = """
-                    Только **ADMIN**. Часть `multipart/form-data`, имя части файла: **`avatarFile`**.
+                    **STUDENT** — только своей карточки; **ADMIN** — любой. Часть `multipart/form-data`, имя части файла: **`avatarFile`**.
 
                     После успешной загрузки пересчитывается `profileTextScore` и может измениться порядок в релевантной сортировке.
 
-                    **204** при успехе. **404** — нет студента. **400** — неверный формат/файл.""")
-    @PreAuthorize("hasRole('ADMIN')")
+                    **204** при успехе. **404** — нет студента. **400** — неверный формат/файл. **403** — чужой профиль.""")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PostMapping(path = "/photo/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void setPhoto(

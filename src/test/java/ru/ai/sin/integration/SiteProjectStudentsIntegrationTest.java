@@ -41,17 +41,17 @@ class SiteProjectStudentsIntegrationTest extends AbstractPostgresIntegrationTest
 
         UUID projectId = createSiteProject(adminCookies, "Project-" + suffix);
 
-        mockMvc.perform(get("/admin/projects/" + projectId + "/students").cookie(adminCookies))
+        mockMvc.perform(get("/projects/" + projectId + "/students").cookie(adminCookies))
                 .andExpect(status().isOk())
                 .andExpect(r -> assertThat(r.getResponse().getContentAsString()).isEqualTo("[]"));
 
-        mockMvc.perform(post("/admin/projects/" + projectId + "/students")
+        mockMvc.perform(post("/projects/" + projectId + "/students")
                         .cookie(adminCookies)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"studentIds\":[\"" + studentId + "\"]}"))
                 .andExpect(status().isNoContent());
 
-        MvcResult listResult = mockMvc.perform(get("/admin/projects/" + projectId + "/students")
+        MvcResult listResult = mockMvc.perform(get("/projects/" + projectId + "/students")
                         .cookie(adminCookies))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -59,19 +59,19 @@ class SiteProjectStudentsIntegrationTest extends AbstractPostgresIntegrationTest
         assertThat(ids).hasSize(1);
         assertThat(ids.get(0).asText()).isEqualTo(studentId.toString());
 
-        mockMvc.perform(post("/admin/projects/" + projectId + "/students")
+        mockMvc.perform(post("/projects/" + projectId + "/students")
                         .cookie(adminCookies)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"studentIds\":[\"" + studentId + "\"]}"))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(delete("/admin/projects/" + projectId + "/students")
+        mockMvc.perform(delete("/projects/" + projectId + "/students")
                         .cookie(adminCookies)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"studentIds\":[\"" + studentId + "\"]}"))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/admin/projects/" + projectId + "/students").cookie(adminCookies))
+        mockMvc.perform(get("/projects/" + projectId + "/students").cookie(adminCookies))
                 .andExpect(status().isOk())
                 .andExpect(r -> assertThat(r.getResponse().getContentAsString()).isEqualTo("[]"));
     }
@@ -133,7 +133,7 @@ class SiteProjectStudentsIntegrationTest extends AbstractPostgresIntegrationTest
     }
 
     private UUID createSiteProject(Cookie[] cookies, String title) throws Exception {
-        MvcResult r = mockMvc.perform(post("/admin/projects")
+        MvcResult r = mockMvc.perform(post("/projects")
                         .cookie(cookies)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"" + title + "\",\"visibleToAnonymous\":false}"))

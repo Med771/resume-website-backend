@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
+import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.logic.chat.ChatEnt;
 import ru.ai.sin.logic.chat.ChatService;
 import ru.ai.sin.logic.chat.ChatSystemEvent;
@@ -19,13 +20,13 @@ import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.vacancy.dto.ApplyVacancyReq;
 import ru.ai.sin.logic.vacancy.dto.RejectApplicationReq;
 import ru.ai.sin.logic.vacancy.dto.VacancyApplicationDTO;
+import ru.ai.sin.tools.StudentTools;
+import ru.ai.sin.tools.VacancyApplicationTools;
+import ru.ai.sin.tools.UserTools;
 import ru.ai.sin.models.PageResponse;
-import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
 import ru.ai.sin.models.enums.VacancyApplicationStatus;
 import ru.ai.sin.models.enums.VacancyStatus;
-import ru.ai.sin.tools.StudentTools;
-import ru.ai.sin.tools.UserTools;
 
 import java.util.UUID;
 
@@ -38,14 +39,17 @@ public class VacancyApplicationServiceImpl implements VacancyApplicationService 
     private final VacancyRepo vacancyRepo;
     private final UserTools userTools;
     private final StudentTools studentTools;
+    private final VacancyApplicationTools vacancyApplicationTools;
     private final ChatService chatService;
+    private final AccountAccessHelper accountAccessHelper;
 
     @Override
     @Transactional
     public VacancyApplicationDTO apply(UUID vacancyId, ApplyVacancyReq req) {
+        accountAccessHelper.requireApprovedAccount();
         StudentEnt student = requireCurrentStudent();
-        if (student.getCourse() == CourseEnum.NEW) {
-            throw new BadRequestException("Отклик недоступен для студентов с курсом NEW");
+        if (!student.isCatalogVisible()) {
+            throw new BadRequestException("Отклик недоступен: профиль студента ещё не опубликован в каталоге");
         }
         VacancyEnt vacancy = vacancyRepo.findWithDetailsById(vacancyId)
                 .orElseThrow(() -> new NotFoundException("Вакансия не найдена: " + vacancyId));
@@ -199,19 +203,6 @@ public class VacancyApplicationServiceImpl implements VacancyApplicationService 
     }
 
     private VacancyApplicationDTO toDto(VacancyApplicationEnt app) {
-        var studentCard = studentTools.mapToCardDTO(app.getStudent());
-        var ts = app.getTimestamps();
-        return new VacancyApplicationDTO(
-                app.getId(),
-                app.getVacancy().getId(),
-                app.getVacancy().getTitle(),
-                app.getStudent().getId(),
-                studentCard,
-                app.getStatus(),
-                app.getCoverLetter(),
-                app.getRejectionReason(),
-                app.getAppChat() != null ? app.getAppChat().getId() : null,
-                ts != null ? ts.getCreatedAt() : null
-        );
+        return vacancyApplicationTools.mapToDTO(app);
     }
 }

@@ -6,6 +6,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.exception.models.NotFoundException;
+import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.chat.ChatRepo;
@@ -34,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 /**
- * Бизнес-правила видимости карточки (курс NEW только админу).
+ * Бизнес-правила видимости карточки (catalog_visible=false скрыта от не-админов).
  */
 @ExtendWith(MockitoExtension.class)
 class StudentServiceImplVisibilityTest {
@@ -72,16 +73,18 @@ class StudentServiceImplVisibilityTest {
     @Mock
     private SecurityHelper securityHelper;
     @Mock
+    private AccountAccessHelper accountAccessHelper;
+    @Mock
     private UserTools userTools;
 
     @InjectMocks
     private StudentServiceImpl studentService;
 
     @Test
-    void getById_newCourse_nonAdmin_notFound() {
+    void getById_hiddenFromCatalog_nonAdmin_notFound() {
         StudentEnt ent = new StudentEnt();
         ent.setId(ID);
-        ent.setCourse(CourseEnum.NEW);
+        ent.setCatalogVisible(false);
         when(studentTools.getStudentOrThrow(ID)).thenReturn(ent);
         when(securityHelper.isCurrentUserAdmin()).thenReturn(false);
 
@@ -91,13 +94,16 @@ class StudentServiceImplVisibilityTest {
     }
 
     @Test
-    void getById_newCourse_admin_ok() {
+    void getById_hiddenFromCatalog_admin_ok() {
         StudentEnt ent = new StudentEnt();
         ent.setId(ID);
-        ent.setCourse(CourseEnum.NEW);
+        ent.setCatalogVisible(false);
+        ent.setCourse(CourseEnum.FIRST);
         StudentDTO dto = new StudentDTO(
                 ID, "c", "h", LocalDate.of(1999, 5, 5), null, null,
-                CourseEnum.NEW, BusynessEnum.FREE, "A", "B", "S", List.of(new SkillDTO(1L, "x")),
+                CourseEnum.FIRST, BusynessEnum.FREE, "A", "B", null, null, null, null, null, 1L, "S",
+                List.of(new SkillDTO(1L, "x")),
+                false,
                 false,
                 0,
                 null

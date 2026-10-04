@@ -9,17 +9,24 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.chat.dto.PatchChatMessageReq;
 import ru.ai.sin.logic.chat.dto.PostChatMessageReq;
+import ru.ai.sin.logic.profile.ProfileCommunicationGateService;
 import ru.ai.sin.models.embeddables.TimeStamped;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
+import ru.ai.sin.logic.notification.UserInboxNotificationService;
+import ru.ai.sin.logic.request.RequestRepo;
+import ru.ai.sin.logic.vacancy.VacancyApplicationRepo;
+import ru.ai.sin.tools.RequestTools;
+import ru.ai.sin.tools.VacancyApplicationTools;
 import ru.ai.sin.models.enums.ChatMessageKind;
 import ru.ai.sin.models.enums.RoleEnum;
 
@@ -46,6 +53,8 @@ class ChatServiceImplTest {
     @Mock
     private MessagingGateService messagingGateService;
     @Mock
+    private ProfileCommunicationGateService profileCommunicationGateService;
+    @Mock
     private UserRepo userRepo;
     @Mock
     private SecurityHelper securityHelper;
@@ -53,6 +62,16 @@ class ChatServiceImplTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private FileHelper fileHelper;
+    @Mock
+    private RequestRepo requestRepo;
+    @Mock
+    private RequestTools requestTools;
+    @Mock
+    private VacancyApplicationRepo vacancyApplicationRepo;
+    @Mock
+    private VacancyApplicationTools vacancyApplicationTools;
+    @Mock
+    private UserInboxNotificationService inboxNotificationService;
 
     private ChatServiceImpl chatService;
 
@@ -68,10 +87,16 @@ class ChatServiceImplTest {
                 chatMessageRepo,
                 chatReadStateRepo,
                 messagingGateService,
+                profileCommunicationGateService,
                 userRepo,
                 securityHelper,
                 eventPublisher,
-                fileHelper
+                fileHelper,
+                requestRepo,
+                requestTools,
+                vacancyApplicationRepo,
+                vacancyApplicationTools,
+                inboxNotificationService
         );
     }
 
@@ -99,12 +124,43 @@ class ChatServiceImplTest {
         when(messagingGateService.isMessagingAllowed(recruiterId, studentId)).thenReturn(false);
 
         Pageable pageable = PageRequest.of(0, 20);
-        when(chatMessageRepo.findVisibleByChatIdGated(chatId, false, ChatMessageKind.SYSTEM, pageable))
+        when(chatMessageRepo.findVisibleByChatIdGated(chatId, false, ChatMessageKind.SYSTEM, PageRequest.of(0, 20)))
                 .thenReturn(new PageImpl<>(List.of()));
 
         chatService.listMessages(chatId, pageable);
 
-        verify(chatMessageRepo).findVisibleByChatIdGated(chatId, false, ChatMessageKind.SYSTEM, pageable);
+        verify(chatMessageRepo).findVisibleByChatIdGated(chatId, false, ChatMessageKind.SYSTEM, PageRequest.of(0, 20));
+    }
+
+    @Test
+    void listMessages_ignoresClientSortCreatedAt() {
+        when(securityHelper.getCurrentUsername()).thenReturn("stu1");
+
+        StudentEnt student = new StudentEnt();
+        student.setId(studentId);
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "S", "stu1", "h");
+        user.setId(userId);
+        user.setStudent(student);
+        when(userRepo.findByUsernameFetchingLinks("stu1")).thenReturn(Optional.of(user));
+
+        RecruiterEnt chatRecruiter = new RecruiterEnt();
+        chatRecruiter.setId(recruiterId);
+        StudentEnt chatStudent = new StudentEnt();
+        chatStudent.setId(studentId);
+        ChatEnt chat = new ChatEnt();
+        chat.setId(chatId);
+        chat.setRecruiter(chatRecruiter);
+        chat.setStudent(chatStudent);
+        when(chatRepo.findById(chatId)).thenReturn(Optional.of(chat));
+        when(messagingGateService.isMessagingAllowed(recruiterId, studentId)).thenReturn(true);
+
+        Pageable withSort = PageRequest.of(0, 20, Sort.by("createdAt"));
+        when(chatMessageRepo.findVisibleByChatIdGated(chatId, true, ChatMessageKind.SYSTEM, PageRequest.of(0, 20)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        chatService.listMessages(chatId, withSort);
+
+        verify(chatMessageRepo).findVisibleByChatIdGated(chatId, true, ChatMessageKind.SYSTEM, PageRequest.of(0, 20));
     }
 
     @Test
@@ -177,12 +233,12 @@ class ChatServiceImplTest {
         when(chatRepo.findById(chatId)).thenReturn(Optional.of(chat));
 
         Pageable pageable = PageRequest.of(0, 20);
-        when(chatMessageRepo.findVisibleByChatIdGated(chatId, true, ChatMessageKind.SYSTEM, pageable))
+        when(chatMessageRepo.findVisibleByChatIdGated(chatId, true, ChatMessageKind.SYSTEM, PageRequest.of(0, 20)))
                 .thenReturn(new PageImpl<>(List.of()));
 
         chatService.listMessages(chatId, pageable);
 
-        verify(chatMessageRepo).findVisibleByChatIdGated(chatId, true, ChatMessageKind.SYSTEM, pageable);
+        verify(chatMessageRepo).findVisibleByChatIdGated(chatId, true, ChatMessageKind.SYSTEM, PageRequest.of(0, 20));
     }
 
     @Test

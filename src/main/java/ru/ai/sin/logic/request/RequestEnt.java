@@ -48,4 +48,16 @@ public class RequestEnt {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", nullable = false)
     private StudentEnt student;
+
+    @Column(name = "student_tu_confirmed_at")
+    private java.time.LocalDateTime studentTuConfirmedAt;
+
+    @Column(name = "recruiter_tu_confirmed_at")
+    private java.time.LocalDateTime recruiterTuConfirmedAt;
+
+    @Column(name = "rejection_reason_code", length = 64)
+    private String rejectionReasonCode;
+
+    @Column(name = "rejection_comment", columnDefinition = "TEXT")
+    private String rejectionComment;
 }

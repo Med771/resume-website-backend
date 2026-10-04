@@ -25,9 +25,8 @@ public record RecruiterSelfRegistrationReq(
         @Size(max = 255)
         String name,
 
-        @Schema(description = "Название компании")
-        @NotBlank
-        @Size(min = 1, max = 255)
+        @Schema(description = "Название компании (можно заполнить позже в профиле)")
+        @Size(max = 255)
         String companyName,
 
         @Schema(description = "Город компании или ИП")
@@ -46,8 +45,7 @@ public record RecruiterSelfRegistrationReq(
         @Size(max = 255)
         String middleName,
 
-        @Schema(description = "Email компании/контакта (для связи и модерации)")
-        @NotBlank
+        @Schema(description = "Email компании/контакта (можно заполнить позже в профиле)")
         @Email
         @Size(max = 255)
         String email,

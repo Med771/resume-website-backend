@@ -1,55 +1,58 @@
-# Настройка Telegram-бота для верификации телефона
+# Telegram-бот для телефона рекрутера
 
-Верификация используется при **саморегистрации студента**: пользователь указывает номер на сайте, подтверждает его через бота, затем завершает `POST /auth/register-student`.
+Телефон подтверждает работодатель перед `POST /auth/register-recruiter`. Студент бота не использует: ему на почту уходит код из 6 цифр.
 
-## 1. Создание бота
+## Бот
 
-1. Откройте [@BotFather](https://t.me/BotFather) в Telegram.
-2. Команда `/newbot` → задайте имя и username (например `singularity_resume_bot`).
-3. Сохраните **token** (формат `123456789:ABC...`).
+1. В Telegram откройте [@BotFather](https://t.me/BotFather), команда `/newbot`.
+2. Сохраните token и username бота без `@`.
 
-Документация Telegram Bot API: https://core.telegram.org/bots/api
+Переменные, которые читает `application.yaml`:
 
-## 2. Переменные окружения
+| Переменная | Куда |
+|------------|------|
+| `APP_TELEGRAM_ENABLED` | `app.telegram.enabled` |
+| `TELEGRAM_BOT_TOKEN` | `app.telegram.bot-token` |
+| `TELEGRAM_BOT_USERNAME` | `app.telegram.bot-username` |
+| `TELEGRAM_WEBHOOK_SECRET` | `app.telegram.webhook-secret` |
 
-| Переменная | Пример | Описание |
-|------------|--------|----------|
-| `TELEGRAM_BOT_TOKEN` | из BotFather | Токен бота |
-| `TELEGRAM_BOT_USERNAME` | `singularity_resume_bot` | Username **без** `@` |
-| `TELEGRAM_WEBHOOK_SECRET` | случайная строка 32+ символов | Заголовок `X-Telegram-Bot-Api-Secret-Token` |
-| `APP_TELEGRAM_ENABLED` | `true` | Включить верификацию |
+Пока `enabled` выключен и выключен dev-код, `POST /verification/phone/start` отвечает ошибкой: бот не настроен.
 
-В `application.yaml` маппинг: `app.telegram.enabled`, `app.telegram.bot-token`, и т.д.
+## Webhook
 
-## 3. Webhook (prod / staging)
+Telegram шлёт обновления на backend:
 
-Telegram должен слать updates на ваш backend:
+`POST https://<хост-api>/telegram/webhook`
 
-```
-POST https://api.singularity-resume.ru/telegram/webhook
-Header: X-Telegram-Bot-Api-Secret-Token: <TELEGRAM_WEBHOOK_SECRET>
-```
+Заголовок: `X-Telegram-Bot-Api-Secret-Token: <TELEGRAM_WEBHOOK_SECRET>`.
 
-Установка webhook (один раз):
+Без верного секрета ответ **403**. Webhook должен попадать в это приложение, а не в статику сайта.
+
+Поставить webhook (с машины, где открыт `api.telegram.org`):
 
 ```bash
 curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-  -d "url=https://api.singularity-resume.ru/telegram/webhook" \
+  -d "url=https://<хост-api>/telegram/webhook" \
   -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
 ```
 
-## 4. Локальная разработка
+Проверка: `curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"`.
 
-Telegram принимает webhook только по **HTTPS** с публичным URL. Варианты:
+Локально Telegram нужен публичный HTTPS. Туннель (ngrok, cloudflared) на порт 8080 или уже развёрнутый API.
 
-1. **ngrok / cloudflared** — туннель на `localhost:8080`, webhook на временный URL.
-2. **Staging-сервер** — разработка верификации на уже развёрнутом API.
+## Как это выглядит для рекрутера
 
-Без webhook и `APP_TELEGRAM_ENABLED=true` эндпоинт `POST /verification/phone/start` вернёт ошибку «Telegram-бот не настроен», **если не включён dev-режим** (см. ниже).
+1. Сайт вызывает `POST /verification/phone/start` и получает ссылку `https://t.me/{bot}?start={verificationId}`.
+2. Человек открывает бота и делится номером.
+3. Бот сверяет номер, статус становится `CONFIRMED`.
+4. Сайт опрашивает `GET /verification/phone/{id}/status`.
+5. Дальше `POST /auth/register-recruiter`. Номер в заявке должен совпасть с подтверждённым.
 
-### Локальные тесты без бота
+Сессия живёт `app.telegram.verification-ttl-minutes` (по умолчанию 15 минут).
 
-В `application.yaml` (только dev):
+## Локально без бота
+
+В `application.yaml` для разработки уже стоит:
 
 ```yaml
 app.telegram:
@@ -57,24 +60,6 @@ app.telegram:
   dev-confirm-code: "7890"
 ```
 
-1. `POST /verification/phone/start` — создаёт сессию даже без настроенного бота.
-2. `POST /verification/phone/{id}/confirm-code` с телом `{ "code": "7890" }` — статус `CONFIRMED`.
-3. На фронте — 4 поля OTP на экране подтверждения.
+`POST /verification/phone/start` создаёт сессию. `POST /verification/phone/{id}/confirm-code` с `{ "code": "7890" }` ставит `CONFIRMED`. На проде `allow-dev-confirm` выключают.
 
-**На prod обязательно:** `allow-dev-confirm: false`.
-
-## 5. Поток для пользователя
-
-1. Сайт: `POST /verification/phone/start` → ссылка `https://t.me/{bot}?start={verificationId}`.
-2. Пользователь открывает бота → `/start {id}` → кнопка «Поделиться номером».
-3. Бот сверяет номер с сессией → статус `CONFIRMED`.
-4. Сайт опрашивает `GET /verification/phone/{id}/status`.
-5. `POST /auth/register-student` с `phoneVerificationId`.
-
-TTL сессии: `app.telegram.verification-ttl-minutes` (по умолчанию 15).
-
-## 6. Безопасность
-
-- Webhook без верного `secret_token` → **403**.
-- Регистрация проверяет, что номер в заявке совпадает с подтверждённым.
-- Email-верификация **не используется**.
+Код на экране — 4 цифры. У студента код почты — 6 цифр, это другой поток.

@@ -33,7 +33,7 @@ public class CompanyController {
     private final CompanyService companyService;
 
     @Operation(summary = "Получить компанию по ID", description = "Возвращает компанию с данными по связям")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<CompanyDTO> getById(@PathVariable @Min(1) long id) {
         CompanyDTO companyDTO = companyService.getById(id);
@@ -42,7 +42,7 @@ public class CompanyController {
     }
 
     @Operation(summary = "Фильтр компаний", description = "Принимает DTO фильтра в request body и Pageable без параметра sort")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<CompanyDTO>> filter(
             @PageableDefault Pageable pageable,

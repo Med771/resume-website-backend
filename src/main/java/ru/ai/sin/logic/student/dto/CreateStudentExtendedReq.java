@@ -43,7 +43,7 @@ public record CreateStudentExtendedReq(
         @Size(max = 2000, message = "Additional info must be less than 2000 characters")
         String bio,
 
-        @Schema(description = "Текущий курс")
+        @Schema(description = "Текущий курс (1–5)")
         @NotNull
         CourseEnum course,
 
@@ -58,6 +58,13 @@ public record CreateStudentExtendedReq(
         @Schema(description = "Фамилия")
         @NotBlank
         String lastName,
+
+        @Schema(description = "Отчество")
+        @Size(max = 255)
+        String middleName,
+
+        @Schema(description = "Пол; null — не указан")
+        ru.ai.sin.models.enums.GenderEnum gender,
 
         @Schema(description = "Email")
         @Email(message = "Email should be valid")
