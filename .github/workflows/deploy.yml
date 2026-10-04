@@ -1,0 +1,45 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy backend
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ vars.VPS_PORT }}
+          script: |
+            set -e
+
+            if [ "${{ github.ref_name }}" = "main" ]; then
+              PROJECT_DIR="/root/resume-website"
+              BRANCH="main"
+              SERVICE="backend"
+            elif [ "${{ github.ref_name }}" = "develop" ]; then
+              PROJECT_DIR="/root/resume-website-plt"
+              BRANCH="develop"
+              SERVICE="plt-backend"
+            else
+              echo "Unsupported branch: ${{ github.ref_name }}"
+              exit 1
+            fi
+
+            cd "$PROJECT_DIR/backend"
+
+            git fetch origin
+            git reset --hard "origin/$BRANCH"
+
+            cd "$PROJECT_DIR"
+
+            docker compose up -d --build "$SERVICE"
+            docker compose ps "$SERVICE"
