@@ -29,6 +29,12 @@ public class RegistrationProperties {
     /** Повторная отправка OTP на почту с одного user за час. */
     private int emailResendMaxPerHour = 5;
 
+    /** Запросы кода смены пароля с одной почты и с одного IP за час. */
+    private int passwordResetRequestMaxPerHour = 5;
+
+    /** Проверки кода смены пароля с одной почты и с одного IP за час. */
+    private int passwordResetConfirmMaxPerHour = 8;
+
     /**
      * Максимум навыков в одной анкете при саморегистрации.
      */

@@ -11,6 +11,8 @@
 | POST | `/auth/register-student` | регистрация студента, сразу cookie |
 | POST | `/auth/register-recruiter` | регистрация рекрутера, сразу cookie |
 | POST | `/auth/login` | вход студента или рекрутера |
+| POST | `/auth/forgot-password` | код из 4 цифр на почту; всегда 204 |
+| POST | `/auth/reset-password` | новый пароль по коду из письма |
 | POST | `/auth/refresh` | новый access по refresh-cookie |
 | POST | `/auth/logout` | сбросить cookie |
 | GET | `/auth/me` | текущая сессия; без cookie — 401 |
@@ -27,7 +29,9 @@
 | GET | `/main/photo/{image_path}` | картинка с диска |
 | GET | `/swagger-ui.html`, `/v3/api-docs` | документация |
 
-`POST /auth/confirm-email` и `POST /auth/resend-email-confirmation` — только **S** (нужна cookie после регистрации).
+`POST /auth/confirm-email` и `POST /auth/resend-email-confirmation` — только **S** (нужна cookie после регистрации). Код подтверждения почты — 4 цифры.
+
+`POST /auth/forgot-password` всегда **204** и не сообщает, есть ли почта. `POST /auth/reset-password` при неверном или просроченном коде — **400**.
 
 `POST /auth/change-password` — любой вошедший. `GET /auth/admin/me` и `POST /auth/admin/change-password` — **A**.
 

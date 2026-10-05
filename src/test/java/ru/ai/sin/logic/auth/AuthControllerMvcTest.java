@@ -14,7 +14,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import ru.ai.sin.config.MethodSecurityTestConfig;
 import ru.ai.sin.filter.JwtCookieAuthenticationFilter;
 import ru.ai.sin.helper.CookieHelper;
+import ru.ai.sin.logic.auth.dto.ForgotPasswordReq;
 import ru.ai.sin.logic.auth.dto.LoginRequest;
+import ru.ai.sin.logic.auth.dto.ResetPasswordReq;
 import ru.ai.sin.logic.auth.dto.TokenPair;
 import ru.ai.sin.logic.recruiter.registration.RecruiterSelfRegistrationService;
 import ru.ai.sin.logic.registration.StudentRegistrationService;
@@ -22,6 +24,7 @@ import ru.ai.sin.logic.registration.StudentRegistrationService;
 import jakarta.servlet.http.HttpServletRequest;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -142,7 +145,7 @@ class AuthControllerMvcTest {
     void confirmEmail_unauthorizedWithoutSession() throws Exception {
         mockMvc.perform(post("/auth/confirm-email")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"123456\"}"))
+                        .content("{\"code\":\"1234\"}"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -157,11 +160,11 @@ class AuthControllerMvcTest {
     void confirmEmail_student_noContent() throws Exception {
         mockMvc.perform(post("/auth/confirm-email")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"123456\"}")
+                        .content("{\"code\":\"1234\"}")
                         .with(csrf()))
                 .andExpect(status().isNoContent());
 
-        verify(studentRegistrationService).confirmEmail("123456");
+        verify(studentRegistrationService).confirmEmail("1234");
     }
 
     @Test
@@ -178,10 +181,65 @@ class AuthControllerMvcTest {
     void confirmEmail_recruiter_forbidden() throws Exception {
         mockMvc.perform(post("/auth/confirm-email")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"123456\"}")
+                        .content("{\"code\":\"1234\"}")
                         .with(csrf()))
                 .andExpect(status().isForbidden());
 
         verify(studentRegistrationService, never()).confirmEmail(any());
+    }
+
+    @Test
+    void forgotPassword_noContent() throws Exception {
+        mockMvc.perform(post("/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"a@b.c\"}"))
+                .andExpect(status().isNoContent());
+
+        verify(authService).forgotPassword(eq(new ForgotPasswordReq("a@b.c")), any(HttpServletRequest.class));
+    }
+
+    @Test
+    void forgotPassword_invalidEmail_badRequest() throws Exception {
+        mockMvc.perform(post("/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"not-an-email\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(authService, never()).forgotPassword(any(), any());
+    }
+
+    @Test
+    void resetPassword_noContent() throws Exception {
+        mockMvc.perform(post("/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "a@b.c",
+                                  "code": "1234",
+                                  "newPassword": "NewPassword123",
+                                  "passwordConfirm": "NewPassword123"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        verify(authService).resetPassword(eq(new ResetPasswordReq(
+                "a@b.c", "1234", "NewPassword123", "NewPassword123")), any(HttpServletRequest.class));
+    }
+
+    @Test
+    void resetPassword_shortCode_badRequest() throws Exception {
+        mockMvc.perform(post("/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "a@b.c",
+                                  "code": "12",
+                                  "newPassword": "NewPassword123",
+                                  "passwordConfirm": "NewPassword123"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verify(authService, never()).resetPassword(any(), any());
     }
 }

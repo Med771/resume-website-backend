@@ -1,6 +1,6 @@
 # Регистрация студента по почте
 
-Студент регистрируется без Telegram. Сразу после формы он уже залогинен, затем подтверждает почту кодом из 6 цифр. Рекрутер по-прежнему подтверждает телефон, см. [telegram-setup.md](./telegram-setup.md).
+Студент регистрируется без Telegram. Сразу после формы он уже залогинен, затем подтверждает почту кодом из 4 цифр. Рекрутер по-прежнему подтверждает телефон, см. [telegram-setup.md](./telegram-setup.md).
 
 Cookie и CORS: [frontend.md](./frontend.md).
 
@@ -8,8 +8,8 @@ Cookie и CORS: [frontend.md](./frontend.md).
 
 1. Форма → `POST /auth/register-student` с `credentials: 'include'`.
 2. Ответ **204**, в ответе cookie `ACCESS_TOKEN` и `REFRESH_TOKEN`.
-3. На email уходит 6 цифр.
-4. `POST /auth/confirm-email` с телом `{ "code": "123456" }`.
+3. На email уходит 4 цифры.
+4. `POST /auth/confirm-email` с телом `{ "code": "1234" }`.
 5. Если письма нет — `POST /auth/resend-email-confirmation`.
 6. Анкету заполняют после: `PATCH /student/me`, `/experience`, `/institution`, `/portfolio`.
 7. Админ одобряет аккаунт. Пока `emailVerified` ложь, approve студента вернёт **400**.
@@ -32,7 +32,7 @@ Cookie и CORS: [frontend.md](./frontend.md).
 
 Оба вызова только для роли `STUDENT` и только с cookie. Без сессии — **401**.
 
-`POST /auth/confirm-email`: ровно 6 цифр, ответ **204**. Повторный верный вызов, если почта уже подтверждена, тоже **204**.
+`POST /auth/confirm-email`: ровно 4 цифры, ответ **204**. Повторный верный вызов, если почта уже подтверждена, тоже **204**.
 
 `POST /auth/resend-email-confirmation`: тела нет, **204**. Если почта уже подтверждена — **400**.
 

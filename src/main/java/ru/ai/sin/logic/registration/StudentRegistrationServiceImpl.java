@@ -151,7 +151,7 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
     }
 
     private void issueEmailOtp(UserEnt user, String email) {
-        String code = String.format("%06d", ThreadLocalRandom.current().nextInt(1_000_000));
+        String code = String.format("%04d", ThreadLocalRandom.current().nextInt(10_000));
         int ttl = Math.max(1, mailProperties.getOtpTtlMinutes());
         user.setEmailOtpHash(passwordEncoder.encode(code));
         user.setEmailOtpExpiresAt(LocalDateTime.now().plusMinutes(ttl));

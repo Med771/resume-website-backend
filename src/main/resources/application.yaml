@@ -131,13 +131,13 @@ app:
   swagger:
     title: "Resume API"
     description: "Документация API"
-    version: "0.1.0"
+    version: ${SWAGGER_VERSION}
     servers:
       - url: "https://test-api.singularity-resume.ru/"
         description: "Dev Server"
 
 springdoc:
   swagger-ui:
-    enabled: false
+    enabled: ${SWAGGER_ON}
   api-docs:
-    enabled: false
+    enabled: ${SWAGGER_ON}

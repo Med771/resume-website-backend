@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.RoleEnum;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,4 +38,29 @@ public interface UserRepo extends JpaRepository<UserEnt, UUID>, JpaSpecification
     Page<UserEnt> findByAccountStatus(AccountStatus accountStatus, Pageable pageable);
 
     Page<UserEnt> findByAccountStatusAndRole(AccountStatus accountStatus, RoleEnum role, Pageable pageable);
+
+    /**
+     * Студент или работодатель по уже нормализованной почте: registration_email,
+     * почта карточки студента или почта карточки работодателя.
+     */
+    @Query("""
+            SELECT u FROM UserEnt u
+            WHERE u.role IN :roles
+              AND (
+                LOWER(TRIM(u.registrationEmail)) = :email
+                OR EXISTS (
+                    SELECT 1 FROM StudentEnt s
+                    WHERE s = u.student
+                      AND LOWER(TRIM(s.userInformation.email)) = :email
+                )
+                OR EXISTS (
+                    SELECT 1 FROM RecruiterEnt r
+                    WHERE r = u.recruiter
+                      AND LOWER(TRIM(r.userInformation.email)) = :email
+                )
+              )
+            """)
+    List<UserEnt> findFrontendUsersByNormalizedEmail(
+            @Param("email") String email,
+            @Param("roles") Collection<RoleEnum> roles);
 }
