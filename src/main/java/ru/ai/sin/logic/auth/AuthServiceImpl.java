@@ -64,7 +64,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public TokenPair login(LoginRequest request) {
-        UserDetails userDetails = authenticate(request);
+        String username = usernameForLogin(request.username());
+        UserDetails userDetails = authenticate(new LoginRequest(username, request.password()));
         authRoleGuard.requireFrontendUser(userDetails);
         return issueTokenPair(userDetails.getUsername());
     }
@@ -167,6 +168,17 @@ public class AuthServiceImpl implements AuthService {
         user.setPasswordResetOtpExpiresAt(null);
         userRepo.save(user);
         log.info("Password reset completed: username={}", user.getUsername());
+    }
+
+    private String usernameForLogin(String raw) {
+        if (raw == null || !raw.contains("@")) {
+            return raw;
+        }
+        List<UserEnt> users = resetCandidates(normalizeEmail(raw));
+        if (users.size() != 1) {
+            throw new BadCredentialsException("Bad credentials");
+        }
+        return users.getFirst().getUsername();
     }
 
     private List<UserEnt> resetCandidates(String email) {

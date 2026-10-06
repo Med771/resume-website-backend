@@ -100,7 +100,7 @@ public class AuthController {
         authService.resetPassword(req, request);
     }
 
-    @Operation(summary = "Вход на основной сайт", description = "STUDENT / RECRUITER. Администраторы — /auth/admin/login")
+    @Operation(summary = "Вход на основной сайт", description = "STUDENT / RECRUITER. В поле username — логин или почта. Администраторы — /auth/admin/login")
     @PostMapping("/login")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void login(@RequestBody LoginRequest request, HttpServletResponse response) {

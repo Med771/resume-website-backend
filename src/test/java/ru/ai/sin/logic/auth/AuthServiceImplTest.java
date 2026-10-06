@@ -128,6 +128,48 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void login_byEmail_authenticatesWithAccountUsername() {
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "Alice", "alice", "hash");
+        when(userRepo.findFrontendUsersByNormalizedEmail(eq("a@b.c"), any())).thenReturn(List.of(user));
+        UserDetails userDetails = User.withUsername("alice").password("x").roles("STUDENT").build();
+        Authentication auth = mock(Authentication.class);
+        when(auth.getPrincipal()).thenReturn(userDetails);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(auth);
+        when(jwtHelper.generateAccessToken("alice")).thenReturn("access-jwt");
+        when(jwtHelper.generateRefreshToken("alice")).thenReturn("refresh-jwt");
+
+        TokenPair pair = authService.login(new LoginRequest("A@b.c", "secret"));
+
+        ArgumentCaptor<UsernamePasswordAuthenticationToken> token =
+                ArgumentCaptor.forClass(UsernamePasswordAuthenticationToken.class);
+        verify(authenticationManager).authenticate(token.capture());
+        assertThat(token.getValue().getName()).isEqualTo("alice");
+        assertThat(token.getValue().getCredentials()).isEqualTo("secret");
+        assertThat(pair.accessToken()).isEqualTo("access-jwt");
+    }
+
+    @Test
+    void login_unknownEmail_rejectsWithoutPasswordCheck() {
+        when(userRepo.findFrontendUsersByNormalizedEmail(eq("missing@b.c"), any())).thenReturn(List.of());
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("missing@b.c", "secret")))
+                .isInstanceOf(BadCredentialsException.class);
+        verify(authenticationManager, never()).authenticate(any());
+    }
+
+    @Test
+    void login_duplicateEmail_rejectsWithoutPasswordCheck() {
+        UserEnt first = new UserEnt(RoleEnum.STUDENT, "A", "a", "h1");
+        UserEnt second = new UserEnt(RoleEnum.RECRUITER, "B", "b", "h2");
+        when(userRepo.findFrontendUsersByNormalizedEmail(eq("shared@b.c"), any()))
+                .thenReturn(List.of(first, second));
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("shared@b.c", "secret")))
+                .isInstanceOf(BadCredentialsException.class);
+        verify(authenticationManager, never()).authenticate(any());
+    }
+
+    @Test
     void adminLogin_returnsTokenPairForAdmin() {
         UserDetails userDetails = User.withUsername("admin").password("x").roles("ADMIN").build();
         stubAuthentication(userDetails);
