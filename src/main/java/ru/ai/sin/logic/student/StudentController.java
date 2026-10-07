@@ -115,7 +115,8 @@ public class StudentController {
             description = """
                     Как `POST /student/cardsFilter`, но элементы страницы — полные `StudentDTO` (включая `publicProfileConsent`, `profileTextScore`).
 
-                    Правила видимости, пагинации и сортировки — те же. Требуется **APPROVED** (кроме ADMIN).""")
+                    Правила видимости, пагинации и сортировки — те же.
+                    Студенту одобрение аккаунта не нужно. Рекрутеру нужен **APPROVED**, админу — нет.""")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<StudentDTO>> getAllByFilters(

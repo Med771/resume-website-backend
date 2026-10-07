@@ -176,7 +176,10 @@ public class StudentServiceImpl implements StudentService {
             Pageable pageable,
             FilterStudentReq filterStudentReq
     ) {
-        accountAccessHelper.requireApprovedAccount();
+        UserEnt currentUser = accountAccessHelper.requireCurrentUser();
+        if (currentUser.getRole() != RoleEnum.STUDENT) {
+            accountAccessHelper.requireApprovedAccount();
+        }
         Sort sort = StudentSortResolver.resolve(filterStudentReq);
         Pageable effectivePageable = org.springframework.data.domain.PageRequest.of(
                 pageable.getPageNumber(),

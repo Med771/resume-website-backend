@@ -43,7 +43,7 @@ public class ExperienceController {
         return ResponseEntity.ok(experienceService.getById(id));
     }
 
-    @Operation(summary = "Фильтр опыта", description = "Принимает DTO фильтра в request body и Pageable без параметра sort")
+    @Operation(summary = "Фильтр опыта", description = "Студент без studentId получает только свою карточку. Чужой studentId не подменяется. Pageable без параметра sort")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<ExperienceDTO>> findAllByFilter(
