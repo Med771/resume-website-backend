@@ -124,6 +124,26 @@ class AccountAccessHelperTest {
     }
 
     @Test
+    void resolveStudentIdForResumeRead_blankStudentId_usesOwnCard() {
+        when(userTools.findCurrentUserFetchingLinks())
+                .thenReturn(Optional.of(user(RoleEnum.STUDENT, student(OWN_ID, false))));
+
+        assertThat(helper.resolveStudentIdForResumeRead(null)).isEqualTo(OWN_ID);
+    }
+
+    @Test
+    void resolveStudentIdForResumeRead_keepsExplicitId() {
+        assertThat(helper.resolveStudentIdForResumeRead(OTHER_ID)).isEqualTo(OTHER_ID);
+    }
+
+    @Test
+    void resolveStudentIdForResumeRead_recruiterBlankStaysBlank() {
+        when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.of(user(RoleEnum.RECRUITER, null)));
+
+        assertThat(helper.resolveStudentIdForResumeRead(null)).isNull();
+    }
+
+    @Test
     void requireCanReadStudentResumeDetails_ownHiddenCardOk() {
         when(userTools.findCurrentUserFetchingLinks())
                 .thenReturn(Optional.of(user(RoleEnum.STUDENT, student(OWN_ID, false))));
