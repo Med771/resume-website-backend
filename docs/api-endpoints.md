@@ -10,7 +10,7 @@
 |-------|------|--------|
 | POST | `/auth/register-student` | регистрация студента, сразу cookie |
 | POST | `/auth/register-recruiter` | регистрация рекрутера, сразу cookie |
-| POST | `/auth/login` | вход студента или рекрутера |
+| POST | `/auth/login` | вход студента или рекрутера, в `username` логин или почта |
 | POST | `/auth/forgot-password` | код из 4 цифр на почту; всегда 204 |
 | POST | `/auth/reset-password` | новый пароль по коду из письма |
 | POST | `/auth/refresh` | новый access по refresh-cookie |

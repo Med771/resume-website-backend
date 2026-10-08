@@ -65,10 +65,10 @@ public class ExperienceServiceImpl implements ExperienceService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ExperienceDTO> getAllByFilter(Pageable pageable, FilterExperienceReq filterExperienceReq) {
-        accountAccessHelper.requireCanReadStudentResumeDetails(filterExperienceReq.studentId());
+        FilterExperienceReq effective = scopeResumeReadFilter(filterExperienceReq);
 
         Page<ExperienceEnt> page = experienceRepo.findAll(
-                ExperienceSpecifications.byFilters(filterExperienceReq),
+                ExperienceSpecifications.byFilters(effective),
                 pageable);
 
         return new PageResponse<>(
@@ -152,5 +152,15 @@ public class ExperienceServiceImpl implements ExperienceService {
         }
 
         log.info("User: {}, deleted a experience: {} with data: {}", securityHelper.getCurrentUsername(), id, experienceEnt);
+    }
+
+    private FilterExperienceReq scopeResumeReadFilter(FilterExperienceReq filter) {
+        UUID requested = filter == null ? null : filter.studentId();
+        UUID studentId = accountAccessHelper.resolveStudentIdForResumeRead(requested);
+        accountAccessHelper.requireCanReadStudentResumeDetails(studentId);
+        if (studentId != null && (filter == null || !studentId.equals(filter.studentId()))) {
+            return new FilterExperienceReq(studentId, filter == null ? null : filter.companyId());
+        }
+        return filter;
     }
 }

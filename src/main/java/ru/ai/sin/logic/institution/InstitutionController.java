@@ -46,7 +46,7 @@ public class InstitutionController {
         return ResponseEntity.ok(institutionDTO);
     }
 
-    @Operation(summary = "Фильтр записей обучения", description = "Принимает DTO фильтра в request body и Pageable без параметра sort")
+    @Operation(summary = "Фильтр записей обучения", description = "Студент без studentId получает только свою карточку. Чужой studentId не подменяется. Pageable без параметра sort")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<InstitutionDTO>> findAllByFilter(

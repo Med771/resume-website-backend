@@ -65,10 +65,10 @@ public class InstitutionServiceImpl implements InstitutionService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<InstitutionDTO> getAllByFilter(Pageable pageable, FilterInstitutionReq filterInstitutionReq) {
-        accountAccessHelper.requireCanReadStudentResumeDetails(filterInstitutionReq.studentId());
+        FilterInstitutionReq effective = scopeResumeReadFilter(filterInstitutionReq);
 
         Page<InstitutionEnt> page = institutionRepo.findAll(
-                InstitutionSpecifications.byFilters(filterInstitutionReq),
+                InstitutionSpecifications.byFilters(effective),
                 pageable);
 
         return new PageResponse<>(
@@ -151,5 +151,15 @@ public class InstitutionServiceImpl implements InstitutionService {
         }
 
         log.info("User: {}, deleted a institution: {} with data: {}", securityHelper.getCurrentUsername(), id, institutionEnt);
+    }
+
+    private FilterInstitutionReq scopeResumeReadFilter(FilterInstitutionReq filter) {
+        UUID requested = filter == null ? null : filter.studentId();
+        UUID studentId = accountAccessHelper.resolveStudentIdForResumeRead(requested);
+        accountAccessHelper.requireCanReadStudentResumeDetails(studentId);
+        if (studentId != null && (filter == null || !studentId.equals(filter.studentId()))) {
+            return new FilterInstitutionReq(studentId, filter == null ? null : filter.educationId());
+        }
+        return filter;
     }
 }

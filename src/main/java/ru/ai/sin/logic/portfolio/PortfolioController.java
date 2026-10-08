@@ -41,7 +41,7 @@ public class PortfolioController {
         return ResponseEntity.ok(portfolioDTO);
     }
 
-    @Operation(summary = "Фильтр портфолио", description = "Принимает DTO фильтра в request body и Pageable без параметра sort")
+    @Operation(summary = "Фильтр портфолио", description = "Студент без studentId получает только свою карточку. Чужой studentId не подменяется. Pageable без параметра sort")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<PortfolioDTO>> findAllByFilter(
