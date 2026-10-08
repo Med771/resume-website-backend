@@ -29,6 +29,22 @@ public class EmailOtpAttemptLimiter {
                 "Слишком много повторных отправок кода. Попробуйте позже.");
     }
 
+    public void checkPasswordResetRequest(String email, String ip) {
+        int limit = registrationProperties.getPasswordResetRequestMaxPerHour();
+        check("pwd-reset-req|email|" + email, limit,
+                "Слишком много запросов смены пароля. Попробуйте позже.");
+        check("pwd-reset-req|ip|" + ip, limit,
+                "Слишком много запросов смены пароля. Попробуйте позже.");
+    }
+
+    public void checkPasswordResetConfirm(String email, String ip) {
+        int limit = registrationProperties.getPasswordResetConfirmMaxPerHour();
+        check("pwd-reset-confirm|email|" + email, limit,
+                "Слишком много попыток ввода кода. Попробуйте позже.");
+        check("pwd-reset-confirm|ip|" + ip, limit,
+                "Слишком много попыток ввода кода. Попробуйте позже.");
+    }
+
     private void check(String key, int limit, String message) {
         if (limit <= 0) {
             return;

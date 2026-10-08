@@ -192,7 +192,9 @@ class StudentRegistrationServiceImplTest {
         assertThat(savedUser.getEmailOtpExpiresAt()).isAfter(LocalDateTime.now().minusMinutes(1));
         assertThat(savedUser.getStudent()).isSameAs(draft);
 
-        verify(verificationOtpMailer).trySendOtp(eq("ivan@test.local"), anyString(), eq(15));
+        ArgumentCaptor<String> otpCode = ArgumentCaptor.forClass(String.class);
+        verify(verificationOtpMailer).trySendOtp(eq("ivan@test.local"), otpCode.capture(), eq(15));
+        assertThat(otpCode.getValue()).matches("\\d{4}");
     }
 
     @Test
@@ -211,9 +213,9 @@ class StudentRegistrationServiceImplTest {
     void confirmEmail_wrongCode_throwsBadRequest() {
         UserEnt user = pendingStudentWithOtp();
         stubCurrentUser(user);
-        when(passwordEncoder.matches("000000", "otp-hash")).thenReturn(false);
+        when(passwordEncoder.matches("0000", "otp-hash")).thenReturn(false);
 
-        assertThatThrownBy(() -> service.confirmEmail("000000"))
+        assertThatThrownBy(() -> service.confirmEmail("0000"))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Неверный код");
         assertThat(user.isEmailVerified()).isFalse();
@@ -225,7 +227,7 @@ class StudentRegistrationServiceImplTest {
         user.setEmailOtpExpiresAt(LocalDateTime.now().minusMinutes(1));
         stubCurrentUser(user);
 
-        assertThatThrownBy(() -> service.confirmEmail("123456"))
+        assertThatThrownBy(() -> service.confirmEmail("1234"))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("истёк");
     }
@@ -237,7 +239,7 @@ class StudentRegistrationServiceImplTest {
         doThrow(new TooManyRequestsException("too many"))
                 .when(emailOtpAttemptLimiter).checkConfirm(user.getId());
 
-        assertThatThrownBy(() -> service.confirmEmail("123456"))
+        assertThatThrownBy(() -> service.confirmEmail("1234"))
                 .isInstanceOf(TooManyRequestsException.class);
         verify(passwordEncoder, never()).matches(anyString(), anyString());
     }
@@ -246,9 +248,9 @@ class StudentRegistrationServiceImplTest {
     void confirmEmail_success_marksVerified() {
         UserEnt user = pendingStudentWithOtp();
         stubCurrentUser(user);
-        when(passwordEncoder.matches("123456", "otp-hash")).thenReturn(true);
+        when(passwordEncoder.matches("1234", "otp-hash")).thenReturn(true);
 
-        service.confirmEmail("123456");
+        service.confirmEmail("1234");
 
         assertThat(user.isEmailVerified()).isTrue();
         assertThat(user.getEmailOtpHash()).isNull();
@@ -262,7 +264,7 @@ class StudentRegistrationServiceImplTest {
         user.setEmailVerified(true);
         stubCurrentUser(user);
 
-        service.confirmEmail("123456");
+        service.confirmEmail("1234");
 
         verify(emailOtpAttemptLimiter, never()).checkConfirm(any());
         verify(userRepo, never()).save(any());
@@ -274,7 +276,7 @@ class StudentRegistrationServiceImplTest {
         user.setRole(RoleEnum.RECRUITER);
         stubCurrentUser(user);
 
-        assertThatThrownBy(() -> service.confirmEmail("123456"))
+        assertThatThrownBy(() -> service.confirmEmail("1234"))
                 .isInstanceOf(ForbiddenException.class);
     }
 

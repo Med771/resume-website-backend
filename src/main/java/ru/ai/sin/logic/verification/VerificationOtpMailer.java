@@ -29,13 +29,29 @@ public class VerificationOtpMailer {
      * @return true if the message was sent successfully
      */
     public boolean trySendOtp(String toEmail, String code, int ttlMinutes) {
+        return trySend(
+                toEmail,
+                "Код подтверждения — Singularity Resume",
+                buildBody(code, ttlMinutes),
+                "Verification OTP");
+    }
+
+    public boolean trySendPasswordReset(String toEmail, String code, int ttlMinutes, String username) {
+        return trySend(
+                toEmail,
+                "Код для смены пароля — Singularity Resume",
+                buildPasswordResetBody(code, ttlMinutes, username),
+                "Password reset");
+    }
+
+    private boolean trySend(String toEmail, String subject, String body, String logLabel) {
         if (!mailProperties.isEnabled()) {
-            log.warn("Verification OTP email skipped: app.mail.enabled=false");
+            log.warn("{} email skipped: app.mail.enabled=false", logLabel);
             return false;
         }
         String from = mailProperties.getFrom();
         if (from == null || from.isBlank()) {
-            log.warn("Verification OTP email skipped: app.mail.from is not configured");
+            log.warn("{} email skipped: app.mail.from is not configured", logLabel);
             return false;
         }
         try {
@@ -43,13 +59,13 @@ public class VerificationOtpMailer {
             MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
             helper.setFrom(from.trim());
             helper.setTo(toEmail.trim());
-            helper.setSubject("Код подтверждения — Singularity Resume");
-            helper.setText(buildBody(code, ttlMinutes), false);
+            helper.setSubject(subject);
+            helper.setText(body, false);
             mailSender.send(message);
-            log.info("Verification OTP email sent to {}", maskEmail(toEmail));
+            log.info("{} email sent to {}", logLabel, maskEmail(toEmail));
             return true;
         } catch (Exception ex) {
-            log.warn("Failed to send verification OTP to {}: {}", maskEmail(toEmail), describeMailError(ex));
+            log.warn("Failed to send {} email to {}: {}", logLabel, maskEmail(toEmail), describeMailError(ex));
             return false;
         }
     }
@@ -74,7 +90,22 @@ public class VerificationOtpMailer {
                 """.formatted(code, ttlMinutes);
     }
 
-    static String maskEmail(String email) {
+    private static String buildPasswordResetBody(String code, int ttlMinutes, String username) {
+        String login = username == null ? "" : username;
+        return """
+                Здравствуйте!
+
+                Код для смены пароля: %s
+
+                Ваш логин: %s
+
+                Код действует %d мин. Никому не сообщайте этот код.
+
+                Если вы не запрашивали смену пароля, просто проигнорируйте это письмо.
+                """.formatted(code, login, ttlMinutes);
+    }
+
+    public static String maskEmail(String email) {
         if (email == null || !email.contains("@")) {
             return "***";
         }

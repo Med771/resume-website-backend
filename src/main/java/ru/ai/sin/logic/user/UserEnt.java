@@ -55,6 +55,12 @@ public class UserEnt {
     @Column(name = "email_otp_expires_at")
     private LocalDateTime emailOtpExpiresAt;
 
+    @Column(name = "password_reset_otp_hash", length = 128)
+    private String passwordResetOtpHash;
+
+    @Column(name = "password_reset_otp_expires_at")
+    private LocalDateTime passwordResetOtpExpiresAt;
+
     @Column(name = "account_status", length = 32, nullable = false)
     @Convert(converter = AccountStatusConverter.class)
     private AccountStatus accountStatus = AccountStatus.APPROVED;

@@ -132,6 +132,20 @@ public class AccountAccessHelper {
     }
 
     /**
+     * Пустой {@code requestedStudentId} у студента — id его карточки.
+     * Переданный id не подменяется. У админа и рекрутера пустой id остаётся пустым.
+     */
+    public UUID resolveStudentIdForResumeRead(UUID requestedStudentId) {
+        if (requestedStudentId != null) {
+            return requestedStudentId;
+        }
+        return userTools.findCurrentUserFetchingLinks()
+                .filter(u -> u.getRole() == RoleEnum.STUDENT && u.getStudent() != null)
+                .map(u -> u.getStudent().getId())
+                .orElse(null);
+    }
+
+    /**
      * Те же правила видимости, что у {@code StudentServiceImpl#getById}: свой профиль всегда;
      * чужой — только при {@code catalogVisible} и одобренном аккаунте (кроме ADMIN).
      */

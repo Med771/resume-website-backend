@@ -2,7 +2,7 @@
 
 Сервер отдаёт JSON. Вход — две HttpOnly-cookie: `ACCESS_TOKEN` и `REFRESH_TOKEN`. Запросы с другого origin идут с `credentials: 'include'`. Имена cookie и список origin лежат в `app.security` и `app.jwt` в `application.yaml`.
 
-Админ логинится на `/auth/admin/login`. Студент и рекрутер — на `/auth/login`.
+Админ логинится на `/auth/admin/login` логином. Студент и рекрутер — на `/auth/login`: в поле `username` логин или почта.
 
 ## Что можно без cookie
 

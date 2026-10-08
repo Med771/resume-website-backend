@@ -49,10 +49,10 @@ public class PortfolioServiceImpl implements PortfolioService {
 
     @Override
     public PageResponse<PortfolioDTO> getAllByFilter(Pageable pageable, FilterPortfolioReq filterPortfolioReq) {
-        accountAccessHelper.requireCanReadStudentResumeDetails(filterPortfolioReq.studentId());
+        FilterPortfolioReq effective = scopeResumeReadFilter(filterPortfolioReq);
 
         Page<PortfolioEnt> page = portfolioRepo.findAll(
-                PortfolioSpecifications.byFilters(filterPortfolioReq),
+                PortfolioSpecifications.byFilters(effective),
                 pageable);
 
         return new PageResponse<>(
@@ -115,5 +115,15 @@ public class PortfolioServiceImpl implements PortfolioService {
         portfolioRepo.delete(portfolioEnt);
 
         log.info("User: {}, deleted a portfolio: {} with data: {}", securityHelper.getCurrentUsername(), id, portfolioEnt);
+    }
+
+    private FilterPortfolioReq scopeResumeReadFilter(FilterPortfolioReq filter) {
+        UUID requested = filter == null ? null : filter.studentId();
+        UUID studentId = accountAccessHelper.resolveStudentIdForResumeRead(requested);
+        accountAccessHelper.requireCanReadStudentResumeDetails(studentId);
+        if (studentId != null && (filter == null || !studentId.equals(filter.studentId()))) {
+            return new FilterPortfolioReq(studentId);
+        }
+        return filter;
     }
 }

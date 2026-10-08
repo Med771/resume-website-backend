@@ -8,7 +8,7 @@ spring:
       max-request-size: 12MB
 
   datasource:
-    url: jdbc:postgresql://database:${DATABASE_PORT}/${DATABASE_DB}
+    url: jdbc:postgresql://${DATABASE_NAME}:${DATABASE_PORT}/${DATABASE_DB}
     username: ${DATABASE_USER}
     password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -131,13 +131,13 @@ app:
   swagger:
     title: "Resume API"
     description: "Документация API"
-    version: "0.1.0"
+    version: ${SWAGGER_VERSION}
     servers:
       - url: "https://test-api.singularity-resume.ru/"
         description: "Dev Server"
 
 springdoc:
   swagger-ui:
-    enabled: false
+    enabled: ${SWAGGER_ON}
   api-docs:
-    enabled: false
+    enabled: ${SWAGGER_ON}

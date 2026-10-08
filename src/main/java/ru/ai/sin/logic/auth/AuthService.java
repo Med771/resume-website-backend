@@ -3,7 +3,9 @@ package ru.ai.sin.logic.auth;
 import jakarta.servlet.http.HttpServletRequest;
 import ru.ai.sin.logic.auth.dto.AuthMeDTO;
 import ru.ai.sin.logic.auth.dto.ChangePasswordReq;
+import ru.ai.sin.logic.auth.dto.ForgotPasswordReq;
 import ru.ai.sin.logic.auth.dto.LoginRequest;
+import ru.ai.sin.logic.auth.dto.ResetPasswordReq;
 import ru.ai.sin.logic.auth.dto.TokenPair;
 
 public interface AuthService {
@@ -23,4 +25,10 @@ public interface AuthService {
     AuthMeDTO getCurrentSession();
 
     void changePassword(ChangePasswordReq req);
+
+    /** Письмо с кодом из 4 цифр. Всегда завершается без ошибки, если лимит не превышен. */
+    void forgotPassword(ForgotPasswordReq req, HttpServletRequest request);
+
+    /** Новый пароль по коду из письма. */
+    void resetPassword(ResetPasswordReq req, HttpServletRequest request);
 }

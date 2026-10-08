@@ -19,7 +19,9 @@ import ru.ai.sin.helper.CookieHelper;
 import ru.ai.sin.logic.auth.dto.AuthMeDTO;
 import ru.ai.sin.logic.auth.dto.ChangePasswordReq;
 import ru.ai.sin.logic.auth.dto.ConfirmEmailReq;
+import ru.ai.sin.logic.auth.dto.ForgotPasswordReq;
 import ru.ai.sin.logic.auth.dto.LoginRequest;
+import ru.ai.sin.logic.auth.dto.ResetPasswordReq;
 import ru.ai.sin.logic.auth.dto.TokenPair;
 import ru.ai.sin.logic.recruiter.registration.RecruiterSelfRegistrationService;
 import ru.ai.sin.logic.recruiter.registration.dto.RecruiterSelfRegistrationReq;
@@ -54,7 +56,7 @@ public class AuthController {
             summary = "Саморегистрация студента",
             description = """
                     Создаёт User STUDENT и черновик карточки (`catalogVisible=false`, `PENDING_APPROVAL`) в одной транзакции.
-                    Сразу ставит cookie. На почту уходит 6-значный код — `POST /auth/confirm-email`.
+                    Сразу ставит cookie. На почту уходит 4-значный код — `POST /auth/confirm-email`.
                     Дозаполнение анкеты — PATCH /student/me и CRUD /experience, /institution, /portfolio.""")
     @PostMapping("/register-student")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -82,7 +84,23 @@ public class AuthController {
         studentRegistrationService.resendEmailConfirmation();
     }
 
-    @Operation(summary = "Вход на основной сайт", description = "STUDENT / RECRUITER. Администраторы — /auth/admin/login")
+    @Operation(
+            summary = "Запросить код для смены пароля",
+            description = "На почту уходит код из 4 цифр, если найден один аккаунт студента или работодателя. Ответ всегда 204.")
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordReq req, HttpServletRequest request) {
+        authService.forgotPassword(req, request);
+    }
+
+    @Operation(summary = "Сменить пароль по коду из письма")
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody ResetPasswordReq req, HttpServletRequest request) {
+        authService.resetPassword(req, request);
+    }
+
+    @Operation(summary = "Вход на основной сайт", description = "STUDENT / RECRUITER. В поле username — логин или почта. Администраторы — /auth/admin/login")
     @PostMapping("/login")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void login(@RequestBody LoginRequest request, HttpServletResponse response) {
