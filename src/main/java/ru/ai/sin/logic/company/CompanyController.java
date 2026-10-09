@@ -56,7 +56,7 @@ public class CompanyController {
     }
 
     @Operation(summary = "Создать компанию", description = "Создает новую компанию")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PostMapping()
     public ResponseEntity<CompanyDTO> create(@Valid @RequestBody AddCompanyReq companyReq) {
         CompanyDTO companyDTO = companyService.create(companyReq);
@@ -65,7 +65,7 @@ public class CompanyController {
     }
 
     @Operation(summary = "Обновить компанию", description = "Обновляет данные компании по ID")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PutMapping(path = "/{id}")
     public ResponseEntity<CompanyDTO> updateById(
             @PathVariable @Min(1) long id,

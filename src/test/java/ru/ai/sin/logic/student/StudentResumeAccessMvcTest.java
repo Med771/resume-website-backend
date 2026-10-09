@@ -45,11 +45,14 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = {
@@ -142,7 +145,44 @@ class StudentResumeAccessMvcTest {
 
     @Test
     @WithMockUser(roles = "STUDENT")
-    void studentPostEducation_forbidden() throws Exception {
+    void studentCreateEducation_created() throws Exception {
+        when(educationService.create(any()))
+                .thenReturn(new EducationDTO(1L, "MSU", "info", "https://msu.ru"));
+
+        mockMvc.perform(post("/education")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"institution\":\"MSU\",\"additionalInfo\":\"info\",\"webUrl\":\"https://msu.ru\"}")
+                        .with(csrf()))
+                .andExpect(status().isCreated());
+
+        verify(educationService).create(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void studentUpdateEducation_ok() throws Exception {
+        when(educationService.update(anyLong(), any()))
+                .thenReturn(new EducationDTO(1L, "MSU", "info", "https://msu.ru"));
+
+        mockMvc.perform(put("/education/{id}", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"institution\":\"MSU\",\"additionalInfo\":\"info\",\"webUrl\":\"https://msu.ru\"}")
+                        .with(csrf()))
+                .andExpect(status().isOk());
+
+        verify(educationService).update(anyLong(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void studentDeleteEducation_forbidden() throws Exception {
+        mockMvc.perform(delete("/education/{id}", 1).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "RECRUITER")
+    void recruiterCreateEducation_forbidden() throws Exception {
         mockMvc.perform(post("/education")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"institution\":\"MSU\",\"additionalInfo\":\"info\",\"webUrl\":\"https://msu.ru\"}")
@@ -152,7 +192,44 @@ class StudentResumeAccessMvcTest {
 
     @Test
     @WithMockUser(roles = "STUDENT")
-    void studentPostCompany_forbidden() throws Exception {
+    void studentCreateCompany_created() throws Exception {
+        when(companyService.create(any()))
+                .thenReturn(new CompanyDTO(1L, "Acme", List.of()));
+
+        mockMvc.perform(post("/company")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Acme\"}")
+                        .with(csrf()))
+                .andExpect(status().isCreated());
+
+        verify(companyService).create(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void studentUpdateCompany_ok() throws Exception {
+        when(companyService.updateById(anyLong(), any()))
+                .thenReturn(new CompanyDTO(1L, "Acme", List.of()));
+
+        mockMvc.perform(put("/company/{id}", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Acme\"}")
+                        .with(csrf()))
+                .andExpect(status().isOk());
+
+        verify(companyService).updateById(anyLong(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void studentDeleteCompany_forbidden() throws Exception {
+        mockMvc.perform(delete("/company/{id}", 1).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "RECRUITER")
+    void recruiterCreateCompany_forbidden() throws Exception {
         mockMvc.perform(post("/company")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Acme\"}")

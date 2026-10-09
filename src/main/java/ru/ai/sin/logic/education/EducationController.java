@@ -56,7 +56,7 @@ public class EducationController {
     }
 
     @Operation(summary = "Создать образование", description = "Создает новую запись справочника образования")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PostMapping()
     public ResponseEntity<EducationDTO> create(@Valid @RequestBody AddEducationReq addEducationReq) {
         EducationDTO educationDTO = educationService.create(addEducationReq);
@@ -65,7 +65,7 @@ public class EducationController {
     }
 
     @Operation(summary = "Обновить образование", description = "Обновляет запись образования по ID")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     @PutMapping(path = "/{id}")
     public ResponseEntity<EducationDTO> updateById(
             @PathVariable @Min(1) long id,
