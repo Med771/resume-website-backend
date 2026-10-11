@@ -25,6 +25,7 @@ import ru.ai.sin.logic.portfolio.PortfolioEnt;
 import ru.ai.sin.logic.portfolio.PortfolioRepo;
 import ru.ai.sin.logic.request.RequestRepo;
 import ru.ai.sin.logic.student.dto.*;
+import ru.ai.sin.logic.vacancy.VacancyApplicationRepo;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
@@ -58,6 +59,7 @@ public class StudentServiceImpl implements StudentService {
     private final InstitutionRepo institutionRepo;
     private final RequestRepo requestRepo;
     private final ChatRepo chatRepo;
+    private final VacancyApplicationRepo vacancyApplicationRepo;
 
     private final StudentMapper studentMapper;
 
@@ -379,6 +381,7 @@ public class StudentServiceImpl implements StudentService {
         StudentDTO snapshot = studentTools.mapToDTO(studentEnt);
 
         try {
+            vacancyApplicationRepo.deleteByStudentId(id);
             requestRepo.deleteByStudent_Id(id);
             chatRepo.deleteByStudent_Id(id);
             experienceRepo.deleteByStudent_Id(id);

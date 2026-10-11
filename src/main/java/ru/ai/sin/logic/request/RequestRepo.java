@@ -7,6 +7,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
@@ -37,8 +38,10 @@ public interface RequestRepo extends JpaRepository<RequestEnt, Long>, JpaSpecifi
             UUID studentId,
             Collection<ResultEnum> results);
 
+    @Modifying(flushAutomatically = true)
     void deleteByStudent_Id(UUID studentId);
 
+    @Modifying(flushAutomatically = true)
     void deleteByRecruiter_Id(UUID recruiterId);
 
     List<RequestEnt> findByAppChat_IdOrderByIdDesc(UUID appChatId);
