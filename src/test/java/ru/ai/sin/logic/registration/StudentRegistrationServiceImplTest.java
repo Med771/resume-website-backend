@@ -99,6 +99,7 @@ class StudentRegistrationServiceImplTest {
         lenient().when(mailProperties.getOtpTtlMinutes()).thenReturn(15);
         lenient().when(mailProperties.isAllowDevConfirm()).thenReturn(true);
         lenient().when(verificationOtpMailer.trySendOtp(anyString(), anyString(), anyInt())).thenReturn(true);
+        lenient().when(verificationOtpMailer.trySendRegistrationSuccess(anyString(), anyString())).thenReturn(true);
         lenient().when(passwordEncoder.encode(anyString())).thenReturn("hash");
         lenient().when(studentRepo.existsByNormalizedEmail(anyString())).thenReturn(false);
         lenient().when(userRepo.existsByUsername(anyString())).thenReturn(false);
@@ -199,6 +200,7 @@ class StudentRegistrationServiceImplTest {
         ArgumentCaptor<String> otpCode = ArgumentCaptor.forClass(String.class);
         verify(verificationOtpMailer).trySendOtp(eq("ivan@test.local"), otpCode.capture(), eq(15));
         assertThat(otpCode.getValue()).matches("\\d{4}");
+        verify(verificationOtpMailer).trySendRegistrationSuccess("ivan@test.local", "newuser_x");
     }
 
     @Test

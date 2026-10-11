@@ -102,6 +102,8 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
             throw conflict();
         }
 
+        verificationOtpMailer.trySendRegistrationSuccess(email, username);
+
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(username, req.password()));
         log.info("Student account registered: username={} studentId={}", username, student.getId());

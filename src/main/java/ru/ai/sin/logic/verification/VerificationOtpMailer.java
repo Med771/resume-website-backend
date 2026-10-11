@@ -44,6 +44,14 @@ public class VerificationOtpMailer {
                 "Password reset");
     }
 
+    public boolean trySendRegistrationSuccess(String toEmail, String username) {
+        return trySend(
+                toEmail,
+                "Регистрация успешна — Singularity Resume",
+                buildRegistrationSuccessBody(username),
+                "Registration success");
+    }
+
     private boolean trySend(String toEmail, String subject, String body, String logLabel) {
         if (!mailProperties.isEnabled()) {
             log.warn("{} email skipped: app.mail.enabled=false", logLabel);
@@ -88,6 +96,19 @@ public class VerificationOtpMailer {
 
                 Если вы не запрашивали код, просто проигнорируйте это письмо.
                 """.formatted(code, ttlMinutes);
+    }
+
+    private static String buildRegistrationSuccessBody(String username) {
+        String login = username == null ? "" : username;
+        return """
+                Здравствуйте!
+
+                Аккаунт успешно создан.
+
+                Ваш логин: %s
+
+                Подтвердите почту кодом из письма с кодом подтверждения. Без подтверждения почты аккаунт нельзя одобрить.
+                """.formatted(login);
     }
 
     private static String buildPasswordResetBody(String code, int ttlMinutes, String username) {
