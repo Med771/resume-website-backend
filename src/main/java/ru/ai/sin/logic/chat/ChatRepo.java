@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -23,7 +24,9 @@ public interface ChatRepo extends JpaRepository<ChatEnt, UUID> {
 
     Optional<ChatEnt> findByRecruiter_IdAndStudent_Id(UUID recruiterId, UUID studentId);
 
+    @Modifying(flushAutomatically = true)
     void deleteByStudent_Id(UUID studentId);
 
+    @Modifying(flushAutomatically = true)
     void deleteByRecruiter_Id(UUID recruiterId);
 }
