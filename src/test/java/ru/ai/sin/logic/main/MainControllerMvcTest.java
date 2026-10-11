@@ -8,10 +8,12 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.ai.sin.config.PermitAllWebSecurityTestConfig;
+import ru.ai.sin.config.property.AppInfoProperties;
 import ru.ai.sin.filter.JwtCookieAuthenticationFilter;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = MainController.class)
@@ -26,12 +28,19 @@ class MainControllerMvcTest {
     private MainService mainService;
 
     @MockBean
+    private AppInfoProperties appInfoProperties;
+
+    @MockBean
     private JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;
 
     @Test
-    void status_noContentWithoutAuth() throws Exception {
+    void status_okWithoutAuth_returnsVersion() throws Exception {
+        when(appInfoProperties.getVersion()).thenReturn("1.0.0");
+
         mockMvc.perform(get("/main/status"))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.version").value("1.0.0"));
     }
 
     @Test

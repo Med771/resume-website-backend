@@ -10,7 +10,7 @@
     </parent>
     <groupId>ru.sin</groupId>
     <artifactId>resume-web-site-backend</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>resume-web-site-backend</name>
     <description>resume-web-site-backend</description>
     <url/>
