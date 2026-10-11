@@ -187,6 +187,7 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
     private static StudentEnt createDraftStudent(StudentAccountRegistrationReq req, String phone, String email) {
         StudentEnt student = new StudentEnt();
         student.setCity(emptyToNull(req.city()));
+        student.setBirthDate(req.birthDate());
         student.setMiddleName(emptyToNull(req.middleName()));
         student.setCatalogVisible(false);
         student.setPublicProfileConsent(false);

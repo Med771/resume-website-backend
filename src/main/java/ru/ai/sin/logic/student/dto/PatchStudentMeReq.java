@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import ru.ai.sin.models.enums.BusynessEnum;
+import ru.ai.sin.validation.MinAge;
 import ru.ai.sin.models.enums.CourseEnum;
 
 import java.time.LocalDate;
@@ -31,6 +32,7 @@ public record PatchStudentMeReq(
         @Schema(description = "Дата рождения")
         @JsonFormat(pattern = "yyyy-MM-dd")
         @Past(message = "Birth date must be in the past")
+        @MinAge(14)
         LocalDate birthDate,
 
         @Schema(description = "Краткая информация о студенте")

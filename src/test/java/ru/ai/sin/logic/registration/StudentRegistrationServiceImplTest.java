@@ -31,6 +31,7 @@ import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.RoleEnum;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -122,7 +123,8 @@ class StudentRegistrationServiceImplTest {
     @Test
     void register_passwordMismatch_throwsBadRequest() {
         StudentAccountRegistrationReq req = new StudentAccountRegistrationReq(
-                "user1", "SecurePass123", "other", null, null, null, "a@b.c", null, "+79990001122");
+                "user1", "SecurePass123", "other", null, null, null, "a@b.c", null, "+79990001122",
+                LocalDate.of(2000, 1, 1));
 
         assertThatThrownBy(() -> service.registerAndIssueTokens(req, httpRequest))
                 .isInstanceOf(BadRequestException.class)
@@ -133,7 +135,8 @@ class StudentRegistrationServiceImplTest {
     void register_reservedUsername_throwsBadRequest() {
         when(registrationProperties.isReservedUsername(eq("root"), any())).thenReturn(true);
         StudentAccountRegistrationReq req = new StudentAccountRegistrationReq(
-                "root", "SecurePass123", "SecurePass123", null, null, null, "a@b.c", null, "+79990001122");
+                "root", "SecurePass123", "SecurePass123", null, null, null, "a@b.c", null, "+79990001122",
+                LocalDate.of(2000, 1, 1));
 
         assertThatThrownBy(() -> service.registerAndIssueTokens(req, httpRequest))
                 .isInstanceOf(BadRequestException.class)
@@ -181,6 +184,7 @@ class StudentRegistrationServiceImplTest {
         assertThat(draft.getUserInformation().getLastName()).isEqualTo("Иванов");
         assertThat(draft.getUserInformation().getEmail()).isEqualTo("ivan@test.local");
         assertThat(draft.getContactInformation().getPhoneNumber()).isEqualTo("+79990001122");
+        assertThat(draft.getBirthDate()).isEqualTo(LocalDate.of(2000, 5, 5));
 
         UserEnt savedUser = userCaptor.getValue();
         assertThat(savedUser.getRole()).isEqualTo(RoleEnum.STUDENT);
@@ -325,7 +329,8 @@ class StudentRegistrationServiceImplTest {
                 "Петрович",
                 "ivan@test.local",
                 "Москва",
-                "+79990001122"
+                "+79990001122",
+                LocalDate.of(2000, 5, 5)
         );
     }
 }

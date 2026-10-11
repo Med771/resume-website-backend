@@ -23,6 +23,8 @@ import ru.ai.sin.logic.registration.StudentRegistrationService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.time.LocalDate;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -115,6 +117,7 @@ class AuthControllerMvcTest {
                                   "passwordConfirm": "SecurePass123",
                                   "email": "ivan@test.local",
                                   "phoneNumber": "+79990001122",
+                                  "birthDate": "2000-05-05",
                                   "phoneVerificationId": "11111111-1111-1111-1111-111111111111"
                                 }
                                 """))
@@ -136,6 +139,27 @@ class AuthControllerMvcTest {
                                   "phoneNumber": "+79990001122"
                                 }
                                 """))
+                .andExpect(status().isBadRequest());
+
+        verify(studentRegistrationService, never()).registerAndIssueTokens(any(), any());
+    }
+
+    @Test
+    void registerStudent_underFourteen_badRequest() throws Exception {
+        String tooYoung = LocalDate.now().minusYears(13).toString();
+
+        mockMvc.perform(post("/auth/register-student")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "newuser_x",
+                                  "password": "SecurePass123",
+                                  "passwordConfirm": "SecurePass123",
+                                  "email": "ivan@test.local",
+                                  "phoneNumber": "+79990001122",
+                                  "birthDate": "%s"
+                                }
+                                """.formatted(tooYoung)))
                 .andExpect(status().isBadRequest());
 
         verify(studentRegistrationService, never()).registerAndIssueTokens(any(), any());
