@@ -73,6 +73,30 @@ public class StudentController {
     }
 
     @Operation(
+            summary = "Завершить регистрацию",
+            description = """
+                    Только **STUDENT** с подтверждённой почтой и статусом `PENDING_APPROVAL`.
+                    Сохраняет дату рождения, курс и город и отправляет письмо о завершении регистрации.""")
+    @PreAuthorize("hasRole('STUDENT')")
+    @PostMapping(path = "/me/complete-registration")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void completeRegistration(@Valid @RequestBody CompleteStudentRegistrationReq req) {
+        studentService.completeRegistration(req);
+    }
+
+    @Operation(
+            summary = "Отправить полную анкету на одобрение",
+            description = """
+                    Только **STUDENT** с подтверждённой почтой и статусом `PENDING_APPROVAL`.
+                    Если анкета неполная — 403 `PROFILE_INCOMPLETE`. Иначе письмо с просьбой дождаться одобрения.""")
+    @PreAuthorize("hasRole('STUDENT')")
+    @PostMapping(path = "/me/submit-for-review")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void submitForReview() {
+        studentService.submitForReview();
+    }
+
+    @Operation(
             summary = "Получить студента по UUID",
             description = """
                     **STUDENT**, **RECRUITER** или **ADMIN** с одобренным аккаунтом. Полная карточка `StudentDTO`.

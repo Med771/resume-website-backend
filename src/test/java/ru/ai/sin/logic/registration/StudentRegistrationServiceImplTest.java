@@ -98,8 +98,7 @@ class StudentRegistrationServiceImplTest {
         lenient().when(httpRequest.getRemoteAddr()).thenReturn("127.0.0.1");
         lenient().when(mailProperties.getOtpTtlMinutes()).thenReturn(15);
         lenient().when(mailProperties.isAllowDevConfirm()).thenReturn(true);
-        lenient().when(verificationOtpMailer.trySendOtp(anyString(), anyString(), anyInt())).thenReturn(true);
-        lenient().when(verificationOtpMailer.trySendRegistrationSuccess(anyString(), anyString())).thenReturn(true);
+        lenient().when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(true);
         lenient().when(passwordEncoder.encode(anyString())).thenReturn("hash");
         lenient().when(studentRepo.existsByNormalizedEmail(anyString())).thenReturn(false);
         lenient().when(userRepo.existsByUsername(anyString())).thenReturn(false);
@@ -198,16 +197,16 @@ class StudentRegistrationServiceImplTest {
         assertThat(savedUser.getStudent()).isSameAs(draft);
 
         ArgumentCaptor<String> otpCode = ArgumentCaptor.forClass(String.class);
-        verify(verificationOtpMailer).trySendOtp(eq("ivan@test.local"), otpCode.capture(), eq(15));
+        verify(verificationOtpMailer).trySendStudentEmailOtp(eq("ivan@test.local"), otpCode.capture(), eq(15));
         assertThat(otpCode.getValue()).matches("\\d{4}");
-        verify(verificationOtpMailer).trySendRegistrationSuccess("ivan@test.local", "newuser_x");
+        verify(verificationOtpMailer, never()).trySendRegistrationSuccess(anyString(), anyString());
     }
 
     @Test
     void register_mailNotSent_stillCreatesAccount() {
         stubSuccessfulAuth("newuser_x");
         when(studentRepo.save(any(StudentEnt.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(verificationOtpMailer.trySendOtp(anyString(), anyString(), anyInt())).thenReturn(false);
+        when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(false);
 
         service.registerAndIssueTokens(baseReq(), httpRequest);
 
@@ -262,6 +261,7 @@ class StudentRegistrationServiceImplTest {
         assertThat(user.getEmailOtpHash()).isNull();
         assertThat(user.getEmailOtpExpiresAt()).isNull();
         verify(userRepo).save(user);
+        verify(verificationOtpMailer, never()).trySendRegistrationSuccess(anyString(), anyString());
     }
 
     @Test
@@ -294,7 +294,7 @@ class StudentRegistrationServiceImplTest {
         service.resendEmailConfirmation();
 
         verify(emailOtpAttemptLimiter).checkResend(user.getId());
-        verify(verificationOtpMailer).trySendOtp(eq("ivan@test.local"), anyString(), eq(15));
+        verify(verificationOtpMailer).trySendStudentEmailOtp(eq("ivan@test.local"), anyString(), eq(15));
         verify(userRepo).save(user);
     }
 

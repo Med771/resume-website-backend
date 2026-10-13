@@ -18,6 +18,7 @@ import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
+import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.models.PageResponse;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.BusynessEnum;
@@ -37,6 +38,7 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     private final UserRepo userRepo;
     private final StudentRepo studentRepo;
     private final SecurityHelper securityHelper;
+    private final VerificationOtpMailer verificationOtpMailer;
 
     @Override
     @Transactional(readOnly = true)
@@ -72,6 +74,12 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
             student.setCatalogVisible(true);
             studentRepo.save(student);
         }
+        if (user.getRole() == RoleEnum.STUDENT) {
+            String email = studentEmail(user);
+            if (email != null) {
+                verificationOtpMailer.trySendAccountApproved(email, user.getUsername());
+            }
+        }
         log.info("Account approved: userId={} by {}", userId, securityHelper.getCurrentUsername());
     }
 
@@ -87,6 +95,20 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         userRepo.save(user);
         log.info("Account rejected: userId={} by {} comment={}", userId, securityHelper.getCurrentUsername(),
                 body != null ? body.comment() : null);
+    }
+
+    private static String studentEmail(UserEnt user) {
+        if (user.getRegistrationEmail() != null && !user.getRegistrationEmail().isBlank()) {
+            return user.getRegistrationEmail().trim();
+        }
+        StudentEnt student = user.getStudent();
+        if (student != null
+                && student.getUserInformation() != null
+                && student.getUserInformation().getEmail() != null
+                && !student.getUserInformation().getEmail().isBlank()) {
+            return student.getUserInformation().getEmail().trim();
+        }
+        return null;
     }
 
     private AccountApprovalUserDTO toDto(UserEnt u) {

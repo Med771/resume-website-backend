@@ -5,6 +5,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.ai.sin.exception.models.BadRequestException;
+import ru.ai.sin.exception.models.ProfileIncompleteException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
@@ -12,7 +14,11 @@ import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
 import ru.ai.sin.logic.portfolio.PortfolioRepo;
+import ru.ai.sin.logic.profile.ProfileCommunicationGateService;
+import ru.ai.sin.logic.profile.dto.CommunicationReadinessRes;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
+import ru.ai.sin.logic.student.dto.CompleteStudentRegistrationReq;
+import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.logic.request.RequestRepo;
 import ru.ai.sin.logic.skill.SkillRepo;
 import ru.ai.sin.logic.student.dto.PatchStudentMeReq;
@@ -20,6 +26,7 @@ import ru.ai.sin.logic.student.dto.StudentDTO;
 import ru.ai.sin.logic.skill.dto.SkillDTO;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
+import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
@@ -35,6 +42,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -83,6 +92,10 @@ class StudentServiceImplPatchMeTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private RegistrationPasswordPolicy registrationPasswordPolicy;
+    @Mock
+    private ProfileCommunicationGateService profileCommunicationGateService;
+    @Mock
+    private VerificationOtpMailer verificationOtpMailer;
 
     @InjectMocks
     private StudentServiceImpl studentService;
@@ -119,5 +132,82 @@ class StudentServiceImplPatchMeTest {
         verify(studentSkillsMutator).replaceSkills(studentEnt, List.of(1L));
         verify(accountAccessHelper).requireStudentCanMutateResume(ID);
         assertThat(studentEnt.getProfileTextScore()).isGreaterThan(0);
+    }
+
+    @Test
+    void completeRegistration_withoutVerifiedEmail_doesNotSend() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = pendingStudent(studentEnt);
+        user.setEmailVerified(false);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> studentService.completeRegistration(registrationReq()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("почту");
+        verify(verificationOtpMailer, never()).trySendRegistrationSuccess("student@test.local", "stu");
+        assertThat(studentEnt.getCity()).isNull();
+    }
+
+    @Test
+    void completeRegistration_verified_savesFieldsAndSendsMail() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = pendingStudent(studentEnt);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+
+        studentService.completeRegistration(registrationReq());
+
+        assertThat(studentEnt.getBirthDate()).isEqualTo(LocalDate.of(2004, 1, 2));
+        assertThat(studentEnt.getCourse()).isEqualTo(CourseEnum.SECOND);
+        assertThat(studentEnt.getCity()).isEqualTo("Москва");
+        verify(verificationOtpMailer).trySendRegistrationSuccess("student@test.local", "stu");
+    }
+
+    @Test
+    void submitForReview_incomplete_doesNotSend() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = pendingStudent(studentEnt);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        when(profileCommunicationGateService.evaluateForCurrentUser())
+                .thenReturn(new CommunicationReadinessRes(false, List.of("photo")));
+
+        assertThatThrownBy(() -> studentService.submitForReview())
+                .isInstanceOf(ProfileIncompleteException.class);
+        verify(verificationOtpMailer, never()).trySendProfileSubmitted("student@test.local");
+    }
+
+    @Test
+    void submitForReview_complete_sendsMail() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = pendingStudent(studentEnt);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        when(profileCommunicationGateService.evaluateForCurrentUser())
+                .thenReturn(new CommunicationReadinessRes(true, List.of()));
+
+        studentService.submitForReview();
+
+        verify(verificationOtpMailer).trySendProfileSubmitted("student@test.local");
+    }
+
+    private static UserEnt pendingStudent(StudentEnt studentEnt) {
+        UserEnt user = new UserEnt();
+        user.setRole(RoleEnum.STUDENT);
+        user.setUsername("stu");
+        user.setStudent(studentEnt);
+        user.setEmailVerified(true);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setRegistrationEmail("student@test.local");
+        return user;
+    }
+
+    private static CompleteStudentRegistrationReq registrationReq() {
+        return new CompleteStudentRegistrationReq(LocalDate.of(2004, 1, 2), CourseEnum.SECOND, "Москва");
     }
 }

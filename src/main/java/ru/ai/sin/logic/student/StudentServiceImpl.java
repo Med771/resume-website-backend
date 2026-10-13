@@ -15,6 +15,7 @@ import ru.ai.sin.models.embeddables.ContactInformation;
 import ru.ai.sin.models.embeddables.UserInformation;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
+import ru.ai.sin.exception.models.ProfileIncompleteException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
@@ -26,7 +27,10 @@ import ru.ai.sin.logic.portfolio.PortfolioRepo;
 import ru.ai.sin.logic.request.RequestRepo;
 import ru.ai.sin.logic.student.dto.*;
 import ru.ai.sin.logic.vacancy.VacancyApplicationRepo;
+import ru.ai.sin.logic.profile.ProfileCommunicationGateService;
+import ru.ai.sin.logic.profile.dto.CommunicationReadinessRes;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
+import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.logic.speciality.SpecialityEnt;
@@ -36,6 +40,7 @@ import ru.ai.sin.tools.SkillTools;
 import ru.ai.sin.tools.SpecialityTools;
 import ru.ai.sin.tools.StudentTools;
 import ru.ai.sin.tools.UserTools;
+import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
@@ -76,6 +81,8 @@ public class StudentServiceImpl implements StudentService {
     private final UserRepo userRepo;
     private final PasswordEncoder passwordEncoder;
     private final RegistrationPasswordPolicy registrationPasswordPolicy;
+    private final ProfileCommunicationGateService profileCommunicationGateService;
+    private final VerificationOtpMailer verificationOtpMailer;
 
     /**
      * Один read-only boundary на загрузку + маппинг: {@link StudentTools#getStudentOrThrow} завершает свой вложенный tx,
@@ -372,6 +379,56 @@ public class StudentServiceImpl implements StudentService {
 
         StudentProfileScoring.applyTo(studentEnt);
         return studentTools.mapToDTO(studentEnt);
+    }
+
+    @Override
+    @Transactional
+    public void completeRegistration(CompleteStudentRegistrationReq req) {
+        UserEnt user = currentStudentPendingEmailVerified();
+        StudentEnt student = user.getStudent();
+        student.setCity(req.city().trim());
+        student.setBirthDate(req.birthDate());
+        student.setCourse(req.course());
+        StudentProfileScoring.applyTo(student);
+        verificationOtpMailer.trySendRegistrationSuccess(studentEmail(user), user.getUsername());
+    }
+
+    @Override
+    @Transactional
+    public void submitForReview() {
+        UserEnt user = currentStudentPendingEmailVerified();
+        CommunicationReadinessRes readiness = profileCommunicationGateService.evaluateForCurrentUser();
+        if (!readiness.ready()) {
+            throw new ProfileIncompleteException(readiness.missingFields());
+        }
+        verificationOtpMailer.trySendProfileSubmitted(studentEmail(user));
+    }
+
+    private UserEnt currentStudentPendingEmailVerified() {
+        UserEnt user = userRepo.findByUsernameFetchingLinks(securityHelper.getCurrentUsername())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        if (user.getRole() != RoleEnum.STUDENT || user.getStudent() == null) {
+            throw new BadRequestException("К аккаунту не привязана карточка студента");
+        }
+        if (!user.isEmailVerified()) {
+            throw new BadRequestException("Сначала подтвердите почту");
+        }
+        if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL) {
+            throw new BadRequestException("Аккаунт уже обработан");
+        }
+        return user;
+    }
+
+    private static String studentEmail(UserEnt user) {
+        if (user.getRegistrationEmail() != null && !user.getRegistrationEmail().isBlank()) {
+            return user.getRegistrationEmail().trim();
+        }
+        if (user.getStudent().getUserInformation() != null
+                && user.getStudent().getUserInformation().getEmail() != null
+                && !user.getStudent().getUserInformation().getEmail().isBlank()) {
+            return user.getStudent().getUserInformation().getEmail().trim();
+        }
+        throw new BadRequestException("У аккаунта не указана почта");
     }
 
     @Override

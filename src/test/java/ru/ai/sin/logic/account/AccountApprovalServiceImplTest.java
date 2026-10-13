@@ -12,6 +12,7 @@ import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
+import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.RoleEnum;
 
@@ -20,6 +21,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,6 +37,8 @@ class AccountApprovalServiceImplTest {
     private StudentRepo studentRepo;
     @Mock
     private SecurityHelper securityHelper;
+    @Mock
+    private VerificationOtpMailer verificationOtpMailer;
 
     @InjectMocks
     private AccountApprovalServiceImpl service;
@@ -50,6 +54,7 @@ class AccountApprovalServiceImplTest {
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
         user.setStudent(student);
         user.setEmailVerified(true);
+        user.setRegistrationEmail("student@test.local");
 
         when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
         when(securityHelper.getCurrentUsername()).thenReturn("admin");
@@ -60,6 +65,22 @@ class AccountApprovalServiceImplTest {
         verify(studentRepo).save(captor.capture());
         assertThat(captor.getValue().isCatalogVisible()).isTrue();
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        verify(verificationOtpMailer).trySendAccountApproved("student@test.local", "student");
+    }
+
+    @Test
+    void approve_recruiter_doesNotSendStudentEmail() {
+        UserEnt user = new UserEnt(RoleEnum.RECRUITER, "r", "recruiter", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(securityHelper.getCurrentUsername()).thenReturn("admin");
+
+        service.approve(USER_ID);
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        verify(verificationOtpMailer, never()).trySendAccountApproved(anyString(), anyString());
     }
 
     @Test

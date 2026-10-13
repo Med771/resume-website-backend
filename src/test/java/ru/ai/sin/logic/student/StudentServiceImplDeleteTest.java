@@ -13,7 +13,9 @@ import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
 import ru.ai.sin.logic.portfolio.PortfolioRepo;
+import ru.ai.sin.logic.profile.ProfileCommunicationGateService;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
+import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.logic.request.RequestRepo;
 import ru.ai.sin.logic.skill.SkillRepo;
 import ru.ai.sin.logic.student.dto.StudentDTO;
@@ -84,6 +86,10 @@ class StudentServiceImplDeleteTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private RegistrationPasswordPolicy registrationPasswordPolicy;
+    @Mock
+    private ProfileCommunicationGateService profileCommunicationGateService;
+    @Mock
+    private VerificationOtpMailer verificationOtpMailer;
 
     @InjectMocks
     private StudentServiceImpl studentService;

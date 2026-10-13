@@ -102,8 +102,6 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
             throw conflict();
         }
 
-        verificationOtpMailer.trySendRegistrationSuccess(email, username);
-
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(username, req.password()));
         log.info("Student account registered: username={} studentId={}", username, student.getId());
@@ -157,7 +155,7 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
         int ttl = Math.max(1, mailProperties.getOtpTtlMinutes());
         user.setEmailOtpHash(passwordEncoder.encode(code));
         user.setEmailOtpExpiresAt(LocalDateTime.now().plusMinutes(ttl));
-        boolean sent = verificationOtpMailer.trySendOtp(email, code, ttl);
+        boolean sent = verificationOtpMailer.trySendStudentEmailOtp(email, code, ttl);
         if (!sent && !mailProperties.isAllowDevConfirm()) {
             log.warn("Email OTP not sent for username={}", user.getUsername());
         }

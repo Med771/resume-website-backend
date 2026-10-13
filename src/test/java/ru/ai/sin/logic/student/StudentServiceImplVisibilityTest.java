@@ -6,6 +6,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.exception.models.NotFoundException;
+import ru.ai.sin.logic.profile.ProfileCommunicationGateService;
+import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
@@ -76,6 +78,10 @@ class StudentServiceImplVisibilityTest {
     private AccountAccessHelper accountAccessHelper;
     @Mock
     private UserTools userTools;
+    @Mock
+    private ProfileCommunicationGateService profileCommunicationGateService;
+    @Mock
+    private VerificationOtpMailer verificationOtpMailer;
 
     @InjectMocks
     private StudentServiceImpl studentService;

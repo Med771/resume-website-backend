@@ -58,6 +58,36 @@ class VerificationOtpMailerTest {
     }
 
     @Test
+    void trySendProfileSubmitted_buildsMessage() {
+        MimeMessage mimeMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        assertThat(mailer.trySendProfileSubmitted("recipient@example.com")).isTrue();
+
+        verify(mailSender).send(mimeMessage);
+    }
+
+    @Test
+    void trySendAccountApproved_buildsMessage() {
+        MimeMessage mimeMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        assertThat(mailer.trySendAccountApproved("recipient@example.com", "newuser_x")).isTrue();
+
+        verify(mailSender).send(mimeMessage);
+    }
+
+    @Test
+    void trySendStudentEmailOtp_buildsMessage() {
+        MimeMessage mimeMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        assertThat(mailer.trySendStudentEmailOtp("recipient@example.com", "1234", 15)).isTrue();
+
+        verify(mailSender).send(mimeMessage);
+    }
+
+    @Test
     void sendOtp_requiresEnabledMail() {
         mailProperties.setEnabled(false);
         assertThat(mailer.trySendOtp("a@b.c", "1234", 15)).isFalse();
