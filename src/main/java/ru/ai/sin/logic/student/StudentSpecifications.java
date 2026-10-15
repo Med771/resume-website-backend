@@ -58,17 +58,18 @@ public final class StudentSpecifications {
 
                 Expression<String> fullName = cb.lower(cb.concat(
                         cb.concat(
-                                cb.concat(
-                                        root.get("userInformation").get("firstName"), " "),
-                                root.get("userInformation").get("lastName")),
-                        cb.concat(" ", root.get("middleName"))
+                                cb.concat(cb.coalesce(root.get("userInformation").get("firstName"), ""), " "),
+                                cb.coalesce(root.get("userInformation").get("lastName"), "")),
+                        cb.concat(" ", cb.coalesce(root.get("middleName"), ""))
                 ));
 
-                Expression<String> bio = cb.lower(root.get("bio"));
+                Expression<String> bio = cb.lower(cb.coalesce(root.get("bio"), ""));
 
-                Expression<Double> fullNameSimilarity = cb.function("word_similarity", Double.class, fullName, cb.literal(filter));
+                Expression<Double> fullNameSimilarity = cb.function(
+                        "word_similarity", Double.class, cb.literal(filter), fullName);
 
-                Expression<Double> bioSimilarity = cb.function("similarity", Double.class, bio, cb.literal(filter));
+                Expression<Double> bioSimilarity = cb.function(
+                        "word_similarity", Double.class, cb.literal(filter), bio);
 
                 Predicate fullNameFuzzy = cb.greaterThanOrEqualTo(fullNameSimilarity, threshold);
 
@@ -76,7 +77,9 @@ public final class StudentSpecifications {
 
                 Predicate fullNameLike = cb.like(fullName, "%" + filter + "%");
 
-                predicates.add(cb.or(fullNameFuzzy, fullNameLike, bioFuzzy));
+                Predicate bioLike = cb.like(bio, "%" + filter + "%");
+
+                predicates.add(cb.or(fullNameFuzzy, fullNameLike, bioFuzzy, bioLike));
             }
 
             if (filterStudentReq.course() != null && !filterStudentReq.course().isEmpty()) {
