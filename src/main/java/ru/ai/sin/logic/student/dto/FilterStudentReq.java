@@ -23,7 +23,7 @@ import java.util.Set;
 
                 Если `useDefaultRanking=false`, используется `sortBy` (по умолчанию `CREATED_AT`, если null) и `sortDirection` (по умолчанию DESC).""")
 public record FilterStudentReq(
-        @Schema(description = "Подстрока поиска по ФИО и связанным полям профиля (если поддерживается спецификацией)")
+        @Schema(description = "Подстрока поиска по имени, фамилии и отчеству")
         String findString,
 
         @Schema(description = "Ограничение по одному или нескольким значениям курса (`CourseEnum`)")
