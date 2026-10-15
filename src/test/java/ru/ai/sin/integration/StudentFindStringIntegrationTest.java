@@ -76,10 +76,10 @@ class StudentFindStringIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     @Transactional
-    void findsSubstringInBioWhenNameDoesNotMatch() {
+    void ignoresBio() {
         StudentEnt student = save("Анна", "Петрова", "Сергеевна", "мои проекты", true);
 
-        assertThat(search("мои", false, null)).contains(student.getId());
+        assertThat(search("мои", false, null)).doesNotContain(student.getId());
     }
 
     @Test
@@ -105,6 +105,14 @@ class StudentFindStringIntegrationTest extends AbstractPostgresIntegrationTest {
         StudentEnt student = save("Анна", "Моисеева", null, "текст", true);
 
         assertThat(search("мои", false, null)).contains(student.getId());
+    }
+
+    @Test
+    @Transactional
+    void shortQueryDoesNotMatchUnrelatedName() {
+        StudentEnt student = save("Диана", "Мурлаева", null, null, true);
+
+        assertThat(search("мои", false, null)).doesNotContain(student.getId());
     }
 
     @Test

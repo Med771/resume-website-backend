@@ -49,13 +49,6 @@ public final class StudentSpecifications {
             if (filterStudentReq.findString() != null && !filterStudentReq.findString().isBlank()) {
                 String filter = filterStudentReq.findString().toLowerCase();
 
-                double threshold = 0.3;
-                int len = filter.length();
-
-                if (len <= 3) {threshold = 0.1;}
-                else if (len <= 5) {threshold = 0.18;}
-                else if (len <= 8) {threshold = 0.25;}
-
                 Expression<String> fullName = cb.lower(cb.concat(
                         cb.concat(
                                 cb.concat(cb.coalesce(root.get("userInformation").get("firstName"), ""), " "),
@@ -63,23 +56,17 @@ public final class StudentSpecifications {
                         cb.concat(" ", cb.coalesce(root.get("middleName"), ""))
                 ));
 
-                Expression<String> bio = cb.lower(cb.coalesce(root.get("bio"), ""));
-
-                Expression<Double> fullNameSimilarity = cb.function(
-                        "word_similarity", Double.class, cb.literal(filter), fullName);
-
-                Expression<Double> bioSimilarity = cb.function(
-                        "word_similarity", Double.class, cb.literal(filter), bio);
-
-                Predicate fullNameFuzzy = cb.greaterThanOrEqualTo(fullNameSimilarity, threshold);
-
-                Predicate bioFuzzy = cb.greaterThanOrEqualTo(bioSimilarity, threshold);
-
                 Predicate fullNameLike = cb.like(fullName, "%" + filter + "%");
 
-                Predicate bioLike = cb.like(bio, "%" + filter + "%");
-
-                predicates.add(cb.or(fullNameFuzzy, fullNameLike, bioFuzzy, bioLike));
+                if (filter.length() <= 3) {
+                    predicates.add(fullNameLike);
+                } else {
+                    double threshold = filter.length() <= 8 ? 0.4 : 0.5;
+                    Expression<Double> fullNameSimilarity = cb.function(
+                            "word_similarity", Double.class, cb.literal(filter), fullName);
+                    Predicate fullNameFuzzy = cb.greaterThanOrEqualTo(fullNameSimilarity, threshold);
+                    predicates.add(cb.or(fullNameFuzzy, fullNameLike));
+                }
             }
 
             if (filterStudentReq.course() != null && !filterStudentReq.course().isEmpty()) {
