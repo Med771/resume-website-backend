@@ -109,6 +109,14 @@ class StudentFindStringIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     @Transactional
+    void shortQueryDoesNotMatchUnrelatedName() {
+        StudentEnt student = save("Диана", "Мурлаева", null, null, true);
+
+        assertThat(search("мои", false, null)).doesNotContain(student.getId());
+    }
+
+    @Test
+    @Transactional
     void fuzzyMatchAllowsSmallTypo() {
         StudentEnt student = save("Анна", "Моисеева", null, "текст", true);
 
