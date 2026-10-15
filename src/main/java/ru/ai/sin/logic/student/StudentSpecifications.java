@@ -56,22 +56,16 @@ public final class StudentSpecifications {
                         cb.concat(" ", cb.coalesce(root.get("middleName"), ""))
                 ));
 
-                Expression<String> bio = cb.lower(cb.coalesce(root.get("bio"), ""));
-
                 Predicate fullNameLike = cb.like(fullName, "%" + filter + "%");
-                Predicate bioLike = cb.like(bio, "%" + filter + "%");
 
                 if (filter.length() <= 3) {
-                    predicates.add(cb.or(fullNameLike, bioLike));
+                    predicates.add(fullNameLike);
                 } else {
                     double threshold = filter.length() <= 8 ? 0.4 : 0.5;
                     Expression<Double> fullNameSimilarity = cb.function(
                             "word_similarity", Double.class, cb.literal(filter), fullName);
-                    Expression<Double> bioSimilarity = cb.function(
-                            "word_similarity", Double.class, cb.literal(filter), bio);
                     Predicate fullNameFuzzy = cb.greaterThanOrEqualTo(fullNameSimilarity, threshold);
-                    Predicate bioFuzzy = cb.greaterThanOrEqualTo(bioSimilarity, threshold);
-                    predicates.add(cb.or(fullNameFuzzy, fullNameLike, bioFuzzy, bioLike));
+                    predicates.add(cb.or(fullNameFuzzy, fullNameLike));
                 }
             }
 
