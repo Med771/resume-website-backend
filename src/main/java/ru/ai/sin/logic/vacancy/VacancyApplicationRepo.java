@@ -38,9 +38,13 @@ public interface VacancyApplicationRepo extends JpaRepository<VacancyApplication
             @Param("studentId") UUID studentId,
             @Param("status") VacancyApplicationStatus status);
 
-    @Modifying
+    @Modifying(flushAutomatically = true)
     @Query("DELETE FROM VacancyApplicationEnt a WHERE a.vacancy.recruiter.id = :recruiterId")
     void deleteByVacancyRecruiterId(@Param("recruiterId") UUID recruiterId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM VacancyApplicationEnt a WHERE a.student.id = :studentId")
+    void deleteByStudentId(@Param("studentId") UUID studentId);
 
     List<VacancyApplicationEnt> findByAppChat_Id(UUID appChatId);
 

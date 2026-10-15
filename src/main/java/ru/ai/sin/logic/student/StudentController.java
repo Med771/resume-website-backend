@@ -227,8 +227,9 @@ public class StudentController {
 
     @Operation(
             summary = "Удалить студента",
-            description = "Полное удаление: заявки, чаты (и сообщения), опыт работы, записи institution, портфолио, "
-                    + "отвязка навыков; затем запись студента. Связь users.student_id снимается на стороне БД (ON DELETE SET NULL).")
+            description = "Полное удаление: отклики на вакансии, заявки, чаты (и сообщения), опыт работы, "
+                    + "записи institution, портфолио, отвязка навыков; затем учётная запись (логин, пароль, "
+                    + "почта регистрации) и карточка студента.")
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
