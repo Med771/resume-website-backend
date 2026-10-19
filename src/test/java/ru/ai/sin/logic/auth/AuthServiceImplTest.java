@@ -29,6 +29,7 @@ import ru.ai.sin.logic.auth.dto.TokenPair;
 import ru.ai.sin.logic.registration.EmailOtpAttemptLimiter;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
 import ru.ai.sin.logic.verification.VerificationOtpMailer;
+import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -236,7 +237,7 @@ class AuthServiceImplTest {
 
         when(securityHelper.getCurrentUsernameOptional()).thenReturn(Optional.of("alice"));
         when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of("STUDENT"));
-        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(user));
+        when(userRepo.findByUsernameFetchingLinks("alice")).thenReturn(Optional.of(user));
 
         AuthMeDTO me = authService.getCurrentSession();
 
@@ -244,6 +245,28 @@ class AuthServiceImplTest {
         assertThat(me.username()).isEqualTo("alice");
         assertThat(me.role()).isEqualTo("STUDENT");
         assertThat(me.emailVerified()).isFalse();
+        assertThat(me.rejectionReason()).isNull();
+        assertThat(me.rejectionComment()).isNull();
+    }
+
+    @Test
+    void getCurrentSession_rejectedStudent_includesRejection() {
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "Alice", "alice", "hash");
+        user.setAccountStatus(AccountStatus.REJECTED);
+        StudentEnt student = new StudentEnt();
+        student.setRejectionReason("INCOMPLETE_PROFILE");
+        student.setRejectionComment("Нет описания опыта");
+        user.setStudent(student);
+
+        when(securityHelper.getCurrentUsernameOptional()).thenReturn(Optional.of("alice"));
+        when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of("STUDENT"));
+        when(userRepo.findByUsernameFetchingLinks("alice")).thenReturn(Optional.of(user));
+
+        AuthMeDTO me = authService.getCurrentSession();
+
+        assertThat(me.accountStatus()).isEqualTo("REJECTED");
+        assertThat(me.rejectionReason()).isEqualTo("INCOMPLETE_PROFILE");
+        assertThat(me.rejectionComment()).isEqualTo("Нет описания опыта");
     }
 
     @Test

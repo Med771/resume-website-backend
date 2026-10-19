@@ -42,7 +42,12 @@ public class AccountApprovalAdminController {
         accountApprovalService.approve(userId);
     }
 
-    @Operation(summary = "Отклонить аккаунт")
+    @Operation(
+            summary = "Отклонить аккаунт",
+            description = """
+                    Студенту нужен `reasonCode`: INCOMPLETE_PROFILE, INVALID_DATA, NOT_ELIGIBLE, DUPLICATE, OTHER.
+                    Для OTHER обязателен `comment`. Студенту уходит письмо с причиной.
+                    Рекрутеру тело можно не передавать.""")
     @PostMapping("/{userId}/reject")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void reject(@PathVariable UUID userId, @Valid @RequestBody(required = false) AccountRejectReq body) {

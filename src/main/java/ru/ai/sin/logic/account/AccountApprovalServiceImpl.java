@@ -20,6 +20,7 @@ import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.models.PageResponse;
+import ru.ai.sin.models.enums.AccountRejectionReason;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
@@ -72,6 +73,8 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         StudentEnt student = user.getStudent();
         if (student != null) {
             student.setCatalogVisible(true);
+            student.setRejectionReason(null);
+            student.setRejectionComment(null);
             studentRepo.save(student);
         }
         if (user.getRole() == RoleEnum.STUDENT) {
@@ -91,10 +94,58 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL) {
             throw new BadRequestException("Аккаунт уже обработан");
         }
+        if (user.getRole() == RoleEnum.STUDENT) {
+            rejectStudent(user, body);
+        } else {
+            user.setAccountStatus(AccountStatus.REJECTED);
+            userRepo.save(user);
+        }
+        log.info("Account rejected: userId={} by {} reason={} comment={}",
+                userId,
+                securityHelper.getCurrentUsername(),
+                body != null ? body.reasonCode() : null,
+                body != null ? body.comment() : null);
+    }
+
+    private void rejectStudent(UserEnt user, AccountRejectReq body) {
+        AccountRejectionReason reason = parseRejectionReason(body);
+        String comment = normalizeComment(body != null ? body.comment() : null);
+        if (reason == AccountRejectionReason.OTHER && comment == null) {
+            throw new BadRequestException("Укажите комментарий");
+        }
         user.setAccountStatus(AccountStatus.REJECTED);
         userRepo.save(user);
-        log.info("Account rejected: userId={} by {} comment={}", userId, securityHelper.getCurrentUsername(),
-                body != null ? body.comment() : null);
+        StudentEnt student = user.getStudent();
+        if (student != null) {
+            student.setRejectionReason(reason.getCode());
+            student.setRejectionComment(comment);
+            studentRepo.save(student);
+        }
+        String email = studentEmail(user);
+        if (email == null) {
+            log.warn("Account rejection email skipped: no email, userId={}", user.getId());
+            return;
+        }
+        verificationOtpMailer.trySendAccountRejected(
+                email,
+                user.getUsername(),
+                reason.formulation(comment),
+                comment);
+    }
+
+    private static AccountRejectionReason parseRejectionReason(AccountRejectReq body) {
+        try {
+            return AccountRejectionReason.fromCode(body != null ? body.reasonCode() : null);
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private static String normalizeComment(String comment) {
+        if (comment == null || comment.isBlank()) {
+            return null;
+        }
+        return comment.trim();
     }
 
     private static String studentEmail(UserEnt user) {

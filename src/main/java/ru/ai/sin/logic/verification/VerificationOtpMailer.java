@@ -76,6 +76,14 @@ public class VerificationOtpMailer {
                 "Account approved");
     }
 
+    public boolean trySendAccountRejected(String toEmail, String username, String reasonText, String comment) {
+        return trySend(
+                toEmail,
+                "Аккаунт не одобрен — Singularity Resume",
+                buildAccountRejectedBody(username, reasonText, comment),
+                "Account rejected");
+    }
+
     private boolean trySend(String toEmail, String subject, String body, String logLabel) {
         if (!mailProperties.isEnabled()) {
             log.warn("{} email skipped: app.mail.enabled=false", logLabel);
@@ -168,6 +176,24 @@ public class VerificationOtpMailer {
 
                 Ваш логин: %s
                 """.formatted(login);
+    }
+
+    private static String buildAccountRejectedBody(String username, String reasonText, String comment) {
+        String login = username == null ? "" : username;
+        String reason = reasonText == null ? "" : reasonText.trim();
+        String extra = "";
+        if (comment != null && !comment.isBlank() && !comment.trim().equals(reason)) {
+            extra = "\n" + comment.trim() + "\n";
+        }
+        return """
+                Здравствуйте!
+
+                Администратор не одобрил ваш аккаунт.
+
+                Причина: %s
+                %s
+                Ваш логин: %s
+                """.formatted(reason, extra, login);
     }
 
     private static String buildPasswordResetBody(String code, int ttlMinutes, String username) {

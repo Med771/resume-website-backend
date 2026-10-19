@@ -5,6 +5,12 @@ import jakarta.validation.constraints.Size;
 
 @Schema(name = "AccountRejectReq")
 public record AccountRejectReq(
-        @Size(max = 2000) String comment
+        @Schema(description = "Код причины отказа студента: INCOMPLETE_PROFILE, INVALID_DATA, NOT_ELIGIBLE, DUPLICATE, OTHER")
+        @Size(max = 64)
+        String reasonCode,
+
+        @Schema(description = "Комментарий. Обязателен для студента при reasonCode=OTHER")
+        @Size(max = 2000)
+        String comment
 ) {
 }

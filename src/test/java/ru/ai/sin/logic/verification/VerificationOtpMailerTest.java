@@ -1,6 +1,9 @@
 package ru.ai.sin.logic.verification;
 
+import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
+
+import java.util.Properties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -75,6 +78,41 @@ class VerificationOtpMailerTest {
         assertThat(mailer.trySendAccountApproved("recipient@example.com", "newuser_x")).isTrue();
 
         verify(mailSender).send(mimeMessage);
+    }
+
+    @Test
+    void trySendAccountRejected_buildsMessage() throws Exception {
+        MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        assertThat(mailer.trySendAccountRejected(
+                "recipient@example.com",
+                "newuser_x",
+                "Анкета заполнена недостаточно",
+                "Нет описания опыта")).isTrue();
+
+        verify(mailSender).send(mimeMessage);
+        assertThat(mimeMessage.getSubject()).isEqualTo("Аккаунт не одобрен — Singularity Resume");
+        String body = mimeMessage.getContent().toString();
+        assertThat(body).contains("Причина: Анкета заполнена недостаточно");
+        assertThat(body).contains("Нет описания опыта");
+        assertThat(body).contains("Ваш логин: newuser_x");
+    }
+
+    @Test
+    void trySendAccountRejected_otherDoesNotRepeatComment() throws Exception {
+        MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        assertThat(mailer.trySendAccountRejected(
+                "recipient@example.com",
+                "newuser_x",
+                "Свободная причина",
+                "Свободная причина")).isTrue();
+
+        String body = mimeMessage.getContent().toString();
+        assertThat(body).contains("Причина: Свободная причина");
+        assertThat(body.replace("Причина: Свободная причина", "")).doesNotContain("Свободная причина");
     }
 
     @Test
