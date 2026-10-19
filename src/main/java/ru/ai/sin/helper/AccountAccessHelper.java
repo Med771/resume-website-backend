@@ -146,31 +146,51 @@ public class AccountAccessHelper {
     }
 
     /**
-     * Те же правила видимости, что у {@code StudentServiceImpl#getById}: свой профиль всегда;
-     * чужой — только при {@code catalogVisible} и одобренном аккаунте (кроме ADMIN).
+     * Своя карточка студента видна всегда. Админ видит любую.
+     * Чужую карточку видят одобренный студент и рекрутер, если она открыта в каталоге
+     * и аккаунт владельца {@code APPROVED}. Иначе 404.
+     * Студент без одобрения чужие карточки не видит.
      */
     public void requireCanReadStudentResumeDetails(UUID studentId) {
         if (studentId == null) {
             UserEnt user = requireCurrentUser();
-            if (user.getRole() == RoleEnum.ADMIN || user.getRole() == RoleEnum.RECRUITER) {
+            if (user.getRole() == RoleEnum.ADMIN) {
+                return;
+            }
+            if (user.getRole() == RoleEnum.RECRUITER) {
                 requireApprovedAccount();
                 return;
             }
             throw new ForbiddenException("Нет доступа к данным резюме");
         }
 
-        boolean isOwnProfile = userTools.findCurrentUserFetchingLinks()
-                .filter(u -> u.getRole() == RoleEnum.STUDENT && u.getStudent() != null)
-                .map(u -> u.getStudent().getId().equals(studentId))
-                .orElse(false);
-        if (!isOwnProfile) {
-            requireApprovedAccount();
+        UserEnt viewer = userTools.findCurrentUserFetchingLinks().orElse(null);
+        boolean isOwnProfile = viewer != null
+                && viewer.getRole() == RoleEnum.STUDENT
+                && viewer.getStudent() != null
+                && viewer.getStudent().getId().equals(studentId);
+        if (isOwnProfile || securityHelper.isCurrentUserAdmin()) {
+            studentTools.getStudentOrThrow(studentId);
+            return;
         }
 
-        StudentEnt studentEnt = studentTools.getStudentOrThrow(studentId);
-        if (!studentEnt.isCatalogVisible() && !securityHelper.isCurrentUserAdmin() && !isOwnProfile) {
+        if (viewer != null
+                && viewer.getRole() == RoleEnum.STUDENT
+                && viewer.getAccountStatus() != AccountStatus.APPROVED) {
             throw new NotFoundException("Failed to find student by id " + studentId);
         }
+        requireApprovedAccount();
+
+        StudentEnt studentEnt = studentTools.getStudentOrThrow(studentId);
+        if (!studentEnt.isCatalogVisible() || !isStudentAccountApproved(studentId)) {
+            throw new NotFoundException("Failed to find student by id " + studentId);
+        }
+    }
+
+    private boolean isStudentAccountApproved(UUID studentId) {
+        return userRepo.findByStudent_Id(studentId)
+                .map(user -> user.getAccountStatus() == AccountStatus.APPROVED)
+                .orElse(false);
     }
 
     public static void validateRejection(String reasonCode, String comment) {

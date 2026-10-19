@@ -99,11 +99,13 @@ public class StudentController {
     @Operation(
             summary = "Получить студента по UUID",
             description = """
-                    **STUDENT**, **RECRUITER** или **ADMIN** с одобренным аккаунтом. Полная карточка `StudentDTO`.
+                    Полная карточка `StudentDTO`.
 
-                    Карточки с `catalogVisible=false` для не-админов возвращают **404** (как при отсутствии id).
+                    Студент без одобрения видит только свою карточку: чужой id — **404**.
+                    Одобренный студент и рекрутер видят чужую карточку, если у неё аккаунт **APPROVED** и `catalogVisible=true`. Иначе **404**.
+                    Свою карточку студент видит и когда она скрыта. Админ видит любую.
 
-                    Требуется аутентификация по cookie/JWT и статус аккаунта **APPROVED** (кроме ADMIN).""")
+                    Рекрутеру нужен статус **APPROVED**, иначе **403**. Админу одобрение не нужно.""")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<StudentDTO> getById(@PathVariable @NotNull UUID id) {
@@ -117,11 +119,13 @@ public class StudentController {
             description = """
                     Постраничная выдача `StudentCardDTO` по фильтрам из тела.
 
-                    **Скрытые карточки** (`catalogVisible=false`): в списке только для **ADMIN**; для остальных ролей отфильтровываются.
+                    Студент без одобрения получает только свою карточку (на первой странице).
+                    Одобренный студент и рекрутер видят студентов со статусом **APPROVED** и `catalogVisible=true`.
+                    Своя карточка студента остаётся в выдаче, даже если она скрыта. Админ видит всех.
 
                     **Пагинация:** `page`, `size` в query. **Сортировка:** только из JSON (`sortBy`, `sortDirection`, `useDefaultRanking`), не из `sort=`.
 
-                    Требуется статус аккаунта **APPROVED** (кроме ADMIN).""")
+                    Рекрутеру нужен статус **APPROVED**, иначе **403**. Админу одобрение не нужно.""")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/cardsFilter")
     public ResponseEntity<PageResponse<StudentCardDTO>> getCardsAllByFilters(
@@ -139,8 +143,7 @@ public class StudentController {
             description = """
                     Как `POST /student/cardsFilter`, но элементы страницы — полные `StudentDTO` (включая `publicProfileConsent`, `profileTextScore`).
 
-                    Правила видимости, пагинации и сортировки — те же.
-                    Студенту одобрение аккаунта не нужно. Рекрутеру нужен **APPROVED**, админу — нет.""")
+                    Правила видимости, пагинации и сортировки — те же, что у `POST /student/cardsFilter`.""")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<StudentDTO>> getAllByFilters(
