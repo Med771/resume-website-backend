@@ -10,6 +10,7 @@ import ru.ai.sin.config.property.MailProperties;
 import ru.ai.sin.exception.models.BadRequestException;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -84,15 +85,26 @@ public class VerificationOtpMailer {
                 "Account rejected");
     }
 
+    /**
+     * @return empty when the server accepted the message, otherwise the error text
+     */
+    public Optional<String> trySendPlain(String toEmail, String subject, String body) {
+        return Optional.ofNullable(sendPlain(toEmail, subject, body, "Admin broadcast"));
+    }
+
     private boolean trySend(String toEmail, String subject, String body, String logLabel) {
+        return sendPlain(toEmail, subject, body, logLabel) == null;
+    }
+
+    private String sendPlain(String toEmail, String subject, String body, String logLabel) {
         if (!mailProperties.isEnabled()) {
             log.warn("{} email skipped: app.mail.enabled=false", logLabel);
-            return false;
+            return "Почта выключена";
         }
         String from = mailProperties.getFrom();
         if (from == null || from.isBlank()) {
             log.warn("{} email skipped: app.mail.from is not configured", logLabel);
-            return false;
+            return "Не задан адрес отправителя";
         }
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -103,10 +115,11 @@ public class VerificationOtpMailer {
             helper.setText(body, false);
             mailSender.send(message);
             log.info("{} email sent to {}", logLabel, maskEmail(toEmail));
-            return true;
+            return null;
         } catch (Exception ex) {
-            log.warn("Failed to send {} email to {}: {}", logLabel, maskEmail(toEmail), describeMailError(ex));
-            return false;
+            String error = describeMailError(ex);
+            log.warn("Failed to send {} email to {}: {}", logLabel, maskEmail(toEmail), error);
+            return error;
         }
     }
 

@@ -14,9 +14,12 @@ import org.springframework.mail.javamail.JavaMailSender;
 import ru.ai.sin.config.property.MailProperties;
 import ru.ai.sin.exception.models.BadRequestException;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -113,6 +116,29 @@ class VerificationOtpMailerTest {
         String body = mimeMessage.getContent().toString();
         assertThat(body).contains("Причина: Свободная причина");
         assertThat(body.replace("Причина: Свободная причина", "")).doesNotContain("Свободная причина");
+    }
+
+    @Test
+    void trySendPlain_buildsCustomMessage() throws Exception {
+        MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        assertThat(mailer.trySendPlain("recipient@example.com", "Встреча", "Здравствуйте!")).isEmpty();
+
+        verify(mailSender).send(mimeMessage);
+        assertThat(mimeMessage.getSubject()).isEqualTo("Встреча");
+        assertThat(mimeMessage.getContent().toString()).contains("Здравствуйте!");
+    }
+
+    @Test
+    void trySendPlain_returnsSmtpError() {
+        MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+        doThrow(new RuntimeException("SMTP timeout")).when(mailSender).send(any(MimeMessage.class));
+
+        Optional<String> error = mailer.trySendPlain("recipient@example.com", "Встреча", "Текст");
+
+        assertThat(error).contains("RuntimeException: SMTP timeout");
     }
 
     @Test

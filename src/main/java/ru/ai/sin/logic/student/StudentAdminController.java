@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import ru.ai.sin.logic.student.dto.AdminStudentMailReq;
+import ru.ai.sin.logic.student.dto.AdminStudentMailResult;
 import ru.ai.sin.logic.student.dto.BulkStudentVisibilityReq;
 import ru.ai.sin.logic.student.dto.BulkStudentVisibilityResult;
 import ru.ai.sin.logic.student.dto.ReorderStudentsReq;
@@ -25,6 +27,7 @@ import ru.ai.sin.logic.student.dto.ReorderStudentsReq;
 public class StudentAdminController {
 
     private final StudentService studentService;
+    private final AdminStudentMailService adminStudentMailService;
 
     @Operation(summary = "Изменить ручной порядок карточек студентов")
     @PostMapping("/reorder")
@@ -37,5 +40,16 @@ public class StudentAdminController {
     @PostMapping("/bulk-visibility")
     public BulkStudentVisibilityResult bulkVisibility(@Valid @RequestBody BulkStudentVisibilityReq req) {
         return studentService.bulkUpdateVisibility(req);
+    }
+
+    @Operation(
+            summary = "Разослать письмо студентам",
+            description = """
+                    Обычный текст на адреса студентов: registrationEmail, иначе email карточки.
+                    Непустой studentIds либо all=true. Не больше 200 получателей.
+                    В ответе кто принят сервером, кто пропущен и кому отправка не удалась.""")
+    @PostMapping("/mail")
+    public AdminStudentMailResult mail(@Valid @RequestBody AdminStudentMailReq req) {
+        return adminStudentMailService.send(req);
     }
 }
