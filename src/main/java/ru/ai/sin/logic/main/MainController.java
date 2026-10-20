@@ -32,7 +32,11 @@ public class MainController {
         return ResponseEntity.ok(new MainStatusRes("UP", appInfoProperties.getVersion()));
     }
 
-    @Operation(summary = "Получить фото", description = "Возвращает содержимое файла изображения по имени/пути")
+    @Operation(
+            summary = "Получить фото",
+            description = """
+                    Только после входа. Аватар студента — по тем же правилам, что карточка.
+                    Файл не из карточки видит только админ. Без сессии — 401.""")
     @GetMapping(path = "photo/{image_path}")
     public ResponseEntity<byte[]> getPhoto(@PathVariable(name = "image_path") String imagePath) {
         byte[] bytes = mainService.getFileContent(imagePath);

@@ -12,10 +12,10 @@ import ru.ai.sin.filter.JwtCookieAuthenticationFilter;
 import ru.ai.sin.logic.skill.SkillController;
 import ru.ai.sin.logic.skill.SkillService;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = SkillController.class)
 @Import(MethodSecurityTestConfig.class)
@@ -33,7 +33,7 @@ class PublicRegistrationGoneMvcTest {
     @Test
     void publicRegistration_requiresAuthentication() throws Exception {
         mockMvc.perform(get("/public/registration/skills"))
-                .andExpect(result -> assertThat(result.getResponse().getStatus()).isIn(401, 403));
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -42,6 +42,6 @@ class PublicRegistrationGoneMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
                         .with(csrf()))
-                .andExpect(result -> assertThat(result.getResponse().getStatus()).isIn(401, 403));
+                .andExpect(status().isUnauthorized());
     }
 }

@@ -3,8 +3,6 @@ package ru.ai.sin.integration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
@@ -29,26 +27,6 @@ class StudentFindStringIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private StudentRepo studentRepo;
-
-    @DynamicPropertySource
-    static void testProperties(DynamicPropertyRegistry registry) {
-        registry.add("MAIL_HOST", () -> "localhost");
-        registry.add("MAIL_PORT", () -> "1025");
-        registry.add("MAIL_USERNAME", () -> "test@localhost");
-        registry.add("MAIL_PASSWORD", () -> "test");
-        registry.add("MAIL_FROM", () -> "test@localhost");
-        registry.add("TELEGRAM_BOT_TOKEN", () -> "test-bot-token");
-        registry.add("TELEGRAM_BOT_USERNAME", () -> "test_bot");
-        registry.add("TELEGRAM_WEBHOOK_SECRET", () -> "test-webhook-secret");
-        registry.add("ADMIN_USERNAME", () -> "admin");
-        registry.add("ADMIN_PASSWORD", () -> "admin-local-test");
-        registry.add("JWT_ACCESS_SECRET", () -> "bG9jYWwtdGVzdC1hY2Nlc3Mtc2VjcmV0LWtleS0zMmIh");
-        registry.add("JWT_REFRESH_SECRET", () -> "bG9jYWwtdGVzdC1yZWZyZXNoLXNlY3JldC1rZXktMzJiIQ==");
-        registry.add("JWT_COOKIE_SECURE", () -> "false");
-        registry.add("JWT_COOKIE_SAME_SITE", () -> "Lax");
-        registry.add("SWAGGER_VERSION", () -> "1.0.0");
-        registry.add("SWAGGER_ON", () -> "false");
-    }
 
     @Test
     @Transactional

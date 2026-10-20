@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.StudentRepo;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -17,6 +19,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -29,6 +32,9 @@ class VacancyApplicationJourneyIntegrationTest extends AbstractPostgresIntegrati
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private StudentRepo studentRepo;
+
     @Test
     void draft_submit_approve_apply_accept_chat() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
@@ -38,14 +44,15 @@ class VacancyApplicationJourneyIntegrationTest extends AbstractPostgresIntegrati
         long specialityId = createSpeciality(adminCookies, "VacSpec-" + suffix);
         long skillId = createSkill(adminCookies, "VacSkill-" + suffix);
         UUID studentId = createStudent(adminCookies, "vac_stu_" + suffix + "@integration.test", specialityId, skillId);
-        createStudentUser(adminCookies, "vac_stu_" + suffix, "vac-stu-pass", studentId);
-        Cookie[] studentCookies = login("vac_stu_" + suffix, "vac-stu-pass");
+        markStudentReadyForChat(studentId);
+        Cookie[] studentCookies = login("vac_stu_" + suffix, "StudentPass1");
 
         mockMvc.perform(post("/request")
                         .cookie(guestCookies)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestCreateJson("vac_rec_" + suffix + "@integration.test", studentId)))
                 .andExpect(status().isCreated());
+        fillRecruiterCity(guestCookies);
 
         String vacancyBody = """
                 {
@@ -113,7 +120,8 @@ class VacancyApplicationJourneyIntegrationTest extends AbstractPostgresIntegrati
     }
 
     private Cookie[] login(String username, String password) throws Exception {
-        MvcResult r = mockMvc.perform(post("/auth/login")
+        String path = "admin".equals(username) ? "/auth/admin/login" : "/auth/login";
+        MvcResult r = mockMvc.perform(post(path)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
                 .andExpect(status().isNoContent())
@@ -148,7 +156,7 @@ class VacancyApplicationJourneyIntegrationTest extends AbstractPostgresIntegrati
         body.put("city", "Moscow");
         body.put("hhLink", "https://hh.ru/member");
         body.put("birthDate", "2000-05-05");
-        body.put("bio", "vacancy journey student");
+        body.put("bio", "Vacancy journey student with a bio long enough for chat.");
         body.put("course", "FIRST");
         body.put("busyness", "FREE");
         body.put("firstName", "Vac");
@@ -158,6 +166,8 @@ class VacancyApplicationJourneyIntegrationTest extends AbstractPostgresIntegrati
         body.put("telegramUsername", "vacstu");
         body.put("specialityId", specialityId);
         body.put("skillsIds", List.of(skillId));
+        body.put("username", email.substring(0, email.indexOf('@')));
+        body.put("password", "StudentPass1");
 
         MvcResult r = mockMvc.perform(post("/student")
                         .cookie(cookies)
@@ -168,20 +178,23 @@ class VacancyApplicationJourneyIntegrationTest extends AbstractPostgresIntegrati
         return UUID.fromString(objectMapper.readTree(r.getResponse().getContentAsString()).get("id").asText());
     }
 
-    private void createStudentUser(Cookie[] cookies, String username, String password, UUID studentId)
-            throws Exception {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("name", "Vac User");
-        body.put("username", username);
-        body.put("password", password);
-        body.put("role", "STUDENT");
-        body.put("studentId", studentId.toString());
+    private void markStudentReadyForChat(UUID studentId) {
+        StudentEnt student = studentRepo.findById(studentId).orElseThrow();
+        student.setBio("Vacancy journey student with a bio long enough for chat.");
+        student.setImagePath("it-" + studentId + ".jpg");
+        studentRepo.save(student);
+    }
 
-        mockMvc.perform(post("/user")
+    private void fillRecruiterCity(Cookie[] cookies) throws Exception {
+        MvcResult me = mockMvc.perform(get("/recruiter/me").cookie(cookies))
+                .andExpect(status().isOk())
+                .andReturn();
+        String recruiterId = objectMapper.readTree(me.getResponse().getContentAsString()).get("id").asText();
+        mockMvc.perform(patch("/recruiter/" + recruiterId)
                         .cookie(cookies)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().isCreated());
+                        .content("{\"city\":\"Moscow\"}"))
+                .andExpect(status().isOk());
     }
 
     private String requestCreateJson(String recruiterEmail, UUID studentId) throws Exception {

@@ -77,7 +77,8 @@ class SiteProjectStudentsIntegrationTest extends AbstractPostgresIntegrationTest
     }
 
     private Cookie[] login(String username, String password) throws Exception {
-        MvcResult r = mockMvc.perform(post("/auth/login")
+        String path = "admin".equals(username) ? "/auth/admin/login" : "/auth/login";
+        MvcResult r = mockMvc.perform(post(path)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
                 .andExpect(status().isNoContent())
@@ -122,6 +123,8 @@ class SiteProjectStudentsIntegrationTest extends AbstractPostgresIntegrationTest
         body.put("telegramUsername", "projstu");
         body.put("specialityId", specialityId);
         body.put("skillsIds", List.of(skillId));
+        body.put("username", email.substring(0, email.indexOf('@')));
+        body.put("password", "StudentPass1");
 
         MvcResult r = mockMvc.perform(post("/student")
                         .cookie(cookies)

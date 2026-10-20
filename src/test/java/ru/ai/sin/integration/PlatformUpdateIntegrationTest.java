@@ -39,17 +39,17 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
     private UserRepo userRepo;
 
     @Test
-    void publicVacancies_anonymousWithoutAuth() throws Exception {
+    void publicVacancies_requiresAuth() throws Exception {
         mockMvc.perform(get("/public/vacancies?page=0&size=10"))
-                .andExpect(status().isOk());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void publicStudents_anonymousWithoutAuth() throws Exception {
+    void publicStudents_requiresAuth() throws Exception {
         mockMvc.perform(post("/public/students/cards?page=0&size=10")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -60,13 +60,12 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
         long skillId = createSkill(adminCookies, "SkillP-" + suffix);
         UUID studentId = createStudent(adminCookies, "pend_stu_" + suffix + "@test.local", specialityId, skillId);
         String username = "pend_stu_" + suffix;
-        createStudentUser(adminCookies, username, "pass-pend-1", studentId);
 
         UserEnt user = userRepo.findByUsername(username).orElseThrow();
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
         userRepo.save(user);
 
-        Cookie[] studentCookies = login(username, "pass-pend-1");
+        Cookie[] studentCookies = login(username, "StudentPass1");
         mockMvc.perform(get("/auth/me").cookie(studentCookies))
                 .andExpect(status().isOk())
                 .andExpect(r -> assertThat(r.getResponse().getContentAsString()).contains("PENDING_APPROVAL"));
@@ -86,7 +85,6 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
         long skillId = createSkill(adminCookies, "SkillA-" + suffix);
         UUID studentId = createStudent(adminCookies, "appr_stu_" + suffix + "@test.local", specialityId, skillId);
         String username = "appr_stu_" + suffix;
-        createStudentUser(adminCookies, username, "pass-appr-1", studentId);
 
         UserEnt user = userRepo.findByUsername(username).orElseThrow();
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
@@ -95,7 +93,7 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(post("/admin/account-approvals/" + user.getId() + "/approve").cookie(adminCookies))
                 .andExpect(status().isNoContent());
 
-        Cookie[] studentCookies = login(username, "pass-appr-1");
+        Cookie[] studentCookies = login(username, "StudentPass1");
         mockMvc.perform(patch("/student/me")
                         .cookie(studentCookies)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -162,8 +160,7 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
         long specialityId = createSpeciality(adminCookies, "SpecT-" + suffix);
         long skillId = createSkill(adminCookies, "SkillT-" + suffix);
         UUID studentId = createStudent(adminCookies, "tu_stu_" + suffix + "@test.local", specialityId, skillId);
-        createStudentUser(adminCookies, "tu_stu_" + suffix, "pass-tu-1", studentId);
-        Cookie[] studentCookies = login("tu_stu_" + suffix, "pass-tu-1");
+        Cookie[] studentCookies = login("tu_stu_" + suffix, "StudentPass1");
 
         MvcResult recruiterResult = mockMvc.perform(post("/recruiter")
                         .cookie(adminCookies)
@@ -267,7 +264,8 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     private Cookie[] login(String username, String password) throws Exception {
-        MvcResult r = mockMvc.perform(post("/auth/login")
+        String path = "admin".equals(username) ? "/auth/admin/login" : "/auth/login";
+        MvcResult r = mockMvc.perform(post(path)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
                 .andExpect(status().isNoContent())
@@ -313,6 +311,8 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
         body.put("specialityId", specialityId);
         body.put("skillsIds", List.of(skillId));
         body.put("publicProfileConsent", true);
+        body.put("username", email.substring(0, email.indexOf('@')));
+        body.put("password", "StudentPass1");
 
         MvcResult r = mockMvc.perform(post("/student")
                         .cookie(cookies)
@@ -321,20 +321,5 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn();
         return UUID.fromString(objectMapper.readTree(r.getResponse().getContentAsString()).get("id").asText());
-    }
-
-    private void createStudentUser(Cookie[] cookies, String username, String password, UUID studentId) throws Exception {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("name", "Flow User");
-        body.put("username", username);
-        body.put("password", password);
-        body.put("role", "STUDENT");
-        body.put("studentId", studentId.toString());
-
-        mockMvc.perform(post("/user")
-                        .cookie(cookies)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().isCreated());
     }
 }
