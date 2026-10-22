@@ -76,18 +76,20 @@ public class StudentController {
             summary = "Завершить регистрацию",
             description = """
                     Только **STUDENT** с подтверждённой почтой и статусом `PENDING_APPROVAL`.
-                    Сохраняет дату рождения, курс и город и отправляет письмо о завершении регистрации.""")
+                    Тела нет. Отправляет письмо о завершении регистрации.
+                    Дата рождения, курс и город этим вызовом не меняются.""")
     @PreAuthorize("hasRole('STUDENT')")
     @PostMapping(path = "/me/complete-registration")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void completeRegistration(@Valid @RequestBody CompleteStudentRegistrationReq req) {
-        studentService.completeRegistration(req);
+    public void completeRegistration() {
+        studentService.completeRegistration();
     }
 
     @Operation(
             summary = "Отправить полную анкету на одобрение",
             description = """
                     Только **STUDENT** с подтверждённой почтой и статусом `PENDING_APPROVAL`.
+                    Нужны хотя бы один опыт (`experience`), одно место учёбы (`education`) и одно портфолио (`portfolio`).
                     Если анкета неполная — 403 `PROFILE_INCOMPLETE`. Иначе письмо с просьбой дождаться одобрения.""")
     @PreAuthorize("hasRole('STUDENT')")
     @PostMapping(path = "/me/submit-for-review")

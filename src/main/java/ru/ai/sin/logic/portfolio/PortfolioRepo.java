@@ -30,4 +30,6 @@ public interface PortfolioRepo extends JpaRepository<PortfolioEnt, Long>, JpaSpe
     void deleteByStudent_Id(UUID studentId);
 
     List<PortfolioEnt> findAllByStudent_Id(UUID studentId);
+
+    boolean existsByStudent_Id(UUID studentId);
 }

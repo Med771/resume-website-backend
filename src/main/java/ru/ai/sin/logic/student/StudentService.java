@@ -41,7 +41,7 @@ public interface StudentService {
 
     StudentDTO patchMe(PatchStudentMeReq req);
 
-    void completeRegistration(CompleteStudentRegistrationReq req);
+    void completeRegistration();
 
     void submitForReview();
 

@@ -5,6 +5,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.ai.sin.logic.experience.ExperienceRepo;
+import ru.ai.sin.logic.institution.InstitutionRepo;
 import ru.ai.sin.logic.portfolio.PortfolioRepo;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.skill.SkillEnt;
@@ -31,6 +33,10 @@ class ProfileCommunicationGateServiceTest {
     @Mock
     private StudentRepo studentRepo;
     @Mock
+    private ExperienceRepo experienceRepo;
+    @Mock
+    private InstitutionRepo institutionRepo;
+    @Mock
     private PortfolioRepo portfolioRepo;
 
     @InjectMocks
@@ -44,7 +50,9 @@ class ProfileCommunicationGateServiceTest {
 
         when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.of(user));
         when(studentRepo.findSkillsByStudentId(studentId)).thenReturn(List.of(new SkillEnt("Java")));
-        when(portfolioRepo.findAllByStudent_Id(studentId)).thenReturn(List.of());
+        when(experienceRepo.existsByStudent_Id(studentId)).thenReturn(true);
+        when(institutionRepo.existsByStudent_Id(studentId)).thenReturn(true);
+        when(portfolioRepo.existsByStudent_Id(studentId)).thenReturn(true);
 
         var res = service.evaluateForCurrentUser();
 
@@ -89,12 +97,33 @@ class ProfileCommunicationGateServiceTest {
 
         when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.of(user));
         when(studentRepo.findSkillsByStudentId(studentId)).thenReturn(List.of(new SkillEnt("Java")));
-        when(portfolioRepo.findAllByStudent_Id(studentId)).thenReturn(List.of());
+        when(experienceRepo.existsByStudent_Id(studentId)).thenReturn(true);
+        when(institutionRepo.existsByStudent_Id(studentId)).thenReturn(true);
+        when(portfolioRepo.existsByStudent_Id(studentId)).thenReturn(false);
 
         var res = service.evaluateForCurrentUser();
 
         assertThat(res.ready()).isFalse();
-        assertThat(res.missingFields()).contains("photo", "portfolio_or_hh");
+        assertThat(res.missingFields()).contains("photo", "portfolio");
+        assertThat(res.missingFields()).doesNotContain("experience", "education");
+    }
+
+    @Test
+    void evaluateStudent_missingExperienceAndEducation() {
+        UUID studentId = UUID.randomUUID();
+        StudentEnt student = completeStudent(studentId);
+        UserEnt user = studentUser(student);
+
+        when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.of(user));
+        when(studentRepo.findSkillsByStudentId(studentId)).thenReturn(List.of(new SkillEnt("Java")));
+        when(experienceRepo.existsByStudent_Id(studentId)).thenReturn(false);
+        when(institutionRepo.existsByStudent_Id(studentId)).thenReturn(false);
+        when(portfolioRepo.existsByStudent_Id(studentId)).thenReturn(true);
+
+        var res = service.evaluateForCurrentUser();
+
+        assertThat(res.ready()).isFalse();
+        assertThat(res.missingFields()).containsExactly("experience", "education");
     }
 
     private static UserEnt studentUser(StudentEnt student) {

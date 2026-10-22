@@ -17,7 +17,6 @@ import ru.ai.sin.logic.portfolio.PortfolioRepo;
 import ru.ai.sin.logic.profile.ProfileCommunicationGateService;
 import ru.ai.sin.logic.profile.dto.CommunicationReadinessRes;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
-import ru.ai.sin.logic.student.dto.CompleteStudentRegistrationReq;
 import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.logic.request.RequestRepo;
 import ru.ai.sin.logic.skill.SkillRepo;
@@ -143,26 +142,22 @@ class StudentServiceImplPatchMeTest {
         when(securityHelper.getCurrentUsername()).thenReturn("stu");
         when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> studentService.completeRegistration(registrationReq()))
+        assertThatThrownBy(() -> studentService.completeRegistration())
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("почту");
         verify(verificationOtpMailer, never()).trySendRegistrationSuccess("student@test.local", "stu");
-        assertThat(studentEnt.getCity()).isNull();
     }
 
     @Test
-    void completeRegistration_verified_savesFieldsAndSendsMail() {
+    void completeRegistration_verified_sendsMail() {
         StudentEnt studentEnt = new StudentEnt();
         studentEnt.setId(ID);
         UserEnt user = pendingStudent(studentEnt);
         when(securityHelper.getCurrentUsername()).thenReturn("stu");
         when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
 
-        studentService.completeRegistration(registrationReq());
+        studentService.completeRegistration();
 
-        assertThat(studentEnt.getBirthDate()).isEqualTo(LocalDate.of(2004, 1, 2));
-        assertThat(studentEnt.getCourse()).isEqualTo(CourseEnum.SECOND);
-        assertThat(studentEnt.getCity()).isEqualTo("Москва");
         verify(verificationOtpMailer).trySendRegistrationSuccess("student@test.local", "stu");
     }
 
@@ -205,9 +200,5 @@ class StudentServiceImplPatchMeTest {
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
         user.setRegistrationEmail("student@test.local");
         return user;
-    }
-
-    private static CompleteStudentRegistrationReq registrationReq() {
-        return new CompleteStudentRegistrationReq(LocalDate.of(2004, 1, 2), CourseEnum.SECOND, "Москва");
     }
 }

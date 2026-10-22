@@ -395,14 +395,9 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    @Transactional
-    public void completeRegistration(CompleteStudentRegistrationReq req) {
+    @Transactional(readOnly = true)
+    public void completeRegistration() {
         UserEnt user = currentStudentPendingEmailVerified();
-        StudentEnt student = user.getStudent();
-        student.setCity(req.city().trim());
-        student.setBirthDate(req.birthDate());
-        student.setCourse(req.course());
-        StudentProfileScoring.applyTo(student);
         verificationOtpMailer.trySendRegistrationSuccess(studentEmail(user), user.getUsername());
     }
 
