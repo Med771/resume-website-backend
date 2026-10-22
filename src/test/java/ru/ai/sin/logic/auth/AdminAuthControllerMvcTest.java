@@ -25,6 +25,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = AdminAuthController.class)
@@ -89,7 +90,9 @@ class AdminAuthControllerMvcTest {
                         "admin", "ADMIN", "APPROVED", true, false, null, null));
 
         mockMvc.perform(get("/auth/admin/me").with(csrf()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("ADMIN"))
+                .andExpect(jsonPath("$.accountStatus").value("APPROVED"));
     }
 
     @Test

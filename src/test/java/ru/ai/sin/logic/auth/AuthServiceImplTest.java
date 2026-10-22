@@ -89,8 +89,6 @@ class AuthServiceImplTest {
     @Mock
     private VerificationOtpMailer verificationOtpMailer;
 
-    private MailProperties mailProperties;
-
     private AuthServiceImpl authService;
 
     @BeforeEach
@@ -99,7 +97,7 @@ class AuthServiceImplTest {
         JwtProperties.CookieProperties cookie = new JwtProperties.CookieProperties();
         cookie.setRefreshTokenName("REFRESH_TOKEN");
         jwtProperties.setCookie(cookie);
-        mailProperties = new MailProperties();
+        MailProperties mailProperties = new MailProperties();
         mailProperties.setOtpTtlMinutes(15);
         mailProperties.setAllowDevConfirm(false);
         authService = new AuthServiceImpl(
@@ -244,7 +242,29 @@ class AuthServiceImplTest {
         assertThat(me.id()).isEqualTo(userId);
         assertThat(me.username()).isEqualTo("alice");
         assertThat(me.role()).isEqualTo("STUDENT");
+        assertThat(me.accountStatus()).isEqualTo("APPROVED");
         assertThat(me.emailVerified()).isFalse();
+        assertThat(me.rejectionReason()).isNull();
+        assertThat(me.rejectionComment()).isNull();
+    }
+
+    @Test
+    void getCurrentSession_admin_includesAccountStatus() {
+        UUID userId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        UserEnt user = new UserEnt(RoleEnum.ADMIN, "Admin", "admin", "hash");
+        user.setId(userId);
+        user.setAccountStatus(AccountStatus.APPROVED);
+
+        when(securityHelper.getCurrentUsernameOptional()).thenReturn(Optional.of("admin"));
+        when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of("ADMIN"));
+        when(userRepo.findByUsernameFetchingLinks("admin")).thenReturn(Optional.of(user));
+
+        AuthMeDTO me = authService.getCurrentSession();
+
+        assertThat(me.id()).isEqualTo(userId);
+        assertThat(me.username()).isEqualTo("admin");
+        assertThat(me.role()).isEqualTo("ADMIN");
+        assertThat(me.accountStatus()).isEqualTo("APPROVED");
         assertThat(me.rejectionReason()).isNull();
         assertThat(me.rejectionComment()).isNull();
     }

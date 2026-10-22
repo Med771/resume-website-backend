@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import ru.ai.sin.config.MethodSecurityTestConfig;
 import ru.ai.sin.filter.JwtCookieAuthenticationFilter;
 import ru.ai.sin.helper.CookieHelper;
+import ru.ai.sin.logic.auth.dto.AuthMeDTO;
 import ru.ai.sin.logic.auth.dto.ForgotPasswordReq;
 import ru.ai.sin.logic.auth.dto.LoginRequest;
 import ru.ai.sin.logic.auth.dto.ResetPasswordReq;
@@ -24,6 +25,7 @@ import ru.ai.sin.logic.registration.StudentRegistrationService;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -31,8 +33,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = AuthController.class)
@@ -74,6 +78,24 @@ class AuthControllerMvcTest {
                 .andExpect(header().exists(HttpHeaders.SET_COOKIE));
 
         verify(authService).login(any(LoginRequest.class));
+    }
+
+    @Test
+    void me_returnsAccountStatusForAdminSession() throws Exception {
+        when(authService.getCurrentSession()).thenReturn(new AuthMeDTO(
+                UUID.fromString("11111111-1111-1111-1111-111111111111"),
+                "admin",
+                "ADMIN",
+                "APPROVED",
+                true,
+                false,
+                null,
+                null));
+
+        mockMvc.perform(get("/auth/me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("ADMIN"))
+                .andExpect(jsonPath("$.accountStatus").value("APPROVED"));
     }
 
     @Test
