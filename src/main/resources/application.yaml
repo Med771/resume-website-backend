@@ -44,7 +44,7 @@ logging:
 
 app:
   info:
-    version: 1.0.0
+    version: 1.0.4
 
   logging:
     pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
@@ -96,9 +96,7 @@ app:
     cors:
       allowed-origins:
         - "https://singularity-resume.ru"
-        - "https://admin.singularity-resume.ru"
-        - "https://test-api.singularity-resume.ru"
-        - "https://test-admin.singularity-resume.ru"
+        - "https://test.singularity-resume.ru"
       allowed-methods:
         - "GET"
         - "POST"
@@ -136,11 +134,13 @@ app:
     description: "Документация API"
     version: ${SWAGGER_VERSION}
     servers:
-      - url: "https://test-api.singularity-resume.ru/"
+      - url: "https://singularity-resume.ru/plt/api/v1/"
         description: "Dev Server"
 
 springdoc:
   swagger-ui:
     enabled: ${SWAGGER_ON}
+    config-url: "/plt/api/v1/v3/api-docs/swagger-config"
+    url: "/plt/api/v1/v3/api-docs"
   api-docs:
     enabled: ${SWAGGER_ON}
