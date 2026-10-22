@@ -119,7 +119,7 @@ app:
     refresh-secret: ${JWT_REFRESH_SECRET}
     issuer: "Singularity-backend"
     audience: "Singularity-frontend"
-    access-token-ttl: 3600
+    access-token-ttl: 259200
     refresh-token-ttl: 604800
     cookie:
       access-token-name: "ACCESS_TOKEN"
