@@ -9,6 +9,7 @@ import ru.ai.sin.exception.models.ForbiddenException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.company.CompanyEnt;
 import ru.ai.sin.logic.experience.dto.AddExperienceReq;
 import ru.ai.sin.logic.experience.dto.ExperienceDTO;
@@ -50,6 +51,8 @@ class ExperienceServiceImplAccessTest {
     private SecurityHelper securityHelper;
     @Mock
     private AccountAccessHelper accountAccessHelper;
+    @Mock
+    private StudentReviewState studentReviewState;
 
     @InjectMocks
     private ExperienceServiceImpl experienceService;

@@ -9,6 +9,7 @@ import ru.ai.sin.exception.models.ForbiddenException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.portfolio.dto.AddPortfolioReq;
 import ru.ai.sin.logic.portfolio.dto.PortfolioDTO;
 import ru.ai.sin.logic.student.StudentEnt;
@@ -43,6 +44,8 @@ class PortfolioServiceImplAccessTest {
     private SecurityHelper securityHelper;
     @Mock
     private AccountAccessHelper accountAccessHelper;
+    @Mock
+    private StudentReviewState studentReviewState;
 
     @InjectMocks
     private PortfolioServiceImpl portfolioService;

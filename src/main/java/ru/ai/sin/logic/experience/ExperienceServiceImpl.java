@@ -18,6 +18,7 @@ import ru.ai.sin.exception.models.BadRequestException;
 
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.StudentReviewState;
 
 import ru.ai.sin.logic.experience.dto.*;
 
@@ -45,6 +46,7 @@ public class ExperienceServiceImpl implements ExperienceService {
 
     private final SecurityHelper securityHelper;
     private final AccountAccessHelper accountAccessHelper;
+    private final StudentReviewState studentReviewState;
 
     private void updateActiveCompanyOrThrow(long companyId, ExperienceEnt experienceEnt) {
         experienceEnt.setCompany(companyTools.getCompanyOrThrow(companyId));
@@ -99,6 +101,7 @@ public class ExperienceServiceImpl implements ExperienceService {
             throw new BadRequestException("Experience already exists");
         }
 
+        studentReviewState.onStudentSelfEdit(experienceEnt.getStudent());
         ExperienceDTO experienceDTO = experienceTools.mapToDTO(experienceEnt);
 
         log.info("User: {}, created a new experience: {}", securityHelper.getCurrentUsername(), experienceDTO);
@@ -129,6 +132,7 @@ public class ExperienceServiceImpl implements ExperienceService {
             updateActiveStudentOrThrow(targetStudentId, experienceEnt);
         }
 
+        studentReviewState.onStudentSelfEdit(experienceEnt.getStudent());
         ExperienceDTO experienceDTO = experienceTools.mapToDTO(experienceEnt);
 
         log.info("User: {}, updated a experience: {} with data: {}", securityHelper.getCurrentUsername(), id, experienceDTO);
@@ -151,6 +155,7 @@ public class ExperienceServiceImpl implements ExperienceService {
             throw new BadRequestException("Error while deleting experience");
         }
 
+        studentReviewState.onStudentSelfEdit(experienceEnt.getStudent());
         log.info("User: {}, deleted a experience: {} with data: {}", securityHelper.getCurrentUsername(), id, experienceEnt);
     }
 

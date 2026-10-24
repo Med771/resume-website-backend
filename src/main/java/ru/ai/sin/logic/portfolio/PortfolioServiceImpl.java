@@ -18,6 +18,7 @@ import ru.ai.sin.logic.student.StudentEnt;
 
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.StudentReviewState;
 
 import ru.ai.sin.tools.PortfolioTools;
 import ru.ai.sin.tools.StudentTools;
@@ -38,6 +39,7 @@ public class PortfolioServiceImpl implements PortfolioService {
 
     private final SecurityHelper securityHelper;
     private final AccountAccessHelper accountAccessHelper;
+    private final StudentReviewState studentReviewState;
 
     @Override
     @Transactional(readOnly = true)
@@ -74,6 +76,7 @@ public class PortfolioServiceImpl implements PortfolioService {
 
         portfolioEnt = portfolioRepo.save(portfolioEnt);
 
+        studentReviewState.onStudentSelfEdit(studentEnt);
         PortfolioDTO portfolioDTO = portfolioMapper.toDTO(portfolioEnt);
 
         log.info("User: {}, created a new portfolio: {}", securityHelper.getCurrentUsername(), portfolioDTO);
@@ -99,6 +102,7 @@ public class PortfolioServiceImpl implements PortfolioService {
 
         portfolioEnt.setStudent(studentEnt);
 
+        studentReviewState.onStudentSelfEdit(studentEnt);
         PortfolioDTO portfolioDTO = portfolioMapper.toDTO(portfolioEnt);
 
         log.info("User: {}, updated a portfolio: {} with data: {}", securityHelper.getCurrentUsername(), id, portfolioDTO);
@@ -114,6 +118,7 @@ public class PortfolioServiceImpl implements PortfolioService {
 
         portfolioRepo.delete(portfolioEnt);
 
+        studentReviewState.onStudentSelfEdit(portfolioEnt.getStudent());
         log.info("User: {}, deleted a portfolio: {} with data: {}", securityHelper.getCurrentUsername(), id, portfolioEnt);
     }
 

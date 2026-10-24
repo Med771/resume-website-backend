@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
@@ -90,6 +91,8 @@ class StudentServiceImplDeleteTest {
     private ProfileCommunicationGateService profileCommunicationGateService;
     @Mock
     private VerificationOtpMailer verificationOtpMailer;
+    @Mock
+    private StudentReviewState studentReviewState;
 
     @InjectMocks
     private StudentServiceImpl studentService;

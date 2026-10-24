@@ -113,6 +113,8 @@ public class StudentEnt {
     @Column(name = "rejection_comment", columnDefinition = "TEXT")
     private String rejectionComment;
 
+    /** Устаревший флаг публичной витрины. Новая логика показа строится на статусе аккаунта и {@link #catalogVisible}. */
+    @Deprecated
     @Column(name = "public_profile_consent", nullable = false)
     private boolean publicProfileConsent;
 

@@ -19,6 +19,7 @@ import ru.ai.sin.exception.models.ProfileIncompleteException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
@@ -83,6 +84,7 @@ public class StudentServiceImpl implements StudentService {
     private final RegistrationPasswordPolicy registrationPasswordPolicy;
     private final ProfileCommunicationGateService profileCommunicationGateService;
     private final VerificationOtpMailer verificationOtpMailer;
+    private final StudentReviewState studentReviewState;
 
     /**
      * Один read-only boundary на загрузку + маппинг: {@link StudentTools#getStudentOrThrow} завершает свой вложенный tx,
@@ -119,6 +121,7 @@ public class StudentServiceImpl implements StudentService {
 
         studentEnt.setImagePath(filePath);
         StudentProfileScoring.applyTo(studentEnt);
+        studentReviewState.onStudentSelfEdit(studentEnt);
     }
 
     @Override
@@ -340,7 +343,8 @@ public class StudentServiceImpl implements StudentService {
                 patchStudentReq.skillsIds(),
                 patchStudentReq.publicProfileConsent());
         if (patchStudentReq.catalogVisible() != null) {
-            studentEnt.setCatalogVisible(patchStudentReq.catalogVisible());
+            studentEnt.setCatalogVisible(
+                    studentReviewState.catalogVisible(studentEnt, patchStudentReq.catalogVisible()));
         }
         if (Boolean.TRUE.equals(patchStudentReq.clearManualSortOrder())) {
             studentEnt.setManualSortOrder(null);
@@ -391,6 +395,7 @@ public class StudentServiceImpl implements StudentService {
                 req.publicProfileConsent());
 
         StudentProfileScoring.applyTo(studentEnt);
+        studentReviewState.onStudentSelfEdit(studentEnt);
         return studentTools.mapToDTO(studentEnt);
     }
 
@@ -699,9 +704,12 @@ public class StudentServiceImpl implements StudentService {
         int updated = 0;
         for (StudentEnt student : students) {
             boolean changed = false;
-            if (req.catalogVisible() != null && student.isCatalogVisible() != req.catalogVisible()) {
-                student.setCatalogVisible(req.catalogVisible());
-                changed = true;
+            if (req.catalogVisible() != null) {
+                boolean visible = studentReviewState.catalogVisible(student, req.catalogVisible());
+                if (student.isCatalogVisible() != visible) {
+                    student.setCatalogVisible(visible);
+                    changed = true;
+                }
             }
             if (req.publicProfileConsent() != null
                     && student.isPublicProfileConsent() != req.publicProfileConsent()) {

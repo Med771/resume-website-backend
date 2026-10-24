@@ -192,6 +192,7 @@ class AccountApprovalServiceImplTest {
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.REJECTED);
         assertThat(student.getRejectionReason()).isEqualTo("INCOMPLETE_PROFILE");
         assertThat(student.getRejectionComment()).isEqualTo("Нет описания опыта");
+        assertThat(student.isCatalogVisible()).isFalse();
         verify(studentRepo).save(student);
         verify(verificationOtpMailer).trySendAccountRejected(
                 eq("student@test.local"),

@@ -10,6 +10,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import ru.ai.sin.exception.models.NotFoundException;
+import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.profile.ProfileCommunicationGateService;
 import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.helper.AccountAccessHelper;
@@ -93,6 +94,8 @@ class StudentServiceImplVisibilityTest {
     private ProfileCommunicationGateService profileCommunicationGateService;
     @Mock
     private VerificationOtpMailer verificationOtpMailer;
+    @Mock
+    private StudentReviewState studentReviewState;
 
     @InjectMocks
     private StudentServiceImpl studentService;

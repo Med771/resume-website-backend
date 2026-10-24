@@ -146,6 +146,7 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         if (student != null) {
             student.setRejectionReason(reason.getCode());
             student.setRejectionComment(comment);
+            student.setCatalogVisible(false);
             studentRepo.save(student);
         }
         String email = studentEmail(user);

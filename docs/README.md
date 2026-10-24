@@ -18,5 +18,6 @@ Backend платформы резюме: каталог студентов, за
 | [local-dev.md](./local-dev.md) | Как поднять сервер локально |
 | [testing.md](./testing.md) | Как устроены тесты |
 | [roadmap.md](./roadmap.md) | Что сервер сейчас не закрывает |
+| [architecture/account-review.md](./architecture/account-review.md) | Статусы проверки анкеты и показ карточки |
 
 Роли в базе и в JWT: **STUDENT**, **RECRUITER**, **ADMIN**.

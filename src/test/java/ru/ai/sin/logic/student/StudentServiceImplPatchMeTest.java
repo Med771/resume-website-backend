@@ -10,6 +10,7 @@ import ru.ai.sin.exception.models.ProfileIncompleteException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
@@ -95,6 +96,8 @@ class StudentServiceImplPatchMeTest {
     private ProfileCommunicationGateService profileCommunicationGateService;
     @Mock
     private VerificationOtpMailer verificationOtpMailer;
+    @Mock
+    private StudentReviewState studentReviewState;
 
     @InjectMocks
     private StudentServiceImpl studentService;
@@ -127,6 +130,7 @@ class StudentServiceImplPatchMeTest {
                 List.of(1L), null, null);
 
         assertThat(studentService.patchMe(req).bio()).isEqualTo("new bio");
+        verify(studentReviewState).onStudentSelfEdit(studentEnt);
         assertThat(studentEnt.getBio()).isEqualTo("new bio");
         verify(studentSkillsMutator).replaceSkills(studentEnt, List.of(1L));
         verify(accountAccessHelper).requireStudentCanMutateResume(ID);
