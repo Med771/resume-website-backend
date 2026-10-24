@@ -65,8 +65,18 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL) {
             throw new BadRequestException("Аккаунт уже обработан");
         }
-        if (user.getRole() == RoleEnum.STUDENT && !user.isEmailVerified()) {
-            throw new BadRequestException("Студент ещё не подтвердил почту");
+        if (user.getRole() == RoleEnum.STUDENT) {
+            if (!user.isEmailVerified()) {
+                throw new BadRequestException("Студент ещё не подтвердил почту");
+            }
+            StudentEnt studentProfile = user.getStudent();
+            if (studentProfile == null) {
+                throw new BadRequestException("Анкета неполная: нет анкеты");
+            }
+            List<String> problems = StudentApprovalCompleteness.problems(studentProfile);
+            if (!problems.isEmpty()) {
+                throw new BadRequestException("Анкета неполная: " + String.join(", ", problems));
+            }
         }
         user.setAccountStatus(AccountStatus.APPROVED);
         userRepo.save(user);

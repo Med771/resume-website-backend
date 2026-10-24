@@ -9,11 +9,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
-import ru.ai.sin.models.enums.RoleEnum;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
 
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     private MockMvc mockMvc;
 
@@ -37,6 +40,9 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private UserRepo userRepo;
+
+    @Autowired
+    private StudentRepo studentRepo;
 
     @Test
     void publicVacancies_requiresAuth() throws Exception {
@@ -85,6 +91,7 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
         long skillId = createSkill(adminCookies, "SkillA-" + suffix);
         UUID studentId = createStudent(adminCookies, "appr_stu_" + suffix + "@test.local", specialityId, skillId);
         String username = "appr_stu_" + suffix;
+        completeStudentForApproval(adminCookies, studentId, suffix, skillId);
 
         UserEnt user = userRepo.findByUsername(username).orElseThrow();
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
@@ -321,5 +328,73 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn();
         return UUID.fromString(objectMapper.readTree(r.getResponse().getContentAsString()).get("id").asText());
+    }
+
+    private void completeStudentForApproval(Cookie[] cookies, UUID studentId, String suffix, long skillId) throws Exception {
+        List<Long> skillIds = new ArrayList<>();
+        skillIds.add(skillId);
+        for (int i = 0; i < 4; i++) {
+            skillIds.add(createSkill(cookies, "SkillExtra" + i + "-" + suffix));
+        }
+        Map<String, Object> patch = new LinkedHashMap<>();
+        patch.put("bio", "Описание анкеты длиннее тридцати символов");
+        patch.put("skillsIds", skillIds);
+        mockMvc.perform(patch("/student/" + studentId)
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(patch)))
+                .andExpect(status().isOk());
+
+        MvcResult company = mockMvc.perform(post("/company")
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("name", "Acme-" + suffix))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long companyId = objectMapper.readTree(company.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(post("/experience")
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "companyId", companyId,
+                                "studentId", studentId,
+                                "position", "Dev",
+                                "startDate", "2020-01-01"))))
+                .andExpect(status().isCreated());
+
+        MvcResult education = mockMvc.perform(post("/education")
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "institution", "Университет " + suffix,
+                                "additionalInfo", "Бакалавриат",
+                                "webUrl", "https://university.example"))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long educationId = objectMapper.readTree(education.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(post("/institution")
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "educationId", educationId,
+                                "studentId", studentId,
+                                "startYear", 2020,
+                                "endYear", 2024))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/portfolio")
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Site",
+                                "link", "https://example.com",
+                                "studentId", studentId))))
+                .andExpect(status().isCreated());
+
+        StudentEnt student = studentRepo.findById(studentId).orElseThrow();
+        student.setImagePath("avatar-" + suffix + ".png");
+        studentRepo.saveAndFlush(student);
     }
 }

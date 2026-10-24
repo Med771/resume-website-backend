@@ -9,12 +9,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
+import ru.ai.sin.logic.experience.ExperienceEnt;
+import ru.ai.sin.logic.institution.InstitutionEnt;
+import ru.ai.sin.logic.portfolio.PortfolioEnt;
+import ru.ai.sin.logic.skill.SkillEnt;
+import ru.ai.sin.logic.speciality.SpecialityEnt;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.logic.verification.VerificationOtpMailer;
+import ru.ai.sin.models.embeddables.UserInformation;
 import ru.ai.sin.models.enums.AccountStatus;
+import ru.ai.sin.models.enums.BusynessEnum;
+import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
 
 import java.util.Optional;
@@ -48,7 +56,7 @@ class AccountApprovalServiceImplTest {
 
     @Test
     void approve_setsCatalogVisibleForLinkedStudent() {
-        StudentEnt student = new StudentEnt();
+        StudentEnt student = completeStudent();
         student.setId(UUID.randomUUID());
         student.setCatalogVisible(false);
 
@@ -103,8 +111,45 @@ class AccountApprovalServiceImplTest {
     }
 
     @Test
-    void approve_clearsStudentRejection() {
+    void approve_incompleteStudent_listsProblemsAndDoesNotSave() {
         StudentEnt student = new StudentEnt();
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setStudent(student);
+        user.setEmailVerified(true);
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("нет фото")
+                .hasMessageContaining("навыков меньше 5")
+                .hasMessageContaining("описание короче 30 символов");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        verify(userRepo, never()).save(any());
+        verify(studentRepo, never()).save(any());
+    }
+
+    @Test
+    void approve_studentWithoutProfile_throwsBadRequest() {
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setEmailVerified(true);
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("нет анкеты");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void approve_clearsStudentRejection() {
+        StudentEnt student = completeStudent();
         student.setCatalogVisible(false);
         student.setRejectionReason("DUPLICATE");
         student.setRejectionComment("повтор");
@@ -199,5 +244,26 @@ class AccountApprovalServiceImplTest {
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.REJECTED);
         verify(verificationOtpMailer, never()).trySendAccountRejected(anyString(), anyString(), anyString(), anyString());
         verify(studentRepo, never()).save(any(StudentEnt.class));
+    }
+
+    private static StudentEnt completeStudent() {
+        StudentEnt student = new StudentEnt();
+        student.setImagePath("photo.jpg");
+        student.setBio("Описание анкеты длиннее тридцати символов");
+        student.setCity("Москва");
+        student.setCourse(CourseEnum.FIRST);
+        student.setBusyness(BusynessEnum.FREE);
+        student.setSpeciality(new SpecialityEnt());
+        UserInformation name = new UserInformation();
+        name.setFirstName("Иван");
+        name.setLastName("Иванов");
+        student.setUserInformation(name);
+        student.getPortfolio().add(new PortfolioEnt());
+        student.getCompanies().add(new ExperienceEnt());
+        student.getEducation().add(new InstitutionEnt());
+        for (int i = 0; i < StudentApprovalCompleteness.MIN_SKILLS; i++) {
+            student.getSkills().add(new SkillEnt("skill-" + i));
+        }
+        return student;
     }
 }

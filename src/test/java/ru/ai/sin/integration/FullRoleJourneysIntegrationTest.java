@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class FullRoleJourneysIntegrationTest extends AbstractPostgresIntegrationTest {
 
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     private MockMvc mockMvc;
 
@@ -55,6 +56,7 @@ class FullRoleJourneysIntegrationTest extends AbstractPostgresIntegrationTest {
 
         UUID studentId = createStudent(adminCookies, studentEmail, specialityId, skillId);
         markStudentReadyForChat(studentId);
+        addResumeSections(adminCookies, studentId, suffix);
 
         Cookie[] studentCookies = login("flow_student_" + suffix, "StudentPass1");
         mockMvc.perform(post("/request")
@@ -256,6 +258,56 @@ class FullRoleJourneysIntegrationTest extends AbstractPostgresIntegrationTest {
         student.setBio("Integration student with a bio long enough for chat.");
         student.setImagePath("it-" + studentId + ".jpg");
         studentRepo.save(student);
+    }
+
+    private void addResumeSections(Cookie[] cookies, UUID studentId, String suffix) throws Exception {
+        MvcResult company = mockMvc.perform(post("/company")
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("name", "FlowCorp-" + suffix))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long companyId = objectMapper.readTree(company.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(post("/experience")
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "companyId", companyId,
+                                "studentId", studentId,
+                                "position", "Dev",
+                                "startDate", "2020-01-01"))))
+                .andExpect(status().isCreated());
+
+        MvcResult education = mockMvc.perform(post("/education")
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "institution", "University " + suffix,
+                                "additionalInfo", "Bachelor",
+                                "webUrl", "https://university.example"))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long educationId = objectMapper.readTree(education.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(post("/institution")
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "educationId", educationId,
+                                "studentId", studentId,
+                                "startYear", 2020,
+                                "endYear", 2024))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/portfolio")
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Site",
+                                "link", "https://example.com",
+                                "studentId", studentId))))
+                .andExpect(status().isCreated());
     }
 
     private void fillRecruiterCity(Cookie[] cookies) throws Exception {

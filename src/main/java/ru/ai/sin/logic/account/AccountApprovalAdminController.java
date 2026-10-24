@@ -35,7 +35,10 @@ public class AccountApprovalAdminController {
 
     @Operation(
             summary = "Одобрить аккаунт",
-            description = "Студенту — 400, если почта ещё не подтверждена (`emailVerified=false`). `PENDING_APPROVAL` при этом не меняется.")
+            description = """
+                    Студенту — 400, если почта ещё не подтверждена (`emailVerified=false`)
+                    или анкета неполная. В `message` перечислены все недостающие или некорректные поля.
+                    `PENDING_APPROVAL` при этом не меняется.""")
     @PostMapping("/{userId}/approve")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void approve(@PathVariable UUID userId) {
