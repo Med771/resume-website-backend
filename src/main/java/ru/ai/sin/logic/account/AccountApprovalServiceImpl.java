@@ -10,6 +10,7 @@ import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
+import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.skill.SkillEnt;
@@ -94,6 +95,22 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
             }
         }
         log.info("Account approved: userId={} by {}", userId, securityHelper.getCurrentUsername());
+    }
+
+    @Override
+    @Transactional
+    public void setEmailVerified(UUID userId, AccountEmailVerifiedReq body) {
+        UserEnt user = userRepo.findById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден: " + userId));
+        if (user.getRole() != RoleEnum.STUDENT) {
+            throw new BadRequestException("Подтверждение почты доступно только для студента");
+        }
+        user.setEmailVerified(body.emailVerified());
+        user.setEmailOtpHash(null);
+        user.setEmailOtpExpiresAt(null);
+        userRepo.save(user);
+        log.info("Student email verification set: userId={} emailVerified={} by {}",
+                userId, body.emailVerified(), securityHelper.getCurrentUsername());
     }
 
     @Override

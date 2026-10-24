@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
+import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
 import ru.ai.sin.models.PageResponse;
 import ru.ai.sin.models.enums.RoleEnum;
@@ -43,6 +44,17 @@ public class AccountApprovalAdminController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void approve(@PathVariable UUID userId) {
         accountApprovalService.approve(userId);
+    }
+
+    @Operation(
+            summary = "Подтвердить или снять подтверждение почты студента",
+            description = """
+                    Временное ручное изменение `users.email_verified`. Только STUDENT.
+                    Код подтверждения из письма сбрасывается. Статус аккаунта не меняется, письмо не отправляется.""")
+    @PostMapping("/{userId}/email-verified")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void setEmailVerified(@PathVariable UUID userId, @Valid @RequestBody AccountEmailVerifiedReq body) {
+        accountApprovalService.setEmailVerified(userId, body);
     }
 
     @Operation(

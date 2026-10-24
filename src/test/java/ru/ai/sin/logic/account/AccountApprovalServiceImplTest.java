@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
 import ru.ai.sin.logic.experience.ExperienceEnt;
 import ru.ai.sin.logic.institution.InstitutionEnt;
@@ -25,6 +26,7 @@ import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -244,6 +246,67 @@ class AccountApprovalServiceImplTest {
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.REJECTED);
         verify(verificationOtpMailer, never()).trySendAccountRejected(anyString(), anyString(), anyString(), anyString());
         verify(studentRepo, never()).save(any(StudentEnt.class));
+    }
+
+    @Test
+    void setEmailVerified_true_setsFlagAndClearsOtp() {
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setEmailVerified(false);
+        user.setEmailOtpHash("hash");
+        user.setEmailOtpExpiresAt(LocalDateTime.now().plusMinutes(10));
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(securityHelper.getCurrentUsername()).thenReturn("admin");
+
+        service.setEmailVerified(USER_ID, new AccountEmailVerifiedReq(true));
+
+        assertThat(user.isEmailVerified()).isTrue();
+        assertThat(user.getEmailOtpHash()).isNull();
+        assertThat(user.getEmailOtpExpiresAt()).isNull();
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        verify(userRepo).save(user);
+        verify(verificationOtpMailer, never()).trySendAccountApproved(anyString(), anyString());
+    }
+
+    @Test
+    void setEmailVerified_false_clearsFlagAndOtp() {
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.APPROVED);
+        user.setEmailVerified(true);
+        user.setEmailOtpHash("hash");
+        user.setEmailOtpExpiresAt(LocalDateTime.now().plusMinutes(10));
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(securityHelper.getCurrentUsername()).thenReturn("admin");
+
+        service.setEmailVerified(USER_ID, new AccountEmailVerifiedReq(false));
+
+        assertThat(user.isEmailVerified()).isFalse();
+        assertThat(user.getEmailOtpHash()).isNull();
+        assertThat(user.getEmailOtpExpiresAt()).isNull();
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        verify(userRepo).save(user);
+    }
+
+    @Test
+    void setEmailVerified_recruiter_throwsBadRequest() {
+        UserEnt user = new UserEnt(RoleEnum.RECRUITER, "r", "recruiter", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setEmailVerified(false);
+        user.setEmailOtpHash("hash");
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> service.setEmailVerified(USER_ID, new AccountEmailVerifiedReq(true)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("студента");
+        assertThat(user.isEmailVerified()).isFalse();
+        assertThat(user.getEmailOtpHash()).isEqualTo("hash");
+        verify(userRepo, never()).save(any());
     }
 
     private static StudentEnt completeStudent() {
