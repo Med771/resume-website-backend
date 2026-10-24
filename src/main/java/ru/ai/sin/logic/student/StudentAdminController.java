@@ -46,7 +46,11 @@ public class StudentAdminController {
             summary = "Разослать письмо студентам",
             description = """
                     Обычный текст на адреса студентов: registrationEmail, иначе email карточки.
-                    Непустой studentIds либо all=true. Не больше 200 получателей.
+                    Непустой studentIds либо all=true. Один id в studentIds — письмо одному студенту.
+                    Не больше 200 получателей.
+                    В теме и тексте для каждого получателя подставляются {{studentId}}, {{firstName}}, {{lastName}},
+                    {{name}}, {{username}}, {{email}}, {{course}} (1–5), {{busyness}} (free, freelance, employed),
+                    {{speciality}}. Пустое поле даёт пустую строку. Незнакомый {{...}} остаётся как есть.
                     В ответе кто принят сервером, кто пропущен и кому отправка не удалась.""")
     @PostMapping("/mail")
     public AdminStudentMailResult mail(@Valid @RequestBody AdminStudentMailReq req) {

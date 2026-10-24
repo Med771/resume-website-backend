@@ -8,12 +8,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.config.property.MailProperties;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.speciality.SpecialityEnt;
 import ru.ai.sin.logic.student.dto.AdminStudentMailReq;
 import ru.ai.sin.logic.student.dto.AdminStudentMailResult;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.models.embeddables.UserInformation;
+import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
 
 import java.util.ArrayList;
@@ -138,6 +140,40 @@ class AdminStudentMailServiceTest {
 
         assertThat(result.sent()).containsExactly(
                 new AdminStudentMailResult.Sent(id, "Иван Петров", "card@test.local"));
+    }
+
+    @Test
+    void send_replacesPlaceholdersPerStudent() {
+        UUID ivanId = UUID.randomUUID();
+        UUID annaId = UUID.randomUUID();
+        UserEnt ivan = student("ivan", ivanId, "ivan@test.local", "Иван", "Петров");
+        ivan.getStudent().setCourse(CourseEnum.THIRD);
+        SpecialityEnt backend = new SpecialityEnt();
+        backend.setName("Бэкенд");
+        ivan.getStudent().setSpeciality(backend);
+
+        UserEnt anna = student("anna", annaId, "anna@test.local", "Анна", "Смирнова");
+        anna.getStudent().setCourse(CourseEnum.FIRST);
+        SpecialityEnt design = new SpecialityEnt();
+        design.setName("Дизайн");
+        anna.getStudent().setSpeciality(design);
+
+        when(userRepo.findStudentsByStudentIds(List.of(ivanId, annaId))).thenReturn(List.of(ivan, anna));
+        when(verificationOtpMailer.trySendPlain(anyString(), anyString(), anyString())).thenReturn(Optional.empty());
+        when(securityHelper.getCurrentUsername()).thenReturn("admin");
+
+        String subject = "Привет, {{firstName}}";
+        String body = "{{studentId}} {{course}} {{speciality}} {{nope}}";
+        service.send(new AdminStudentMailReq(List.of(ivanId, annaId), false, subject, body));
+
+        verify(verificationOtpMailer).trySendPlain(
+                "ivan@test.local",
+                "Привет, Иван",
+                ivanId + " 3 Бэкенд {{nope}}");
+        verify(verificationOtpMailer).trySendPlain(
+                "anna@test.local",
+                "Привет, Анна",
+                annaId + " 1 Дизайн {{nope}}");
     }
 
     @Test

@@ -35,6 +35,7 @@ public interface UserRepo extends JpaRepository<UserEnt, UUID>, JpaSpecification
     @Query("""
             SELECT u FROM UserEnt u
             JOIN FETCH u.student s
+            LEFT JOIN FETCH s.speciality
             WHERE u.role = ru.ai.sin.models.enums.RoleEnum.STUDENT
               AND s.id IN :studentIds
             """)
@@ -43,6 +44,7 @@ public interface UserRepo extends JpaRepository<UserEnt, UUID>, JpaSpecification
     @Query("""
             SELECT u FROM UserEnt u
             JOIN FETCH u.student s
+            LEFT JOIN FETCH s.speciality
             WHERE u.role = ru.ai.sin.models.enums.RoleEnum.STUDENT
             ORDER BY s.id
             """)

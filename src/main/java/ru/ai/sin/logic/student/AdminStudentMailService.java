@@ -107,7 +107,9 @@ public class AdminStudentMailService {
             skipped.add(new AdminStudentMailResult.Skipped(studentId, name, email, "DUPLICATE"));
             return;
         }
-        Optional<String> error = verificationOtpMailer.trySendPlain(email, subject, body);
+        String personalSubject = applyPlaceholders(subject, user, email, name);
+        String personalBody = applyPlaceholders(body, user, email, name);
+        Optional<String> error = verificationOtpMailer.trySendPlain(email, personalSubject, personalBody);
         if (error.isEmpty()) {
             sent.add(new AdminStudentMailResult.Sent(studentId, name, email));
         } else {
@@ -145,6 +147,33 @@ public class AdminStudentMailService {
             }
         }
         return List.copyOf(unique);
+    }
+
+    private static String applyPlaceholders(String template, UserEnt user, String email, String name) {
+        StudentEnt student = user.getStudent();
+        String firstName = "";
+        String lastName = "";
+        if (student.getUserInformation() != null) {
+            firstName = empty(student.getUserInformation().getFirstName());
+            lastName = empty(student.getUserInformation().getLastName());
+        }
+        String course = student.getCourse() == null ? "" : empty(student.getCourse().getCourse());
+        String busyness = student.getBusyness() == null ? "" : empty(student.getBusyness().getBusyness());
+        String speciality = student.getSpeciality() == null ? "" : empty(student.getSpeciality().getName());
+        return template
+                .replace("{{studentId}}", student.getId().toString())
+                .replace("{{firstName}}", firstName)
+                .replace("{{lastName}}", lastName)
+                .replace("{{name}}", name)
+                .replace("{{username}}", empty(user.getUsername()))
+                .replace("{{email}}", email)
+                .replace("{{course}}", course)
+                .replace("{{busyness}}", busyness)
+                .replace("{{speciality}}", speciality);
+    }
+
+    private static String empty(String value) {
+        return value == null ? "" : value;
     }
 
     private static String displayName(UserEnt user) {
