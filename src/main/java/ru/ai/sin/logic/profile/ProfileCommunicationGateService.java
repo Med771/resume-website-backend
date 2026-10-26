@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import ru.ai.sin.exception.models.ProfileIncompleteException;
+import ru.ai.sin.logic.experience.ExperienceRepo;
+import ru.ai.sin.logic.institution.InstitutionRepo;
 import ru.ai.sin.logic.portfolio.PortfolioRepo;
 import ru.ai.sin.logic.profile.dto.CommunicationReadinessRes;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
@@ -17,7 +19,6 @@ import ru.ai.sin.tools.UserTools;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,8 @@ public class ProfileCommunicationGateService {
 
     private final UserTools userTools;
     private final StudentRepo studentRepo;
+    private final ExperienceRepo experienceRepo;
+    private final InstitutionRepo institutionRepo;
     private final PortfolioRepo portfolioRepo;
 
     @Transactional(readOnly = true)
@@ -86,11 +89,14 @@ public class ProfileCommunicationGateService {
         if (skills == null || skills.isEmpty()) {
             missing.add("skills");
         }
-
-        boolean hasPortfolio = !portfolioRepo.findAllByStudent_Id(student.getId()).isEmpty();
-        boolean hasHhLink = StringUtils.hasText(student.getHhLink());
-        if (!hasPortfolio && !hasHhLink) {
-            missing.add("portfolio_or_hh");
+        if (!experienceRepo.existsByStudent_Id(student.getId())) {
+            missing.add("experience");
+        }
+        if (!institutionRepo.existsByStudent_Id(student.getId())) {
+            missing.add("education");
+        }
+        if (!portfolioRepo.existsByStudent_Id(student.getId())) {
+            missing.add("portfolio");
         }
 
         return new CommunicationReadinessRes(missing.isEmpty(), List.copyOf(missing));

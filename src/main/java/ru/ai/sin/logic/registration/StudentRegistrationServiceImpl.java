@@ -155,7 +155,7 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
         int ttl = Math.max(1, mailProperties.getOtpTtlMinutes());
         user.setEmailOtpHash(passwordEncoder.encode(code));
         user.setEmailOtpExpiresAt(LocalDateTime.now().plusMinutes(ttl));
-        boolean sent = verificationOtpMailer.trySendOtp(email, code, ttl);
+        boolean sent = verificationOtpMailer.trySendStudentEmailOtp(email, code, ttl);
         if (!sent && !mailProperties.isAllowDevConfirm()) {
             log.warn("Email OTP not sent for username={}", user.getUsername());
         }
@@ -187,6 +187,7 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
     private static StudentEnt createDraftStudent(StudentAccountRegistrationReq req, String phone, String email) {
         StudentEnt student = new StudentEnt();
         student.setCity(emptyToNull(req.city()));
+        student.setBirthDate(req.birthDate());
         student.setMiddleName(emptyToNull(req.middleName()));
         student.setCatalogVisible(false);
         student.setPublicProfileConsent(false);

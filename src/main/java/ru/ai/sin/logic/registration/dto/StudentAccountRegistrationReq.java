@@ -1,10 +1,16 @@
 package ru.ai.sin.logic.registration.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import ru.ai.sin.validation.MinAge;
+
+import java.time.LocalDate;
 
 @Schema(
         name = "StudentAccountRegistrationReq",
@@ -52,6 +58,13 @@ public record StudentAccountRegistrationReq(
         @Schema(description = "Номер телефона (контакт, без Telegram-подтверждения)")
         @NotBlank
         @Pattern(regexp = "\\+?\\d{7,15}", message = "Phone number must contain 7-15 digits and optional + at start")
-        String phoneNumber
+        String phoneNumber,
+
+        @Schema(description = "Дата рождения; регистрация с 14 лет")
+        @NotNull
+        @JsonFormat(pattern = "yyyy-MM-dd")
+        @Past(message = "Birth date must be in the past")
+        @MinAge(14)
+        LocalDate birthDate
 ) {
 }

@@ -30,4 +30,6 @@ public interface InstitutionRepo extends JpaRepository<InstitutionEnt, Long>, Jp
     void deleteByStudent_Id(UUID studentId);
 
     List<InstitutionEnt> findAllByStudent_Id(UUID studentId);
+
+    boolean existsByStudent_Id(UUID studentId);
 }

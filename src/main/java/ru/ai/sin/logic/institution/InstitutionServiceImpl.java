@@ -18,6 +18,7 @@ import ru.ai.sin.exception.models.BadRequestException;
 
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.StudentReviewState;
 
 import ru.ai.sin.logic.institution.dto.*;
 
@@ -44,6 +45,7 @@ public class InstitutionServiceImpl implements InstitutionService {
 
     private final SecurityHelper securityHelper;
     private final AccountAccessHelper accountAccessHelper;
+    private final StudentReviewState studentReviewState;
 
     private void updateActiveEducationOrThrow(long educationId, InstitutionEnt institutionEnt) {
         institutionEnt.setEducation(educationTools.getEducationOrThrow(educationId));
@@ -99,6 +101,7 @@ public class InstitutionServiceImpl implements InstitutionService {
             throw new BadRequestException("Institution already exists");
         }
 
+        studentReviewState.onStudentSelfEdit(institutionEnt.getStudent());
         InstitutionDTO institutionDTO = institutionTools.mapToDTO(institutionEnt);
 
         log.info("User: {}, created a new institution: {}", securityHelper.getCurrentUsername(), institutionDTO);
@@ -128,6 +131,7 @@ public class InstitutionServiceImpl implements InstitutionService {
             updateActiveStudentOrThrow(targetStudentId, institutionEnt);
         }
 
+        studentReviewState.onStudentSelfEdit(institutionEnt.getStudent());
         InstitutionDTO institutionDTO = institutionTools.mapToDTO(institutionEnt);
 
         log.info("User: {}, updated a institution: {} with data: {}", securityHelper.getCurrentUsername(), id, institutionDTO);
@@ -150,6 +154,7 @@ public class InstitutionServiceImpl implements InstitutionService {
             throw new BadRequestException("Error while deleting institution");
         }
 
+        studentReviewState.onStudentSelfEdit(institutionEnt.getStudent());
         log.info("User: {}, deleted a institution: {} with data: {}", securityHelper.getCurrentUsername(), id, institutionEnt);
     }
 

@@ -30,6 +30,8 @@ public interface StudentRepo extends
     @EntityGraph(attributePaths = {"speciality", "skills"}, type = EntityGraph.EntityGraphType.LOAD)
     Optional<StudentEnt> findById(@NonNull UUID id);
 
+    Optional<StudentEnt> findByImagePath(String imagePath);
+
     @NonNull
     @EntityGraph(attributePaths = {"speciality", "skills"}, type = EntityGraph.EntityGraphType.LOAD)
     Page<StudentEnt> findAll(Specification<StudentEnt> specification, @NonNull Pageable pageable);

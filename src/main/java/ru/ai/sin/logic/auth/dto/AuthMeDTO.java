@@ -18,6 +18,12 @@ public record AuthMeDTO(
         @Schema(description = "Почта подтверждена кодом после регистрации (для студентов после нового флоу)")
         boolean emailVerified,
         @Schema(description = "Подсказки при создании резюме/вакансий отключены")
-        boolean hintsDisabled
+        boolean hintsDisabled,
+
+        @Schema(description = "Код причины отказа. Только у студента со статусом REJECTED")
+        String rejectionReason,
+
+        @Schema(description = "Комментарий администратора к отказу. Только у студента со статусом REJECTED")
+        String rejectionComment
 ) {
 }

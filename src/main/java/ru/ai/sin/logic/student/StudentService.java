@@ -41,6 +41,10 @@ public interface StudentService {
 
     StudentDTO patchMe(PatchStudentMeReq req);
 
+    void completeRegistration();
+
+    void submitForReview();
+
     void reorder(ReorderStudentsReq req);
 
     BulkStudentVisibilityResult bulkUpdateVisibility(BulkStudentVisibilityReq req);

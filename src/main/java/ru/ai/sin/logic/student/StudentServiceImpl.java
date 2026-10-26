@@ -15,9 +15,11 @@ import ru.ai.sin.models.embeddables.ContactInformation;
 import ru.ai.sin.models.embeddables.UserInformation;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
+import ru.ai.sin.exception.models.ProfileIncompleteException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
@@ -26,7 +28,10 @@ import ru.ai.sin.logic.portfolio.PortfolioRepo;
 import ru.ai.sin.logic.request.RequestRepo;
 import ru.ai.sin.logic.student.dto.*;
 import ru.ai.sin.logic.vacancy.VacancyApplicationRepo;
+import ru.ai.sin.logic.profile.ProfileCommunicationGateService;
+import ru.ai.sin.logic.profile.dto.CommunicationReadinessRes;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
+import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.logic.speciality.SpecialityEnt;
@@ -36,6 +41,7 @@ import ru.ai.sin.tools.SkillTools;
 import ru.ai.sin.tools.SpecialityTools;
 import ru.ai.sin.tools.StudentTools;
 import ru.ai.sin.tools.UserTools;
+import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
@@ -76,6 +82,9 @@ public class StudentServiceImpl implements StudentService {
     private final UserRepo userRepo;
     private final PasswordEncoder passwordEncoder;
     private final RegistrationPasswordPolicy registrationPasswordPolicy;
+    private final ProfileCommunicationGateService profileCommunicationGateService;
+    private final VerificationOtpMailer verificationOtpMailer;
+    private final StudentReviewState studentReviewState;
 
     /**
      * Один read-only boundary на загрузку + маппинг: {@link StudentTools#getStudentOrThrow} завершает свой вложенный tx,
@@ -84,20 +93,8 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(readOnly = true)
     public StudentDTO getById(UUID id) {
-        boolean isOwnProfile = userTools.findCurrentUserFetchingLinks()
-                .filter(u -> u.getRole() == RoleEnum.STUDENT && u.getStudent() != null)
-                .map(u -> u.getStudent().getId().equals(id))
-                .orElse(false);
-        if (!isOwnProfile) {
-            accountAccessHelper.requireApprovedAccount();
-        }
-        StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
-
-        if (!studentEnt.isCatalogVisible() && !securityHelper.isCurrentUserAdmin() && !isOwnProfile) {
-            throw new NotFoundException("Failed to find student by id " + id);
-        }
-
-        return studentTools.mapToDTO(studentEnt);
+        accountAccessHelper.requireCanReadStudentResumeDetails(id);
+        return studentTools.mapToDTO(studentTools.getStudentOrThrow(id));
     }
 
     @Override
@@ -124,6 +121,7 @@ public class StudentServiceImpl implements StudentService {
 
         studentEnt.setImagePath(filePath);
         StudentProfileScoring.applyTo(studentEnt);
+        studentReviewState.onStudentSelfEdit(studentEnt);
     }
 
     @Override
@@ -133,38 +131,29 @@ public class StudentServiceImpl implements StudentService {
             FilterStudentReq filterStudentReq
     ) {
         UserEnt currentUser = accountAccessHelper.requireCurrentUser();
+        if (isUnapprovedStudent(currentUser)) {
+            StudentEnt own = currentUser.getStudent();
+            if (own == null || pageable.getPageNumber() > 0) {
+                return emptyPage(pageable, own == null ? 0 : 1);
+            }
+            return new PageResponse<>(
+                    List.of(studentTools.mapToCardDTO(own)),
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    1,
+                    1);
+        }
         if (currentUser.getRole() != RoleEnum.STUDENT) {
             accountAccessHelper.requireApprovedAccount();
         }
-        Sort sort = StudentSortResolver.resolve(filterStudentReq);
-        Pageable effectivePageable = org.springframework.data.domain.PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                sort);
 
-        Page<StudentEnt> page = studentRepo.findAll(
-                StudentSpecifications.byFilters(filterStudentReq, securityHelper.isCurrentUserAdmin(), false),
-                effectivePageable);
-
-        List<StudentCardDTO> cards = new java.util.ArrayList<>(
-                page.getContent().stream().map(studentTools::mapToCardDTO).toList());
-
-        userTools.findCurrentUserFetchingLinks()
-                .filter(u -> u.getRole() == RoleEnum.STUDENT && u.getStudent() != null)
-                .map(UserEnt::getStudent)
-                .ifPresent(ownStudent -> {
-                    UUID ownId = ownStudent.getId();
-                    boolean alreadyListed = cards.stream().anyMatch(c -> c.id().equals(ownId));
-                    if (!alreadyListed) {
-                        cards.addFirst(studentTools.mapToCardDTO(ownStudent));
-                    }
-                });
+        Page<StudentEnt> page = loadCatalogPage(pageable, filterStudentReq, currentUser);
 
         return new PageResponse<>(
-                cards,
+                page.getContent().stream().map(studentTools::mapToCardDTO).toList(),
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
-                page.getTotalElements() + (cards.size() - page.getNumberOfElements()),
+                page.getTotalElements(),
                 page.getTotalPages());
     }
 
@@ -179,18 +168,23 @@ public class StudentServiceImpl implements StudentService {
             FilterStudentReq filterStudentReq
     ) {
         UserEnt currentUser = accountAccessHelper.requireCurrentUser();
+        if (isUnapprovedStudent(currentUser)) {
+            StudentEnt own = currentUser.getStudent();
+            if (own == null || pageable.getPageNumber() > 0) {
+                return emptyPage(pageable, own == null ? 0 : 1);
+            }
+            return new PageResponse<>(
+                    List.of(studentTools.mapToDTO(own)),
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    1,
+                    1);
+        }
         if (currentUser.getRole() != RoleEnum.STUDENT) {
             accountAccessHelper.requireApprovedAccount();
         }
-        Sort sort = StudentSortResolver.resolve(filterStudentReq);
-        Pageable effectivePageable = org.springframework.data.domain.PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                sort);
 
-        Page<StudentEnt> page = studentRepo.findAll(
-                StudentSpecifications.byFilters(filterStudentReq, securityHelper.isCurrentUserAdmin(), false),
-                effectivePageable);
+        Page<StudentEnt> page = loadCatalogPage(pageable, filterStudentReq, currentUser);
 
         return new PageResponse<>(
                 page.getContent().stream().map(studentTools::mapToDTO).toList(),
@@ -198,6 +192,35 @@ public class StudentServiceImpl implements StudentService {
                 pageable.getPageSize(),
                 page.getTotalElements(),
                 page.getTotalPages());
+    }
+
+    private Page<StudentEnt> loadCatalogPage(
+            Pageable pageable,
+            FilterStudentReq filterStudentReq,
+            UserEnt currentUser
+    ) {
+        boolean admin = currentUser.getRole() == RoleEnum.ADMIN;
+        UUID ownId = null;
+        if (!admin && currentUser.getRole() == RoleEnum.STUDENT && currentUser.getStudent() != null) {
+            ownId = currentUser.getStudent().getId();
+        }
+        Sort sort = StudentSortResolver.resolve(filterStudentReq);
+        Pageable effectivePageable = org.springframework.data.domain.PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                sort);
+        return studentRepo.findAll(
+                StudentSpecifications.byFilters(filterStudentReq, admin, false, !admin, ownId),
+                effectivePageable);
+    }
+
+    private static boolean isUnapprovedStudent(UserEnt user) {
+        return user.getRole() == RoleEnum.STUDENT && user.getAccountStatus() != AccountStatus.APPROVED;
+    }
+
+    private static <T> PageResponse<T> emptyPage(Pageable pageable, long totalElements) {
+        int totalPages = totalElements == 0 ? 0 : 1;
+        return new PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), totalElements, totalPages);
     }
 
 
@@ -320,7 +343,8 @@ public class StudentServiceImpl implements StudentService {
                 patchStudentReq.skillsIds(),
                 patchStudentReq.publicProfileConsent());
         if (patchStudentReq.catalogVisible() != null) {
-            studentEnt.setCatalogVisible(patchStudentReq.catalogVisible());
+            studentEnt.setCatalogVisible(
+                    studentReviewState.catalogVisible(studentEnt, patchStudentReq.catalogVisible()));
         }
         if (Boolean.TRUE.equals(patchStudentReq.clearManualSortOrder())) {
             studentEnt.setManualSortOrder(null);
@@ -371,7 +395,53 @@ public class StudentServiceImpl implements StudentService {
                 req.publicProfileConsent());
 
         StudentProfileScoring.applyTo(studentEnt);
+        studentReviewState.onStudentSelfEdit(studentEnt);
         return studentTools.mapToDTO(studentEnt);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void completeRegistration() {
+        UserEnt user = currentStudentPendingEmailVerified();
+        verificationOtpMailer.trySendRegistrationSuccess(studentEmail(user), user.getUsername());
+    }
+
+    @Override
+    @Transactional
+    public void submitForReview() {
+        UserEnt user = currentStudentPendingEmailVerified();
+        CommunicationReadinessRes readiness = profileCommunicationGateService.evaluateForCurrentUser();
+        if (!readiness.ready()) {
+            throw new ProfileIncompleteException(readiness.missingFields());
+        }
+        verificationOtpMailer.trySendProfileSubmitted(studentEmail(user));
+    }
+
+    private UserEnt currentStudentPendingEmailVerified() {
+        UserEnt user = userRepo.findByUsernameFetchingLinks(securityHelper.getCurrentUsername())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        if (user.getRole() != RoleEnum.STUDENT || user.getStudent() == null) {
+            throw new BadRequestException("К аккаунту не привязана карточка студента");
+        }
+        if (!user.isEmailVerified()) {
+            throw new BadRequestException("Сначала подтвердите почту");
+        }
+        if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL) {
+            throw new BadRequestException("Аккаунт уже обработан");
+        }
+        return user;
+    }
+
+    private static String studentEmail(UserEnt user) {
+        if (user.getRegistrationEmail() != null && !user.getRegistrationEmail().isBlank()) {
+            return user.getRegistrationEmail().trim();
+        }
+        if (user.getStudent().getUserInformation() != null
+                && user.getStudent().getUserInformation().getEmail() != null
+                && !user.getStudent().getUserInformation().getEmail().isBlank()) {
+            return user.getStudent().getUserInformation().getEmail().trim();
+        }
+        throw new BadRequestException("У аккаунта не указана почта");
     }
 
     @Override
@@ -634,9 +704,12 @@ public class StudentServiceImpl implements StudentService {
         int updated = 0;
         for (StudentEnt student : students) {
             boolean changed = false;
-            if (req.catalogVisible() != null && student.isCatalogVisible() != req.catalogVisible()) {
-                student.setCatalogVisible(req.catalogVisible());
-                changed = true;
+            if (req.catalogVisible() != null) {
+                boolean visible = studentReviewState.catalogVisible(student, req.catalogVisible());
+                if (student.isCatalogVisible() != visible) {
+                    student.setCatalogVisible(visible);
+                    changed = true;
+                }
             }
             if (req.publicProfileConsent() != null
                     && student.isPublicProfileConsent() != req.publicProfileConsent()) {

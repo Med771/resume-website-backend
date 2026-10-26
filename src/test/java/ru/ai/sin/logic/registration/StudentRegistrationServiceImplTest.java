@@ -31,6 +31,7 @@ import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.RoleEnum;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -97,7 +98,7 @@ class StudentRegistrationServiceImplTest {
         lenient().when(httpRequest.getRemoteAddr()).thenReturn("127.0.0.1");
         lenient().when(mailProperties.getOtpTtlMinutes()).thenReturn(15);
         lenient().when(mailProperties.isAllowDevConfirm()).thenReturn(true);
-        lenient().when(verificationOtpMailer.trySendOtp(anyString(), anyString(), anyInt())).thenReturn(true);
+        lenient().when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(true);
         lenient().when(passwordEncoder.encode(anyString())).thenReturn("hash");
         lenient().when(studentRepo.existsByNormalizedEmail(anyString())).thenReturn(false);
         lenient().when(userRepo.existsByUsername(anyString())).thenReturn(false);
@@ -122,7 +123,8 @@ class StudentRegistrationServiceImplTest {
     @Test
     void register_passwordMismatch_throwsBadRequest() {
         StudentAccountRegistrationReq req = new StudentAccountRegistrationReq(
-                "user1", "SecurePass123", "other", null, null, null, "a@b.c", null, "+79990001122");
+                "user1", "SecurePass123", "other", null, null, null, "a@b.c", null, "+79990001122",
+                LocalDate.of(2000, 1, 1));
 
         assertThatThrownBy(() -> service.registerAndIssueTokens(req, httpRequest))
                 .isInstanceOf(BadRequestException.class)
@@ -133,7 +135,8 @@ class StudentRegistrationServiceImplTest {
     void register_reservedUsername_throwsBadRequest() {
         when(registrationProperties.isReservedUsername(eq("root"), any())).thenReturn(true);
         StudentAccountRegistrationReq req = new StudentAccountRegistrationReq(
-                "root", "SecurePass123", "SecurePass123", null, null, null, "a@b.c", null, "+79990001122");
+                "root", "SecurePass123", "SecurePass123", null, null, null, "a@b.c", null, "+79990001122",
+                LocalDate.of(2000, 1, 1));
 
         assertThatThrownBy(() -> service.registerAndIssueTokens(req, httpRequest))
                 .isInstanceOf(BadRequestException.class)
@@ -181,6 +184,7 @@ class StudentRegistrationServiceImplTest {
         assertThat(draft.getUserInformation().getLastName()).isEqualTo("Иванов");
         assertThat(draft.getUserInformation().getEmail()).isEqualTo("ivan@test.local");
         assertThat(draft.getContactInformation().getPhoneNumber()).isEqualTo("+79990001122");
+        assertThat(draft.getBirthDate()).isEqualTo(LocalDate.of(2000, 5, 5));
 
         UserEnt savedUser = userCaptor.getValue();
         assertThat(savedUser.getRole()).isEqualTo(RoleEnum.STUDENT);
@@ -193,15 +197,16 @@ class StudentRegistrationServiceImplTest {
         assertThat(savedUser.getStudent()).isSameAs(draft);
 
         ArgumentCaptor<String> otpCode = ArgumentCaptor.forClass(String.class);
-        verify(verificationOtpMailer).trySendOtp(eq("ivan@test.local"), otpCode.capture(), eq(15));
+        verify(verificationOtpMailer).trySendStudentEmailOtp(eq("ivan@test.local"), otpCode.capture(), eq(15));
         assertThat(otpCode.getValue()).matches("\\d{4}");
+        verify(verificationOtpMailer, never()).trySendRegistrationSuccess(anyString(), anyString());
     }
 
     @Test
     void register_mailNotSent_stillCreatesAccount() {
         stubSuccessfulAuth("newuser_x");
         when(studentRepo.save(any(StudentEnt.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(verificationOtpMailer.trySendOtp(anyString(), anyString(), anyInt())).thenReturn(false);
+        when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(false);
 
         service.registerAndIssueTokens(baseReq(), httpRequest);
 
@@ -256,6 +261,7 @@ class StudentRegistrationServiceImplTest {
         assertThat(user.getEmailOtpHash()).isNull();
         assertThat(user.getEmailOtpExpiresAt()).isNull();
         verify(userRepo).save(user);
+        verify(verificationOtpMailer, never()).trySendRegistrationSuccess(anyString(), anyString());
     }
 
     @Test
@@ -288,7 +294,7 @@ class StudentRegistrationServiceImplTest {
         service.resendEmailConfirmation();
 
         verify(emailOtpAttemptLimiter).checkResend(user.getId());
-        verify(verificationOtpMailer).trySendOtp(eq("ivan@test.local"), anyString(), eq(15));
+        verify(verificationOtpMailer).trySendStudentEmailOtp(eq("ivan@test.local"), anyString(), eq(15));
         verify(userRepo).save(user);
     }
 
@@ -325,7 +331,8 @@ class StudentRegistrationServiceImplTest {
                 "Петрович",
                 "ivan@test.local",
                 "Москва",
-                "+79990001122"
+                "+79990001122",
+                LocalDate.of(2000, 5, 5)
         );
     }
 }

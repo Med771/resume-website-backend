@@ -166,8 +166,41 @@ class AccountAccessHelperTest {
     void requireCanReadStudentResumeDetails_otherVisible_ok() {
         stubApprovedRecruiter();
         when(studentTools.getStudentOrThrow(OTHER_ID)).thenReturn(student(OTHER_ID, true));
+        when(userRepo.findByStudent_Id(OTHER_ID)).thenReturn(Optional.of(user(RoleEnum.STUDENT, null)));
 
         assertThatCode(() -> helper.requireCanReadStudentResumeDetails(OTHER_ID)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void requireCanReadStudentResumeDetails_otherVisibleButNotApproved_notFound() {
+        stubApprovedRecruiter();
+        when(studentTools.getStudentOrThrow(OTHER_ID)).thenReturn(student(OTHER_ID, true));
+        UserEnt pendingOwner = user(RoleEnum.STUDENT, null);
+        pendingOwner.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        when(userRepo.findByStudent_Id(OTHER_ID)).thenReturn(Optional.of(pendingOwner));
+
+        assertThatThrownBy(() -> helper.requireCanReadStudentResumeDetails(OTHER_ID))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void requireCanReadStudentResumeDetails_unapprovedStudent_otherNotFound() {
+        UserEnt pending = user(RoleEnum.STUDENT, student(OWN_ID, true));
+        pending.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.of(pending));
+
+        assertThatThrownBy(() -> helper.requireCanReadStudentResumeDetails(OTHER_ID))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void requireCanReadStudentResumeDetails_unapprovedStudent_ownOk() {
+        UserEnt pending = user(RoleEnum.STUDENT, student(OWN_ID, false));
+        pending.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.of(pending));
+        when(studentTools.getStudentOrThrow(OWN_ID)).thenReturn(student(OWN_ID, false));
+
+        assertThatCode(() -> helper.requireCanReadStudentResumeDetails(OWN_ID)).doesNotThrowAnyException();
     }
 
     private void stubApprovedRecruiter() {

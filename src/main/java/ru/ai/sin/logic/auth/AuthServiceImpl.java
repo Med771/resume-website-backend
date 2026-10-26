@@ -97,11 +97,33 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new BadCredentialsException("Not authenticated"));
         String role = securityHelper.getCurrentRoleOptional()
                 .orElseThrow(() -> new BadCredentialsException("Not authenticated"));
-        UserEnt user = userRepo.findByUsername(username)
+        UserEnt user = userRepo.findByUsernameFetchingLinks(username)
                 .orElseThrow(() -> new BadCredentialsException("Not authenticated"));
         AccountStatus status = user.getAccountStatus() != null ? user.getAccountStatus() : AccountStatus.APPROVED;
+        String rejectionReason = null;
+        String rejectionComment = null;
+        if (user.getRole() == RoleEnum.STUDENT
+                && status == AccountStatus.REJECTED
+                && user.getStudent() != null) {
+            rejectionReason = blankToNull(user.getStudent().getRejectionReason());
+            rejectionComment = blankToNull(user.getStudent().getRejectionComment());
+        }
         return new AuthMeDTO(
-                user.getId(), username, role, status.getCode(), user.isEmailVerified(), user.isHintsDisabled());
+                user.getId(),
+                username,
+                role,
+                status.getCode(),
+                user.isEmailVerified(),
+                user.isHintsDisabled(),
+                rejectionReason,
+                rejectionComment);
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     @Override

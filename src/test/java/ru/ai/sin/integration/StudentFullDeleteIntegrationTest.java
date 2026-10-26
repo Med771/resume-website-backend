@@ -34,7 +34,7 @@ class StudentFullDeleteIntegrationTest extends AbstractPostgresIntegrationTest {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         String email = "dstu_" + suffix + "@integration.test";
         String username = "dstu_" + suffix;
-        String password = "DelStuPass1";
+        String password = "DelStuPass12";
 
         Cookie[] adminCookies = login("admin", "admin");
         Cookie[] guestCookies = login("guest", "guest");
@@ -99,7 +99,8 @@ class StudentFullDeleteIntegrationTest extends AbstractPostgresIntegrationTest {
     }
 
     private Cookie[] login(String username, String password) throws Exception {
-        MvcResult r = mockMvc.perform(post("/auth/login")
+        String path = "admin".equals(username) ? "/auth/admin/login" : "/auth/login";
+        MvcResult r = mockMvc.perform(post(path)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
                 .andExpect(status().isNoContent())

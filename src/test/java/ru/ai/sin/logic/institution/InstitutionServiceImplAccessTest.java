@@ -9,6 +9,7 @@ import ru.ai.sin.exception.models.ForbiddenException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.education.EducationEnt;
 import ru.ai.sin.logic.institution.dto.AddInstitutionReq;
 import ru.ai.sin.logic.institution.dto.InstitutionDTO;
@@ -49,6 +50,8 @@ class InstitutionServiceImplAccessTest {
     private SecurityHelper securityHelper;
     @Mock
     private AccountAccessHelper accountAccessHelper;
+    @Mock
+    private StudentReviewState studentReviewState;
 
     @InjectMocks
     private InstitutionServiceImpl institutionService;
