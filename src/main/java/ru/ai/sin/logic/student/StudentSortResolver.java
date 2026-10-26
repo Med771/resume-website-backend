@@ -27,9 +27,12 @@ public final class StudentSortResolver {
         return switch (effective) {
             case CREATED_AT -> Sort.by(new Sort.Order(dir, "timestamps.createdAt"));
             case LAST_NAME -> Sort.by(new Sort.Order(dir, "userInformation.lastName"));
+            case EMAIL -> Sort.by(new Sort.Order(dir, "userInformation.email"));
+            case COURSE -> Sort.by(new Sort.Order(dir, "course"));
             case BIRTH_DATE -> Sort.by(new Sort.Order(dir, "birthDate"));
             case PROFILE_TEXT_SCORE -> Sort.by(new Sort.Order(dir, "profileTextScore"));
             case MANUAL_SORT_ORDER -> Sort.by(new Sort.Order(dir, "manualSortOrder"));
+            case ACCOUNT_STATUS -> Sort.unsorted();
             case RELEVANCE -> defaultRelevanceSort();
         };
     }

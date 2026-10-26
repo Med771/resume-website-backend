@@ -47,7 +47,10 @@ public record FilterStudentReq(
         @Schema(description = "Поле сортировки из разрешённого перечисления `StudentSortField`")
         StudentSortField sortBy,
 
-        @Schema(description = "Направление для явной сортировки (`useDefaultRanking=false`); при null — DESC")
+        @Schema(description = """
+                Направление для явной сортировки (`useDefaultRanking=false`); при null — DESC.
+                Для `sortBy=ACCOUNT_STATUS` пустое направление значит «сначала ожидающие» (ASC):
+                PENDING_APPROVAL, APPROVED, REJECTED.""")
         StudentSortDirection sortDirection,
 
         @Schema(description = """

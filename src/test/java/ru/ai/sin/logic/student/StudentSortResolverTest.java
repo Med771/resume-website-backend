@@ -43,6 +43,45 @@ class StudentSortResolverTest {
     }
 
     @Test
+    void explicitEmailAndCourse() {
+        FilterStudentReq email = new FilterStudentReq(
+                null, null, null, null, null, null, null,
+                StudentSortField.EMAIL,
+                StudentSortDirection.ASC,
+                false,
+                null,
+                null
+        );
+        assertThat(StudentSortResolver.resolve(email).toList().getFirst().getProperty())
+                .isEqualTo("userInformation.email");
+
+        FilterStudentReq course = new FilterStudentReq(
+                null, null, null, null, null, null, null,
+                StudentSortField.COURSE,
+                StudentSortDirection.DESC,
+                false,
+                null,
+                null
+        );
+        Sort courseSort = StudentSortResolver.resolve(course);
+        assertThat(courseSort.toList().getFirst().getProperty()).isEqualTo("course");
+        assertThat(courseSort.toList().getFirst().getDirection()).isEqualTo(Sort.Direction.DESC);
+    }
+
+    @Test
+    void accountStatus_leavesSortToSpecification() {
+        FilterStudentReq f = new FilterStudentReq(
+                null, null, null, null, null, null, null,
+                StudentSortField.ACCOUNT_STATUS,
+                StudentSortDirection.ASC,
+                false,
+                null,
+                null
+        );
+        assertThat(StudentSortResolver.resolve(f).isSorted()).isFalse();
+    }
+
+    @Test
     void explicitManualSortOrderDesc() {
         FilterStudentReq f = new FilterStudentReq(
                 null, null, null, null, null, null, null,

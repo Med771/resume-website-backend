@@ -16,6 +16,15 @@ public enum StudentSortField {
     CREATED_AT,
     @Schema(description = "Фамилия (`userInformation.lastName`)")
     LAST_NAME,
+    @Schema(description = "Email карточки (`userInformation.email`)")
+    EMAIL,
+    @Schema(description = "Курс (`course`)")
+    COURSE,
+    @Schema(description = """
+            Статус аккаунта на `users`. Не поле студента: порядок задаёт спецификация,
+            а не `Sort.by`. Без `sortDirection` и при ASC: PENDING_APPROVAL, APPROVED, REJECTED.
+            DESC переворачивает только этот порядок. У остальных полей пустое направление — DESC.""")
+    ACCOUNT_STATUS,
     @Schema(description = "Дата рождения")
     BIRTH_DATE,
     @Schema(description = "Денормализованная сумма длин текстовых полей профиля (обновляется при сохранении)")
