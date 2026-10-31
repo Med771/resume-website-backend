@@ -22,5 +22,6 @@ public record ExperienceRes(
 
         LocalDate endDate,
 
+        @NotNull
         ExperienceType experienceType) {
 }

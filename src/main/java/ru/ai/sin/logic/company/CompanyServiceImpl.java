@@ -64,6 +64,7 @@ public class CompanyServiceImpl implements CompanyService {
     @Override
     public CompanyDTO create(AddCompanyReq addCompanyReq) {
         CompanyEnt companyEnt = new CompanyEnt(addCompanyReq.name());
+        companyEnt.setWebsite(blankToNull(addCompanyReq.website()));
 
         try {
             companyEnt = companyRepo.save(companyEnt);
@@ -90,6 +91,9 @@ public class CompanyServiceImpl implements CompanyService {
         CompanyEnt companyEnt = companyTools.getCompanyOrThrow(id);
 
         companyEnt.setName(updateCompanyReq.name());
+        if (updateCompanyReq.website() != null) {
+            companyEnt.setWebsite(blankToNull(updateCompanyReq.website()));
+        }
 
         CompanyDTO companyDTO = companyTools.mapToDTO(companyEnt);
 
@@ -113,5 +117,12 @@ public class CompanyServiceImpl implements CompanyService {
         }
 
         log.info("User: {}, deleted a company: {} with data: {}", securityHelper.getCurrentUsername(), id, companyEnt);
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

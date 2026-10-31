@@ -1,0 +1,2 @@
+ALTER TABLE companies
+    ADD COLUMN IF NOT EXISTS website VARCHAR(255);
