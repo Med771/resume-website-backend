@@ -19,6 +19,7 @@ Backend платформы резюме: каталог студентов, за
 | [testing.md](./testing.md)                                                         | Как устроены тесты                        |
 | [roadmap.md](./roadmap.md)                                                         | Что сервер сейчас не закрывает            |
 | [architecture/account-review.md](./architecture/account-review.md)                 | Статусы проверки анкеты и показ карточки  |
-| [architecture/company-and-experience.md](./architecture/company-and-experience.md) | Ссылка компании и тип опыта               |
+| [architecture/company-and-experience.md](./architecture/company-and-experience.md) | Компания: ссылка, методы, связь с опытом |
+| [architecture/experience.md](./architecture/experience.md)                         | Опыт студента: поля, методы, тип          |
 
 Роли в базе и в JWT: **STUDENT**, **RECRUITER**, **ADMIN**.
