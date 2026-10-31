@@ -35,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -199,6 +200,47 @@ class AccountApprovalServiceImplTest {
                 eq("student"),
                 eq("Анкета заполнена недостаточно"),
                 eq("Нет описания опыта"));
+    }
+
+    @Test
+    void reject_approvedStudent_hidesCardAndSendsEmail() {
+        StudentEnt student = new StudentEnt();
+        student.setCatalogVisible(true);
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.APPROVED);
+        user.setStudent(student);
+        user.setRegistrationEmail("student@test.local");
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(securityHelper.getCurrentUsername()).thenReturn("admin");
+
+        service.reject(USER_ID, new AccountRejectReq("INVALID_DATA", null));
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.REJECTED);
+        assertThat(student.isCatalogVisible()).isFalse();
+        assertThat(student.getRejectionReason()).isEqualTo("INVALID_DATA");
+        verify(studentRepo).save(student);
+        verify(verificationOtpMailer).trySendAccountRejected(
+                eq("student@test.local"),
+                eq("student"),
+                eq("Данные или контакты выглядят некорректно"),
+                isNull());
+    }
+
+    @Test
+    void reject_approvedRecruiter_throwsBadRequest() {
+        UserEnt user = new UserEnt(RoleEnum.RECRUITER, "r", "recruiter", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.APPROVED);
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> service.reject(USER_ID, null))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("уже обработан");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        verify(userRepo, never()).save(any());
     }
 
     @Test
