@@ -194,7 +194,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentCreateCompany_created() throws Exception {
         when(companyService.create(any()))
-                .thenReturn(new CompanyDTO(1L, "Acme", List.of()));
+                .thenReturn(new CompanyDTO(1L, "Acme", null, List.of()));
 
         mockMvc.perform(post("/company")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -209,7 +209,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentUpdateCompany_ok() throws Exception {
         when(companyService.updateById(anyLong(), any()))
-                .thenReturn(new CompanyDTO(1L, "Acme", List.of()));
+                .thenReturn(new CompanyDTO(1L, "Acme", null, List.of()));
 
         mockMvc.perform(put("/company/{id}", 1)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -264,7 +264,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentFilterCompany_ok() throws Exception {
         when(companyService.getAllByFilter(any(), any()))
-                .thenReturn(new PageResponse<>(List.of(new CompanyDTO(1L, "Acme", List.of())), 0, 20, 1, 1));
+                .thenReturn(new PageResponse<>(List.of(new CompanyDTO(1L, "Acme", null, List.of())), 0, 20, 1, 1));
 
         mockMvc.perform(post("/company/filter")
                         .contentType(MediaType.APPLICATION_JSON)
