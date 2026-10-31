@@ -5,6 +5,7 @@ import jakarta.validation.constraints.*;
 import ru.ai.sin.logic.skill.dto.SkillDTO;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
+import ru.ai.sin.models.enums.JobSearchStatus;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -43,9 +44,12 @@ public record StudentDTO(
         @NotNull
         CourseEnum course,
 
-        @Schema(description = "Тип занятости")
+        @Schema(description = "Тип занятости: EMPLOYED — фулл-тайм, FREELANCE — парт-тайм, FREE — нет занятости, PROJECT_WORK — проектная работа")
         @NotNull
         BusynessEnum busyness,
+
+        @Schema(description = "Статус поиска работы. null — не указан")
+        JobSearchStatus jobSearchStatus,
 
         @Schema(description = "Имя")
         String firstName,

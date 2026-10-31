@@ -68,7 +68,8 @@ erDiagram
 | bio | TEXT | |
 | image_path | VARCHAR(255) UNIQUE | файл аватара |
 | course | VARCHAR(16) | `1` … `5` |
-| busyness | VARCHAR(32) | `free`, `freelance`, `employed` |
+| busyness | VARCHAR(32) | `free` нет занятости, `freelance` парт-тайм, `employed` фулл-тайм, `project_work` проектная работа |
+| job_search_status | VARCHAR(32) | статус поиска: `looking`, `considering`, `not_looking`; пусто, пока не указан |
 | middle_name | VARCHAR(255) | отчество |
 | gender | VARCHAR(16) | `MALE`, `FEMALE` |
 | first_name, last_name | VARCHAR(255) | |

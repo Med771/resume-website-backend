@@ -40,6 +40,7 @@ import ru.ai.sin.tools.UserTools;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
+import ru.ai.sin.models.enums.JobSearchStatus;
 import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.LocalDate;
@@ -294,6 +295,7 @@ public class StudentServiceImpl implements StudentService {
                 patchStudentReq.bio(),
                 patchStudentReq.course(),
                 patchStudentReq.busyness(),
+                patchStudentReq.jobSearchStatus(),
                 patchStudentReq.firstName(),
                 patchStudentReq.lastName(),
                 patchStudentReq.middleName(),
@@ -345,6 +347,7 @@ public class StudentServiceImpl implements StudentService {
                 req.bio(),
                 req.course(),
                 req.busyness(),
+                req.jobSearchStatus(),
                 req.firstName(),
                 req.lastName(),
                 req.middleName(),
@@ -487,6 +490,7 @@ public class StudentServiceImpl implements StudentService {
             String bio,
             CourseEnum course,
             BusynessEnum busyness,
+            JobSearchStatus jobSearchStatus,
             String firstName,
             String lastName,
             String middleName,
@@ -515,6 +519,9 @@ public class StudentServiceImpl implements StudentService {
         }
         if (busyness != null) {
             studentEnt.setBusyness(busyness);
+        }
+        if (jobSearchStatus != null) {
+            studentEnt.setJobSearchStatus(jobSearchStatus);
         }
 
         if (studentEnt.getUserInformation() == null) {

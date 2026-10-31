@@ -60,6 +60,7 @@ class StudentControllerMvcTest {
                 null,
                 CourseEnum.FIRST,
                 BusynessEnum.EMPLOYED,
+                null,
                 "Ivan",
                 "Petrov",
                 null,

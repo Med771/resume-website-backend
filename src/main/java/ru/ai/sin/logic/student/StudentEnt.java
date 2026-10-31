@@ -24,6 +24,8 @@ import ru.ai.sin.models.embeddables.TimeStamped;
 import ru.ai.sin.models.embeddables.UserInformation;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
+import ru.ai.sin.models.enums.JobSearchStatus;
+import ru.ai.sin.models.enums.convertor.JobSearchStatusConverter;
 import ru.ai.sin.models.enums.GenderEnum;
 import ru.ai.sin.models.enums.convertor.GenderEnumConverter;
 
@@ -64,6 +66,11 @@ public class StudentEnt {
     @Column(name = "busyness", length = 32)
     @Convert(converter = BusynessEnumConverter.class)
     private BusynessEnum busyness;
+
+    /** Статус поиска работы. Пусто, пока студент его не указал. */
+    @Column(name = "job_search_status", length = 32)
+    @Convert(converter = JobSearchStatusConverter.class)
+    private JobSearchStatus jobSearchStatus;
 
     /** Отчество (не фамилия — фамилия в {@code userInformation.lastName}). */
     @Column(name = "middle_name")
