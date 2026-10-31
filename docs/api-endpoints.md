@@ -46,7 +46,6 @@
 | POST | `/student/filter` | S, R, A |
 | POST | `/student/photo/{id}` | S, A, multipart |
 | POST | `/student` | A |
-| POST | `/student/extended` | A, карточка сразу с опытом и учёбой |
 | PUT | `/student/{id}` | A |
 | PATCH | `/student/{id}` | A |
 | DELETE | `/student/{id}` | A |

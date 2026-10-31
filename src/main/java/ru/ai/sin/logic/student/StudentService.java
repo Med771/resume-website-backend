@@ -30,7 +30,6 @@ public interface StudentService {
             FilterStudentReq filterStudentReq);
 
     StudentDTO create(AddStudentReq addStudentReq);
-    StudentDTO createExtended(CreateStudentExtendedReq createStudentExtendedReq);
 
     StudentDTO update(
             UUID id,

@@ -43,7 +43,7 @@ import java.util.UUID;
                 **Сортировка списков** (`POST /student/cardsFilter`, `POST /student/filter`): порядок задаётся полями `FilterStudentReq.sortBy`, `sortDirection`, `useDefaultRanking`;
                 параметр query `sort` **игнорируется**.
 
-                **Согласие на показ анонимам** (`publicProfileConsent`) и **ручной номер** (`manualSortOrder`): при **`POST /student`** и **`POST /student/extended`** можно задать сразу в теле; дальше — `PUT`/`PATCH` (сброс номера — `clearManualSortOrder: true`).""")
+                **Согласие на показ анонимам** (`publicProfileConsent`) и **ручной номер** (`manualSortOrder`): при **`POST /student`** можно задать сразу в теле; дальше — `PUT`/`PATCH` (сброс номера — `clearManualSortOrder: true`).""")
 public class StudentController {
 
     private final StudentService studentService;
@@ -189,22 +189,6 @@ public class StudentController {
     @PostMapping()
     public ResponseEntity<StudentDTO> create(@Valid @RequestBody AddStudentReq addStudentReq) {
         StudentDTO studentDTO = studentService.create(addStudentReq);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(studentDTO);
-    }
-
-    @Operation(
-            summary = "Создать студента с вложенными сущностями",
-            description = """
-                    Только **ADMIN**. Атомарно создаёт студента, опционально портфолио, опыт, учебные заведения и навыки по вложенным спискам.
-
-                    Поля **`publicProfileConsent`** и **`manualSortOrder`** — как при `POST /student` (опционально).
-
-                    **201** + `StudentDTO`.""")
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping(path = "/extended")
-    public ResponseEntity<StudentDTO> createExtended(@Valid @RequestBody CreateStudentExtendedReq createStudentExtendedReq) {
-        StudentDTO studentDTO = studentService.createExtended(createStudentExtendedReq);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(studentDTO);
     }

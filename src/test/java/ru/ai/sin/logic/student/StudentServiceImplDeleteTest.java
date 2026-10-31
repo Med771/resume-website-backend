@@ -70,8 +70,6 @@ class StudentServiceImplDeleteTest {
     @Mock
     private SkillTools skillTools;
     @Mock
-    private StudentCvAttachmentService studentCvAttachmentService;
-    @Mock
     private StudentSkillsMutator studentSkillsMutator;
     @Mock
     private FileHelper fileHelper;
