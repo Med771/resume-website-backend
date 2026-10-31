@@ -57,30 +57,6 @@ class SiteProjectServiceImplTest {
     }
 
     @Test
-    void listForVitrina_onlyAnonymousFlagInPublicationWindow() {
-        SiteProjectEnt publicProject = project("Public", true, null, null);
-        SiteProjectEnt authOnly = project("Auth only", false, null, null);
-        SiteProjectEnt expired = project("Expired", true, null, LocalDateTime.now().minusDays(1));
-
-        when(siteProjectRepo.findAllWithImagesByOrderBySortOrderAsc()).thenReturn(List.of(publicProject, authOnly, expired));
-
-        assertThat(service.listForVitrina(10))
-                .extracting(SiteProjectDTO::title)
-                .containsExactly("Public");
-    }
-
-    @Test
-    void listForVitrina_respectsLimit() {
-        SiteProjectEnt first = project("First", true, null, null);
-        SiteProjectEnt second = project("Second", true, null, null);
-        when(siteProjectRepo.findAllWithImagesByOrderBySortOrderAsc()).thenReturn(List.of(first, second));
-
-        assertThat(service.listForVitrina(1))
-                .extracting(SiteProjectDTO::title)
-                .containsExactly("First");
-    }
-
-    @Test
     void filter_student_allInPublicationWindowRegardlessOfAnonymousFlag() {
         asStudent();
         SiteProjectEnt publicProject = project("Public", true, null, null);

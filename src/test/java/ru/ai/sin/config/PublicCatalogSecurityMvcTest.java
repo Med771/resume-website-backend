@@ -38,12 +38,6 @@ class PublicCatalogSecurityMvcTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void publicVitrinaHome_permitAll() throws Exception {
-        mockMvc.perform(get("/public/vitrina/home"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
     void studentMe_requiresAuth() throws Exception {
         mockMvc.perform(get("/student/me"))
                 .andExpect(status().isUnauthorized());

@@ -6,7 +6,6 @@
 
 ## Что можно без cookie
 
-- `GET /public/vitrina/home` — главная
 - `POST /public/analytics/events`
 - `GET /main/status`, `GET /main/photo/{image_path}`
 - регистрация, логин, refresh, logout

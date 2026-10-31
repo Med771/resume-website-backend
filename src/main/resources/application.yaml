@@ -68,11 +68,6 @@ app:
   analytics:
     rate-limit-per-ip-per-minute: 300
 
-  vitrina:
-    home:
-      students-limit: 100
-      projects-limit: 100
-
   # Deprecated
   telegram:
     enabled: false

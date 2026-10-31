@@ -63,16 +63,6 @@ public class SiteProjectServiceImpl implements SiteProjectService {
         return toDto(project, includeStudents);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<SiteProjectDTO> listForVitrina(int limit) {
-        int cap = Math.max(1, limit);
-        FilterSiteProjectReq vitrinaFilter = new FilterSiteProjectReq(null, null, true);
-        return listMatching(vitrinaFilter, false, false).stream()
-                .limit(cap)
-                .toList();
-    }
-
     private List<SiteProjectDTO> listMatching(
             FilterSiteProjectReq filter,
             boolean adminView,

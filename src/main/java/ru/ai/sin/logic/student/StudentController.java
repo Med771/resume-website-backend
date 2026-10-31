@@ -38,7 +38,6 @@ import java.util.UUID;
         name = "Student",
         description = """
                 Управление карточками студентов для **вошедших** пользователей (роли см. на методах).
-                Публичная витрина главной — `GET /public/vitrina/home` (без входа).
 
                 **Сортировка списков** (`POST /student/cardsFilter`, `POST /student/filter`): порядок задаётся полями `FilterStudentReq.sortBy`, `sortDirection`, `useDefaultRanking`;
                 параметр query `sort` **игнорируется**.

@@ -2,9 +2,9 @@
 
 Коротко, какие состояния заложить в UI. Данные и роли — в [frontend.md](./frontend.md) и [roles-product-journeys.md](./roles-product-journeys.md).
 
-## Главная без входа
+## Без входа
 
-Один запрос: `GET /public/vitrina/home`. На ней студенты с `publicProfileConsent` и `catalogVisible`, и проекты с `visibleToAnonymous` внутри окна публикации. Каталог `/public/students` и `/public/vacancies` без cookie не открывать: будет 401.
+Каталог `/public/students` и `/public/vacancies` без cookie не открывать: будет 401. Анонимной главной нет.
 
 ## Каталог и карточка
 

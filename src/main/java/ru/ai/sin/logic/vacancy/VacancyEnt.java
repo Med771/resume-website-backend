@@ -86,9 +86,13 @@ public class VacancyEnt {
     @Column(name = "moderation_rejection_reason", columnDefinition = "TEXT")
     private String moderationRejectionReason;
 
+    /** Устаревший ручной порядок витрины. Списки вакансий по нему не сортируют. */
+    @Deprecated
     @Column(name = "manual_sort_order")
     private Integer manualSortOrder;
 
+    /** Устаревший флаг «на главной». Колонка остаётся. */
+    @Deprecated
     @Column(name = "visible_to_anonymous", nullable = false)
     private boolean visibleToAnonymous = false;
 

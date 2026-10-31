@@ -34,8 +34,7 @@ import java.util.UUID;
         name = "Projects",
         description = """
                 Один ресурс проектов сайта (`/projects`).
-                Чтение: **STUDENT**, **RECRUITER**, **ADMIN**. CUD, reorder и привязка студентов: только **ADMIN**.
-                Анонимная главная — `GET /public/vitrina/home` (тот же сервисный list, без HTTP на `/projects`).""")
+                Чтение: **STUDENT**, **RECRUITER**, **ADMIN**. CUD, reorder и привязка студентов: только **ADMIN**.""")
 public class SiteProjectController {
 
     private final SiteProjectService siteProjectService;

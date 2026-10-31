@@ -23,7 +23,6 @@
 | GET | `/verification/phone/{id}/status` | статус проверки |
 | POST | `/verification/phone/{id}/confirm-code` | ввести код |
 | GET, POST | `/telegram/webhook` | апдейты бота |
-| GET | `/public/vitrina/home` | анонимная главная: студенты и проекты |
 | POST | `/public/analytics/events` | событие аналитики |
 | GET | `/main/status` | 204, сервис жив |
 | GET | `/main/photo/{image_path}` | картинка с диска |
@@ -104,8 +103,6 @@
 | GET | `/admin/vacancies/{id}` | A |
 | POST | `/admin/vacancies/{id}/approve` | A |
 | POST | `/admin/vacancies/{id}/reject` | A |
-| POST | `/admin/vacancies/reorder` | A |
-| PATCH | `/admin/vacancies/{id}/vitrina` | A |
 | GET | `/public/vacancies` | вход |
 | GET | `/public/vacancies/{id}` | вход |
 | POST | `/recruiter/onboarding/vacancy` | R |
@@ -149,8 +146,6 @@
 | GET | `/projects/{id}/students` | A |
 | POST | `/projects/{id}/students` | A |
 | DELETE | `/projects/{id}/students` | A |
-
-Аноним видит проекты внутри `GET /public/vitrina/home`.
 
 ## Справочники
 

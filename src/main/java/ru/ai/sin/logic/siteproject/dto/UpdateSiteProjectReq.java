@@ -29,7 +29,7 @@ public record UpdateSiteProjectReq(
         List<SiteProjectImageReq> images,
         @Schema(description = "ID навыков из справочника; полная замена списка")
         List<@Positive Long> skillIds,
-        @Schema(description = "Видимость анонимам на `GET /public/vitrina/home`")
+        @Schema(description = "Устаревший флаг показа анонимам. Сохраняется в карточке")
         boolean visibleToAnonymous,
         @Schema(description = "Начало окна публикации")
         LocalDateTime publishedFrom,

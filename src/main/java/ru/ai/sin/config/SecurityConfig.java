@@ -63,7 +63,6 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/verification/phone/**").permitAll()
                         .requestMatchers("/telegram/webhook").permitAll()
-                        .requestMatchers("/public/vitrina/**").permitAll()
                         .requestMatchers("/public/analytics/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/main/status").permitAll()
                         .requestMatchers("/main/photo/**").authenticated()
