@@ -19,10 +19,6 @@
 | POST | `/auth/admin/login` | вход админа |
 | POST | `/auth/admin/refresh` | обновить access админа |
 | POST | `/auth/admin/logout` | выход админа |
-| POST | `/verification/phone/start` | начать проверку телефона |
-| GET | `/verification/phone/{id}/status` | статус проверки |
-| POST | `/verification/phone/{id}/confirm-code` | ввести код |
-| GET, POST | `/telegram/webhook` | апдейты бота |
 | POST | `/public/analytics/events` | событие аналитики |
 | GET | `/main/status` | 204, сервис жив |
 | GET | `/main/photo/{image_path}` | картинка с диска |

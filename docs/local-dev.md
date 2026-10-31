@@ -29,5 +29,3 @@ Swagger: http://localhost:8080/swagger-ui.html
 ```
 
 Интеграционные тесты поднимают PostgreSQL 16 в Docker. Без Docker они помечаются как пропущенные, сборка остаётся зелёной. Подробнее: [testing.md](./testing.md).
-
-Телефон рекрутера локально можно подтвердить кодом из `app.telegram.dev-confirm-code`, пока `allow-dev-confirm: true`. Как включить бота: [telegram-setup.md](./telegram-setup.md).

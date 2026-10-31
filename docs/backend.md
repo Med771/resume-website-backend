@@ -24,7 +24,6 @@ ru.ai.sin
 Без cookie открыты:
 
 - `/auth/**`, кроме `POST /auth/confirm-email` и `POST /auth/resend-email-confirmation` (нужен вошедший студент)
-- `/verification/phone/**`, `/telegram/webhook`
 - `/public/analytics/**`
 - `/main/**`, `/ws/**`, Swagger, `/error`, `OPTIONS /**`
 
@@ -46,7 +45,7 @@ ru.ai.sin
 
 **Вакансия.** Рекрутер создаёт черновик, отправляет на модерацию, админ публикует или отклоняет. Студент откликается. Принятый отклик тоже открывает переписку в общем чате пары.
 
-**Регистрация.** Студент: `POST /auth/register-student`, сразу cookie и черновик карточки (`catalog_visible = false`), код из 4 цифр на почту. Рекрутер: подтверждает телефон, `POST /auth/register-recruiter` сразу создаёт профиль и пользователя со статусом `PENDING_APPROVAL` и выдаёт cookie. Оба аккаунта одобряет админ в `/admin/account-approvals`. Одобрение студента включает показ карточки в каталоге. Студента без подтверждённой почты одобрить нельзя.
+**Регистрация.** Студент: `POST /auth/register-student`, сразу cookie и черновик карточки (`catalog_visible = false`), код из 4 цифр на почту. Рекрутер: `POST /auth/register-recruiter` сразу создаёт профиль и пользователя со статусом `PENDING_APPROVAL` и выдаёт cookie. Телефон в анкете — контакт, без отдельной проверки. Оба аккаунта одобряет админ в `/admin/account-approvals`. Одобрение студента включает показ карточки в каталоге. Студента без подтверждённой почты одобрить нельзя.
 
 Таблица `recruiter_registration_requests` и `/admin/recruiter-registration-requests` в коде есть. Текущая саморегистрация новые строки туда не пишет.
 
@@ -89,4 +88,4 @@ Handshake `/ws` на HTTP открыт всем. Токен на connect сер�
 
 ## Конфиг
 
-`src/main/resources/application.yaml`: база, Flyway, CORS, JWT, лимиты регистрации и аналитики, Telegram, демо-логин админа (`app.user.logins`), путь к файлам.
+`src/main/resources/application.yaml`: база, Flyway, CORS, JWT, лимиты регистрации и аналитики, почта, демо-логин админа (`app.user.logins`), путь к файлам.

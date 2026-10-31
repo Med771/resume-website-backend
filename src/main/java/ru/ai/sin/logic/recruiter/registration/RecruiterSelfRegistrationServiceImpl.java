@@ -25,7 +25,6 @@ import ru.ai.sin.logic.registration.RegistrationIpRateLimiter;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
-import ru.ai.sin.logic.verification.PhoneVerificationService;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.RoleEnum;
 
@@ -40,7 +39,6 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
     private final RegistrationPasswordPolicy passwordPolicy;
     private final RegistrationProperties registrationProperties;
     private final UserProperties userProperties;
-    private final PhoneVerificationService phoneVerificationService;
 
     private final UserRepo userRepo;
     private final RecruiterRepo recruiterRepo;
@@ -65,10 +63,8 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         String email = trimToNull(req.email());
         String phone = trimToNull(req.phoneNumber());
 
-        if (phone != null) {
-            phoneVerificationService.requireConfirmed(req.phoneVerificationId(), phone);
-        } else {
-            throw new BadRequestException("Укажите и подтвердите номер телефона в Telegram");
+        if (phone == null) {
+            throw new BadRequestException("Укажите номер телефона");
         }
 
         validateUsernameAvailable(username);
@@ -117,7 +113,7 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
                 passwordEncoder.encode(req.password())
         );
         user.setRecruiter(recruiter);
-        user.setPhoneVerified(true);
+        user.setPhoneVerified(false);
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
 
         try {

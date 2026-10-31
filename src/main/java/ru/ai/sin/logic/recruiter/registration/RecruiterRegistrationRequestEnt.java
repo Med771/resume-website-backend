@@ -27,10 +27,10 @@ public class RecruiterRegistrationRequestEnt {
     @Column(nullable = false, length = 64)
     private String username;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(length = 255)
+    @Column()
     private String name;
 
     @Column(name = "company_name", nullable = false)
@@ -51,6 +51,8 @@ public class RecruiterRegistrationRequestEnt {
     @Column(name = "marketing_consent", nullable = false)
     private boolean marketingConsent;
 
+    /** Устаревшая ссылка на сессию проверки телефона в Telegram. */
+    @Deprecated
     @Column(name = "phone_verification_id")
     private UUID phoneVerificationId;
 

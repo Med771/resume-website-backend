@@ -9,7 +9,6 @@
 - `POST /public/analytics/events`
 - `GET /main/status`, `GET /main/photo/{image_path}`
 - регистрация, логин, refresh, logout
-- проверка телефона `/verification/phone/**`
 
 `/public/students/**` и `/public/vacancies/**` без cookie отвечают **401**. Каталог после входа: `POST /student/cardsFilter` и `GET /vacancies`.
 

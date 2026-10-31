@@ -43,6 +43,8 @@ public class UserEnt {
     @Column(name = "password_hash", length = 128)
     private String passwordHash;
 
+    /** Устаревший флаг подтверждения телефона через Telegram. Новая регистрация пишет false. */
+    @Deprecated
     @Column(name = "phone_verified", nullable = false)
     private boolean phoneVerified = false;
 

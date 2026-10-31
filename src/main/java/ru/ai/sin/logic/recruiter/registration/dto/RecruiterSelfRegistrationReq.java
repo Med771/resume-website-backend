@@ -3,8 +3,6 @@ package ru.ai.sin.logic.recruiter.registration.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 
-import java.util.UUID;
-
 @Schema(name = "RecruiterSelfRegistrationReq", description = "Заявка на регистрацию работодателя; вход после одобрения администратором")
 public record RecruiterSelfRegistrationReq(
         @Schema(description = "Логин будущего аккаунта")
@@ -57,10 +55,6 @@ public record RecruiterSelfRegistrationReq(
         @Schema(description = "Telegram username")
         @Size(min = 1, max = 32)
         String telegramUsername,
-
-        @Schema(description = "ID сессии верификации телефона в Telegram")
-        @NotNull
-        UUID phoneVerificationId,
 
         @Schema(description = "Согласие на рассылку советов и предложений")
         Boolean marketingConsent
