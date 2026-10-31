@@ -127,6 +127,7 @@ class ExperienceServiceImplAccessTest {
     private static ExperienceDTO dto(UUID studentId) {
         return new ExperienceDTO(
                 1L,
+                null,
                 studentId,
                 new ExperienceRes(1L, "Dev", null, LocalDate.of(2020, 1, 1), null, null));
     }

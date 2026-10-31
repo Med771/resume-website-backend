@@ -20,6 +20,7 @@ public interface ExperienceMapper {
 
     // ---------------- ExperienceEnt -> ExperienceDTO ----------------
     @Mapping(target = "companyId", source = "entity.company.id")
+    @Mapping(target = "companyWebsite", source = "entity.company.website")
     @Mapping(target = "studentId", source = "entity.student.id")
     ExperienceDTO toDTO(ExperienceEnt entity, ExperienceRes experience);
 

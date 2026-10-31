@@ -96,7 +96,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentCreateExperience_created() throws Exception {
         when(experienceService.create(any())).thenReturn(new ExperienceDTO(
-                1L, STUDENT_ID, new ExperienceRes(1L, "Dev", null, LocalDate.of(2020, 1, 1), null, null)));
+                1L, null, STUDENT_ID, new ExperienceRes(1L, "Dev", null, LocalDate.of(2020, 1, 1), null, null)));
 
         mockMvc.perform(post("/experience")
                         .contentType(MediaType.APPLICATION_JSON)
