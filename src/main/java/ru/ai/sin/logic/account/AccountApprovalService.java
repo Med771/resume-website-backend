@@ -12,6 +12,8 @@ public interface AccountApprovalService {
 
     PageResponse<AccountApprovalUserDTO> listPending(RoleEnum role, int page, int size);
 
+    PageResponse<AccountApprovalUserDTO> listStudents(int page, int size);
+
     void approve(UUID userId);
 
     void setEmailVerified(UUID userId, AccountEmailVerifiedReq body);

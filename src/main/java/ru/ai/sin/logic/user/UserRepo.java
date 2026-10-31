@@ -57,6 +57,8 @@ public interface UserRepo extends JpaRepository<UserEnt, UUID>, JpaSpecification
 
     Page<UserEnt> findByAccountStatusAndRole(AccountStatus accountStatus, RoleEnum role, Pageable pageable);
 
+    Page<UserEnt> findByRole(RoleEnum role, Pageable pageable);
+
     /**
      * Студент или работодатель по уже нормализованной почте: registration_email,
      * почта карточки студента или почта карточки работодателя.

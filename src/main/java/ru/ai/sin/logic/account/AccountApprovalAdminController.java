@@ -25,6 +25,13 @@ public class AccountApprovalAdminController {
 
     private final AccountApprovalService accountApprovalService;
 
+    @Deprecated
+    @Operation(
+            summary = "Очередь аккаунтов на проверке",
+            description = """
+                    Устарело. Только `PENDING_APPROVAL`, необязательный фильтр `role`.
+                    Список студентов со всеми статусами — `GET /admin/account-approvals/students`.
+                    Очередь рекрутеров пока здесь.""")
     @GetMapping
     public ResponseEntity<PageResponse<AccountApprovalUserDTO>> list(
             @RequestParam(required = false) RoleEnum role,
@@ -32,6 +39,19 @@ public class AccountApprovalAdminController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return ResponseEntity.ok(accountApprovalService.listPending(role, page, size));
+    }
+
+    @Operation(
+            summary = "Все студенты со статусом аккаунта",
+            description = """
+                    Страница пользователей с ролью STUDENT: `PENDING_APPROVAL`, `APPROVED` и `REJECTED`.
+                    В строке `id` пользователя и `studentId` карточки. Пагинация: `page`, `size`.""")
+    @GetMapping("/students")
+    public ResponseEntity<PageResponse<AccountApprovalUserDTO>> listStudents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(accountApprovalService.listStudents(page, size));
     }
 
     @Operation(

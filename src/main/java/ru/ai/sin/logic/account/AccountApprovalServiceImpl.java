@@ -59,6 +59,20 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AccountApprovalUserDTO> listStudents(int page, int size) {
+        PageRequest pr = PageRequest.of(page, size);
+        Page<UserEnt> result = userRepo.findByRole(RoleEnum.STUDENT, pr);
+        return new PageResponse<>(
+                result.getContent().stream().map(this::toDto).toList(),
+                page,
+                size,
+                result.getTotalElements(),
+                result.getTotalPages()
+        );
+    }
+
+    @Override
     @Transactional
     public void approve(UUID userId) {
         UserEnt user = userRepo.findById(userId)
