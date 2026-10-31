@@ -60,7 +60,7 @@ class ExperienceServiceImplAccessTest {
     @Test
     void create_studentIgnoresForeignStudentId() {
         AddExperienceReq req = new AddExperienceReq(
-                1L, OTHER_ID, "Dev", null, LocalDate.of(2020, 1, 1), null);
+                1L, OTHER_ID, "Dev", null, LocalDate.of(2020, 1, 1), null, null);
         when(accountAccessHelper.resolveStudentIdForResumeMutation(OTHER_ID)).thenReturn(OWN_ID);
 
         ExperienceEnt ent = new ExperienceEnt();
@@ -87,7 +87,7 @@ class ExperienceServiceImplAccessTest {
                 .when(accountAccessHelper).requireStudentCanMutateResume(OTHER_ID);
 
         UpdateExperienceReq req = new UpdateExperienceReq(
-                1L, OWN_ID, "Dev", null, LocalDate.of(2020, 1, 1), null);
+                1L, OWN_ID, "Dev", null, LocalDate.of(2020, 1, 1), null, null);
 
         assertThatThrownBy(() -> experienceService.update(5L, req))
                 .isInstanceOf(ForbiddenException.class);
@@ -128,7 +128,7 @@ class ExperienceServiceImplAccessTest {
         return new ExperienceDTO(
                 1L,
                 studentId,
-                new ExperienceRes(1L, "Dev", null, LocalDate.of(2020, 1, 1), null));
+                new ExperienceRes(1L, "Dev", null, LocalDate.of(2020, 1, 1), null, null));
     }
 
     private static ExperienceEnt experienceOn() {

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import ru.ai.sin.models.enums.ExperienceType;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -24,5 +25,7 @@ public record AddExperienceReq(
         @NotNull
         LocalDate startDate,
 
-        LocalDate endDate) {
+        LocalDate endDate,
+
+        ExperienceType experienceType) {
 }

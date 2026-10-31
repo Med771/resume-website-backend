@@ -3,6 +3,7 @@ package ru.ai.sin.logic.experience.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import ru.ai.sin.models.enums.ExperienceType;
 
 import java.time.LocalDate;
 
@@ -19,5 +20,7 @@ public record ExperienceRes(
         @NotNull
         LocalDate startDate,
 
-        LocalDate endDate) {
+        LocalDate endDate,
+
+        ExperienceType experienceType) {
 }

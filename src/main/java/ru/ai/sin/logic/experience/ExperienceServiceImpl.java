@@ -21,6 +21,7 @@ import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
 
 import ru.ai.sin.logic.experience.dto.*;
+import ru.ai.sin.models.enums.ExperienceType;
 
 import ru.ai.sin.tools.CompanyTools;
 import ru.ai.sin.tools.ExperienceTools;
@@ -88,6 +89,9 @@ public class ExperienceServiceImpl implements ExperienceService {
         accountAccessHelper.requireStudentCanMutateResume(studentId);
 
         ExperienceEnt experienceEnt = experienceMapper.toEntity(addExperienceReq);
+        if (experienceEnt.getExperienceType() == null) {
+            experienceEnt.setExperienceType(ExperienceType.WORK);
+        }
 
         updateActiveCompanyOrThrow(addExperienceReq.companyId(), experienceEnt);
         updateActiveStudentOrThrow(studentId, experienceEnt);

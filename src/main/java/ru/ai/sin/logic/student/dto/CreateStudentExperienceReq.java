@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
+import ru.ai.sin.models.enums.ExperienceType;
 
 @Schema(name = "CreateStudentExperienceReq", description = "DTO для создания опыта работы студента")
 public record CreateStudentExperienceReq(
@@ -29,6 +30,9 @@ public record CreateStudentExperienceReq(
         @Schema(description = "Дата начала работы")
         LocalDate startDate,
         @Schema(description = "Дата окончания работы")
-        LocalDate endDate
+        LocalDate endDate,
+
+        @Schema(description = "WORK — опыт работы, PROJECT — проектная деятельность. Если не передан, сохраняется WORK")
+        ExperienceType experienceType
 ) {
 }

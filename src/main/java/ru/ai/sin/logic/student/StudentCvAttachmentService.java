@@ -17,6 +17,7 @@ import ru.ai.sin.logic.institution.InstitutionEnt;
 import ru.ai.sin.logic.institution.InstitutionRepo;
 import ru.ai.sin.logic.student.dto.CreateStudentExperienceReq;
 import ru.ai.sin.logic.student.dto.CreateStudentInstitutionReq;
+import ru.ai.sin.models.enums.ExperienceType;
 
 import java.util.List;
 
@@ -58,6 +59,8 @@ public class StudentCvAttachmentService {
             experienceEnt.setAdditionalInfo(item.additionalInfo());
             experienceEnt.setStartDate(item.startDate());
             experienceEnt.setEndDate(item.endDate());
+            experienceEnt.setExperienceType(
+                    item.experienceType() == null ? ExperienceType.WORK : item.experienceType());
 
             try {
                 experienceRepo.save(experienceEnt);
