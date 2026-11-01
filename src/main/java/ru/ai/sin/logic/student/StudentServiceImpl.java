@@ -10,6 +10,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.FileNotFoundException;
 import ru.ai.sin.models.PageResponse;
 import ru.ai.sin.models.embeddables.ContactInformation;
 import ru.ai.sin.models.embeddables.UserInformation;
@@ -114,6 +116,25 @@ public class StudentServiceImpl implements StudentService {
         }
 
         studentEnt.setImagePath(filePath);
+        StudentProfileScoring.applyTo(studentEnt);
+        studentReviewState.onStudentSelfEdit(studentEnt);
+    }
+
+    @Override
+    @Transactional
+    public void deletePhoto(UUID id) {
+        accountAccessHelper.requireStudentOwnsProfile(id);
+        StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
+        String imagePath = studentEnt.getImagePath();
+        if (imagePath == null || imagePath.isBlank()) {
+            return;
+        }
+        try {
+            fileHelper.deleteFile(imagePath);
+        } catch (FileNotFoundException ignored) {
+            // файла уже нет, путь в анкете всё равно очищаем
+        }
+        studentEnt.setImagePath(null);
         StudentProfileScoring.applyTo(studentEnt);
         studentReviewState.onStudentSelfEdit(studentEnt);
     }

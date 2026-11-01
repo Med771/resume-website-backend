@@ -211,6 +211,22 @@ class StudentControllerMvcTest {
     }
 
     @Test
+    @WithMockUser(roles = "STUDENT")
+    void deletePhoto_noContentForStudent() throws Exception {
+        mockMvc.perform(delete("/student/photo/{id}", STUDENT_ID).with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(studentService).deletePhoto(STUDENT_ID);
+    }
+
+    @Test
+    @WithMockUser(roles = "RECRUITER")
+    void deletePhoto_forbiddenForRecruiter() throws Exception {
+        mockMvc.perform(delete("/student/photo/{id}", STUDENT_ID).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @WithMockUser(roles = "RECRUITER")
     void delete_forbiddenForUser() throws Exception {
         mockMvc.perform(delete("/student/{id}", STUDENT_ID).with(csrf()))

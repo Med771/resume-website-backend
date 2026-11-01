@@ -22,6 +22,8 @@ public interface StudentService {
             UUID id,
             MultipartFile file);
 
+    void deletePhoto(UUID id);
+
     PageResponse<StudentCardDTO> getAllCardsByFilter(
             Pageable pageable,
             FilterStudentReq filterStudentReq);

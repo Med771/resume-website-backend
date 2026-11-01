@@ -40,6 +40,7 @@
 | POST | `/student/cardsFilter` | S, R, A |
 | POST | `/student/filter` | S, R, A |
 | POST | `/student/photo/{id}` | S, A, multipart |
+| DELETE | `/student/photo/{id}` | S, A |
 | POST | `/student` | A |
 | PUT | `/student/{id}` | A |
 | PATCH | `/student/{id}` | A |

@@ -177,6 +177,21 @@ public class StudentController {
     }
 
     @Operation(
+            summary = "Удалить фото студента",
+            description = """
+                    **STUDENT** — только своей карточки; **ADMIN** — любой.
+                    Стирает файл из хранилища и очищает `imagePath`. Если фото уже нет — **204**.
+                    Правка своей карточки студентом возвращает анкету на проверку. Правка админом статус не меняет.
+
+                    **204** при успехе. **404** — нет студента. **403** — чужой профиль.""")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    @DeleteMapping(path = "/photo/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePhoto(@PathVariable @NotNull UUID id) {
+        studentService.deletePhoto(id);
+    }
+
+    @Operation(
             summary = "Создать студента (базовый набор полей)",
             description = """
                     Только **ADMIN**. Создаёт карточку и связи по DTO.
