@@ -48,6 +48,9 @@ public record StudentDTO(
         @NotNull
         BusynessEnum busyness,
 
+        @Schema(description = "Желаемая занятость. На макете «Желаемый формат»: EMPLOYED — фулл-тайм, FREELANCE — парт-тайм, PROJECT_WORK — проектная работа. null — не указана")
+        BusynessEnum desiredBusyness,
+
         @Schema(description = "Статус поиска работы. null — не указан")
         JobSearchStatus jobSearchStatus,
 

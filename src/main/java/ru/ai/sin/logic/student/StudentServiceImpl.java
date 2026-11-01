@@ -295,6 +295,7 @@ public class StudentServiceImpl implements StudentService {
                 patchStudentReq.bio(),
                 patchStudentReq.course(),
                 patchStudentReq.busyness(),
+                patchStudentReq.desiredBusyness(),
                 patchStudentReq.jobSearchStatus(),
                 patchStudentReq.firstName(),
                 patchStudentReq.lastName(),
@@ -347,6 +348,7 @@ public class StudentServiceImpl implements StudentService {
                 req.bio(),
                 req.course(),
                 req.busyness(),
+                req.desiredBusyness(),
                 req.jobSearchStatus(),
                 req.firstName(),
                 req.lastName(),
@@ -490,6 +492,7 @@ public class StudentServiceImpl implements StudentService {
             String bio,
             CourseEnum course,
             BusynessEnum busyness,
+            BusynessEnum desiredBusyness,
             JobSearchStatus jobSearchStatus,
             String firstName,
             String lastName,
@@ -519,6 +522,9 @@ public class StudentServiceImpl implements StudentService {
         }
         if (busyness != null) {
             studentEnt.setBusyness(busyness);
+        }
+        if (desiredBusyness != null) {
+            studentEnt.setDesiredBusyness(desiredBusyness);
         }
         if (jobSearchStatus != null) {
             studentEnt.setJobSearchStatus(jobSearchStatus);

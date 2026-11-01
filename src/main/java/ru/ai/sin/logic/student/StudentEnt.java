@@ -67,6 +67,11 @@ public class StudentEnt {
     @Convert(converter = BusynessEnumConverter.class)
     private BusynessEnum busyness;
 
+    /** Желаемая занятость. На макете «Желаемый формат». Пусто, пока студент её не указал. */
+    @Column(name = "desired_busyness", length = 32)
+    @Convert(converter = BusynessEnumConverter.class)
+    private BusynessEnum desiredBusyness;
+
     /** Статус поиска работы. Пусто, пока студент его не указал. */
     @Column(name = "job_search_status", length = 32)
     @Convert(converter = JobSearchStatusConverter.class)

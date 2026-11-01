@@ -113,7 +113,7 @@ class StudentServiceImplPatchMeTest {
 
         StudentDTO dto = new StudentDTO(
                 ID, "c", "h", LocalDate.of(1999, 5, 5), "new bio", null,
-                CourseEnum.FIRST, BusynessEnum.FREE, null, "A", "B", null, null, null, null, null, 1L, "S",
+                CourseEnum.FIRST, BusynessEnum.FREE, null, null, "A", "B", null, null, null, null, null, 1L, "S",
                 List.of(new SkillDTO(1L, "Java")),
                 false,
                 false,
@@ -123,7 +123,7 @@ class StudentServiceImplPatchMeTest {
         when(studentTools.mapToDTO(studentEnt)).thenReturn(dto);
 
         PatchStudentMeReq req = new PatchStudentMeReq(
-                null, null, null, "new bio", null, null, null,
+                null, null, null, "new bio", null, null, null, null,
                 null, null, null, null, null, null, null, null,
                 List.of(1L), null, null);
 

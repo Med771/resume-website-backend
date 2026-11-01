@@ -47,6 +47,9 @@ public record UpdateStudentReq(
         @NotNull
         BusynessEnum busyness,
 
+        @Schema(description = "Желаемая занятость. На макете «Желаемый формат»: EMPLOYED — фулл-тайм, FREELANCE — парт-тайм, PROJECT_WORK — проектная работа. null — не менять")
+        BusynessEnum desiredBusyness,
+
         @Schema(description = "Статус поиска работы. null — не менять")
         JobSearchStatus jobSearchStatus,
 

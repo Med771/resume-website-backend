@@ -61,6 +61,7 @@ class StudentControllerMvcTest {
                 CourseEnum.FIRST,
                 BusynessEnum.EMPLOYED,
                 null,
+                null,
                 "Ivan",
                 "Petrov",
                 null,

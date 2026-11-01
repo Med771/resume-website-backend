@@ -70,6 +70,7 @@ erDiagram
 | course | VARCHAR(16) | `1` … `5` |
 | busyness | VARCHAR(32) | `free` нет занятости, `freelance` парт-тайм, `employed` фулл-тайм, `project_work` проектная работа |
 | job_search_status | VARCHAR(32) | статус поиска: `looking`, `considering`, `not_looking`; пусто, пока не указан |
+| desired_busyness | VARCHAR(32) | желаемая занятость: `employed`, `freelance`, `project_work`; пусто, пока не указана |
 | middle_name | VARCHAR(255) | отчество |
 | gender | VARCHAR(16) | `MALE`, `FEMALE` |
 | first_name, last_name | VARCHAR(255) | |
