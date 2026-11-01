@@ -164,7 +164,7 @@ erDiagram
 
 ### `institution`
 
-Учёба конкретного студента: `id` BIGINT, `start_year`, `end_year`, `education_id` FK, `student_id` FK, даты.
+Учёба конкретного студента: `id` BIGINT, `start_year`, `end_year`, `education_type` (`STATE` гос. образование, `COURSE` курс; без поля сохраняется `STATE`), `education_id` FK, `student_id` FK, даты.
 
 ### `portfolio`
 

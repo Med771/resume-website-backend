@@ -13,6 +13,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.models.embeddables.TimeStamped;
+import ru.ai.sin.models.enums.EducationType;
+import ru.ai.sin.models.enums.convertor.EducationTypeConverter;
 
 import ru.ai.sin.logic.education.EducationEnt;
 
@@ -37,6 +39,11 @@ public class InstitutionEnt {
     @Min(1900)
     @Max(2100)
     private int endYear;
+
+    /** Гос. образование или образовательный курс. Без поля сохраняется гос. образование. */
+    @Column(name = "education_type", nullable = false, length = 32)
+    @Convert(converter = EducationTypeConverter.class)
+    private EducationType educationType = EducationType.STATE;
 
     @Embedded
     private TimeStamped timestamps = new TimeStamped();

@@ -28,6 +28,7 @@ import ru.ai.sin.logic.institution.InstitutionController;
 import ru.ai.sin.logic.institution.InstitutionService;
 import ru.ai.sin.logic.institution.dto.InstitutionDTO;
 import ru.ai.sin.logic.institution.dto.InstitutionRes;
+import ru.ai.sin.models.enums.EducationType;
 import ru.ai.sin.logic.portfolio.PortfolioController;
 import ru.ai.sin.logic.portfolio.PortfolioService;
 import ru.ai.sin.logic.portfolio.dto.PortfolioDTO;
@@ -111,7 +112,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentCreateInstitution_created() throws Exception {
         when(institutionService.create(any())).thenReturn(
-                new InstitutionDTO(1L, STUDENT_ID, new InstitutionRes(1L, 2020, 2024)));
+                new InstitutionDTO(1L, STUDENT_ID, new InstitutionRes(1L, 2020, 2024, EducationType.STATE)));
 
         mockMvc.perform(post("/institution")
                         .contentType(MediaType.APPLICATION_JSON)

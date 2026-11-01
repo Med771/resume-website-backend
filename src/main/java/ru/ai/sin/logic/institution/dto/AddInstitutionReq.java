@@ -2,6 +2,7 @@ package ru.ai.sin.logic.institution.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import ru.ai.sin.models.enums.EducationType;
 
 import java.util.UUID;
 
@@ -15,5 +16,7 @@ public record AddInstitutionReq(
 
         @Min(1900)
         @Max(2100)
-        int endYear) {
+        int endYear,
+
+        EducationType educationType) {
 }
