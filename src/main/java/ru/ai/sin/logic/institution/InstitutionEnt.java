@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -44,6 +45,16 @@ public class InstitutionEnt {
     @Column(name = "education_type", nullable = false, length = 32)
     @Convert(converter = EducationTypeConverter.class)
     private EducationType educationType = EducationType.STATE;
+
+    /** Направление подготовки. Пусто, пока студент его не указал. */
+    @Column(length = 255)
+    @Size(max = 255)
+    private String direction;
+
+    /** Уровень образования. Пусто, пока студент его не указал. */
+    @Column(name = "education_level", length = 255)
+    @Size(max = 255)
+    private String educationLevel;
 
     @Embedded
     private TimeStamped timestamps = new TimeStamped();

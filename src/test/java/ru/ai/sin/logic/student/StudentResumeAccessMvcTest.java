@@ -112,7 +112,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentCreateInstitution_created() throws Exception {
         when(institutionService.create(any())).thenReturn(
-                new InstitutionDTO(1L, STUDENT_ID, new InstitutionRes(1L, 2020, 2024, EducationType.STATE)));
+                new InstitutionDTO(1L, STUDENT_ID, new InstitutionRes(1L, 2020, 2024, EducationType.STATE, null, null)));
 
         mockMvc.perform(post("/institution")
                         .contentType(MediaType.APPLICATION_JSON)

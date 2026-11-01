@@ -32,5 +32,7 @@ public interface InstitutionMapper {
     @Mapping(target = "education", ignore = true)
     @Mapping(target = "student", ignore = true)
     @Mapping(target = "educationType", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "direction", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "educationLevel", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntityFromDto(UpdateInstitutionReq dto, @MappingTarget InstitutionEnt entity);
 }

@@ -3,6 +3,7 @@ package ru.ai.sin.logic.institution.dto;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import ru.ai.sin.models.enums.EducationType;
 
 public record InstitutionRes(
@@ -17,5 +18,11 @@ public record InstitutionRes(
         int endYear,
 
         @NotNull
-        EducationType educationType) {
+        EducationType educationType,
+
+        @Size(max = 255)
+        String direction,
+
+        @Size(max = 255)
+        String educationLevel) {
 }
