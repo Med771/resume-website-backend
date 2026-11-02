@@ -25,6 +25,13 @@ public class AccountApprovalAdminController {
 
     private final AccountApprovalService accountApprovalService;
 
+    @Deprecated
+    @Operation(
+            summary = "Очередь аккаунтов на проверке",
+            description = """
+                    Устарело. Только `PENDING_APPROVAL`, необязательный фильтр `role`.
+                    Список студентов со всеми статусами — `GET /admin/account-approvals/students`.
+                    Очередь рекрутеров пока здесь.""")
     @GetMapping
     public ResponseEntity<PageResponse<AccountApprovalUserDTO>> list(
             @RequestParam(required = false) RoleEnum role,
@@ -32,6 +39,19 @@ public class AccountApprovalAdminController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return ResponseEntity.ok(accountApprovalService.listPending(role, page, size));
+    }
+
+    @Operation(
+            summary = "Все студенты со статусом аккаунта",
+            description = """
+                    Страница пользователей с ролью STUDENT: `PENDING_APPROVAL`, `APPROVED` и `REJECTED`.
+                    В строке `id` пользователя и `studentId` карточки. Пагинация: `page`, `size`.""")
+    @GetMapping("/students")
+    public ResponseEntity<PageResponse<AccountApprovalUserDTO>> listStudents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(accountApprovalService.listStudents(page, size));
     }
 
     @Operation(
@@ -60,9 +80,10 @@ public class AccountApprovalAdminController {
     @Operation(
             summary = "Отклонить аккаунт",
             description = """
-                    Студенту нужен `reasonCode`: INCOMPLETE_PROFILE, INVALID_DATA, NOT_ELIGIBLE, DUPLICATE, OTHER.
-                    Для OTHER обязателен `comment`. Студенту уходит письмо с причиной.
-                    Рекрутеру тело можно не передавать.""")
+                    Студента можно отклонить из `PENDING_APPROVAL` и из `APPROVED`.
+                    Нужен `reasonCode`: INCOMPLETE_PROFILE, INVALID_DATA, NOT_ELIGIBLE, DUPLICATE, OTHER.
+                    Для OTHER обязателен `comment`. Студенту уходит письмо с причиной, карточка скрывается.
+                    Рекрутера — только из `PENDING_APPROVAL`, тело можно не передавать.""")
     @PostMapping("/{userId}/reject")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void reject(@PathVariable UUID userId, @Valid @RequestBody(required = false) AccountRejectReq body) {

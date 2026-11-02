@@ -7,6 +7,8 @@ import java.util.UUID;
 public record ExperienceDTO(
         long companyId,
 
+        String companyWebsite,
+
         @NotNull
         UUID studentId,
 

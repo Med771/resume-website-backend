@@ -28,6 +28,7 @@ import ru.ai.sin.logic.institution.InstitutionController;
 import ru.ai.sin.logic.institution.InstitutionService;
 import ru.ai.sin.logic.institution.dto.InstitutionDTO;
 import ru.ai.sin.logic.institution.dto.InstitutionRes;
+import ru.ai.sin.models.enums.EducationType;
 import ru.ai.sin.logic.portfolio.PortfolioController;
 import ru.ai.sin.logic.portfolio.PortfolioService;
 import ru.ai.sin.logic.portfolio.dto.PortfolioDTO;
@@ -96,7 +97,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentCreateExperience_created() throws Exception {
         when(experienceService.create(any())).thenReturn(new ExperienceDTO(
-                1L, STUDENT_ID, new ExperienceRes(1L, "Dev", null, LocalDate.of(2020, 1, 1), null)));
+                1L, null, STUDENT_ID, new ExperienceRes(1L, "Dev", null, LocalDate.of(2020, 1, 1), null, null)));
 
         mockMvc.perform(post("/experience")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -111,7 +112,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentCreateInstitution_created() throws Exception {
         when(institutionService.create(any())).thenReturn(
-                new InstitutionDTO(1L, STUDENT_ID, new InstitutionRes(1L, 2020, 2024)));
+                new InstitutionDTO(1L, STUDENT_ID, new InstitutionRes(1L, 2020, 2024, EducationType.STATE, null, null)));
 
         mockMvc.perform(post("/institution")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -194,7 +195,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentCreateCompany_created() throws Exception {
         when(companyService.create(any()))
-                .thenReturn(new CompanyDTO(1L, "Acme", List.of()));
+                .thenReturn(new CompanyDTO(1L, "Acme", null, List.of()));
 
         mockMvc.perform(post("/company")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -209,7 +210,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentUpdateCompany_ok() throws Exception {
         when(companyService.updateById(anyLong(), any()))
-                .thenReturn(new CompanyDTO(1L, "Acme", List.of()));
+                .thenReturn(new CompanyDTO(1L, "Acme", null, List.of()));
 
         mockMvc.perform(put("/company/{id}", 1)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -264,7 +265,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentFilterCompany_ok() throws Exception {
         when(companyService.getAllByFilter(any(), any()))
-                .thenReturn(new PageResponse<>(List.of(new CompanyDTO(1L, "Acme", List.of())), 0, 20, 1, 1));
+                .thenReturn(new PageResponse<>(List.of(new CompanyDTO(1L, "Acme", null, List.of())), 0, 20, 1, 1));
 
         mockMvc.perform(post("/company/filter")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -303,7 +304,7 @@ class StudentResumeAccessMvcTest {
     void patchMe_ok() throws Exception {
         when(studentService.patchMe(any())).thenReturn(new StudentDTO(
                 STUDENT_ID, "City", null, null, "bio", null,
-                CourseEnum.FIRST, BusynessEnum.FREE, "A", "B", null, null, null, null, null, 1L, "S",
+                CourseEnum.FIRST, BusynessEnum.FREE, null, null, "A", "B", null, null, null, null, null, 1L, "S",
                 List.of(new SkillDTO(1L, "Java")),
                 false, false, 0, null));
 

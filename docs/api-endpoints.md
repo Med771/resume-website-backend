@@ -19,11 +19,6 @@
 | POST | `/auth/admin/login` | вход админа |
 | POST | `/auth/admin/refresh` | обновить access админа |
 | POST | `/auth/admin/logout` | выход админа |
-| POST | `/verification/phone/start` | начать проверку телефона |
-| GET | `/verification/phone/{id}/status` | статус проверки |
-| POST | `/verification/phone/{id}/confirm-code` | ввести код |
-| GET, POST | `/telegram/webhook` | апдейты бота |
-| GET | `/public/vitrina/home` | анонимная главная: студенты и проекты |
 | POST | `/public/analytics/events` | событие аналитики |
 | GET | `/main/status` | 204, сервис жив |
 | GET | `/main/photo/{image_path}` | картинка с диска |
@@ -45,8 +40,8 @@
 | POST | `/student/cardsFilter` | S, R, A |
 | POST | `/student/filter` | S, R, A |
 | POST | `/student/photo/{id}` | S, A, multipart |
+| DELETE | `/student/photo/{id}` | S, A |
 | POST | `/student` | A |
-| POST | `/student/extended` | A, карточка сразу с опытом и учёбой |
 | PUT | `/student/{id}` | A |
 | PATCH | `/student/{id}` | A |
 | DELETE | `/student/{id}` | A |
@@ -105,8 +100,6 @@
 | GET | `/admin/vacancies/{id}` | A |
 | POST | `/admin/vacancies/{id}/approve` | A |
 | POST | `/admin/vacancies/{id}/reject` | A |
-| POST | `/admin/vacancies/reorder` | A |
-| PATCH | `/admin/vacancies/{id}/vitrina` | A |
 | GET | `/public/vacancies` | вход |
 | GET | `/public/vacancies/{id}` | вход |
 | POST | `/recruiter/onboarding/vacancy` | R |
@@ -126,14 +119,15 @@
 | POST | `/user/filter` | A |
 | POST | `/user` | A |
 | DELETE | `/user/{id}` | A |
-| GET | `/admin/account-approvals` | A |
+| GET | `/admin/account-approvals` | A, устарел: только ожидающие, ещё и рекрутеры |
+| GET | `/admin/account-approvals/students` | A, все студенты и их статус |
 | POST | `/admin/account-approvals/{userId}/approve` | A |
 | POST | `/admin/account-approvals/{userId}/reject` | A |
 | POST | `/admin/recruiter-registration-requests/filter` | A |
 | POST | `/admin/recruiter-registration-requests/{id}/approve` | A |
 | POST | `/admin/recruiter-registration-requests/{id}/reject` | A |
 
-Живая регистрация рекрутера идёт через `POST /auth/register-recruiter` и очередь `/admin/account-approvals`. Методы `/admin/recruiter-registration-requests` работают со строками таблицы `recruiter_registration_requests`; текущая форма новые строки туда не добавляет.
+Живая регистрация рекрутера идёт через `POST /auth/register-recruiter`. Очередь рекрутеров на проверке — устаревший `GET /admin/account-approvals`. Студентов со всеми статусами отдаёт `GET /admin/account-approvals/students`. Методы `/admin/recruiter-registration-requests` работают со строками таблицы `recruiter_registration_requests`; текущая форма новые строки туда не добавляет.
 
 Студента без подтверждённой почты админ одобрить не может (400).
 
@@ -150,8 +144,6 @@
 | GET | `/projects/{id}/students` | A |
 | POST | `/projects/{id}/students` | A |
 | DELETE | `/projects/{id}/students` | A |
-
-Аноним видит проекты внутри `GET /public/vitrina/home`.
 
 ## Справочники
 

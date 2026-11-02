@@ -36,6 +36,7 @@ import ru.ai.sin.tools.StudentTools;
 import ru.ai.sin.tools.UserTools;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.io.FileNotFoundException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +44,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -75,8 +78,6 @@ class StudentServiceImplPatchMeTest {
     @Mock
     private SkillTools skillTools;
     @Mock
-    private StudentCvAttachmentService studentCvAttachmentService;
-    @Mock
     private StudentSkillsMutator studentSkillsMutator;
     @Mock
     private FileHelper fileHelper;
@@ -103,6 +104,44 @@ class StudentServiceImplPatchMeTest {
     private StudentServiceImpl studentService;
 
     @Test
+    void deletePhoto_removesFileAndClearsPath() throws Exception {
+        StudentEnt student = new StudentEnt();
+        student.setId(ID);
+        student.setImagePath("avatar.jpg");
+        when(studentTools.getStudentOrThrow(ID)).thenReturn(student);
+
+        studentService.deletePhoto(ID);
+
+        assertThat(student.getImagePath()).isNull();
+        verify(fileHelper).deleteFile("avatar.jpg");
+        verify(studentReviewState).onStudentSelfEdit(student);
+    }
+
+    @Test
+    void deletePhoto_missingFileStillClearsPath() throws Exception {
+        StudentEnt student = new StudentEnt();
+        student.setId(ID);
+        student.setImagePath("gone.jpg");
+        when(studentTools.getStudentOrThrow(ID)).thenReturn(student);
+        doThrow(new FileNotFoundException("gone.jpg")).when(fileHelper).deleteFile("gone.jpg");
+
+        studentService.deletePhoto(ID);
+
+        assertThat(student.getImagePath()).isNull();
+    }
+
+    @Test
+    void deletePhoto_blankPathDoesNotTouchFile() throws Exception {
+        StudentEnt student = new StudentEnt();
+        student.setId(ID);
+        when(studentTools.getStudentOrThrow(ID)).thenReturn(student);
+
+        studentService.deletePhoto(ID);
+
+        verify(fileHelper, never()).deleteFile(any());
+    }
+
+    @Test
     void patchMe_writesBioAndSkills() {
         StudentEnt studentEnt = new StudentEnt();
         studentEnt.setId(ID);
@@ -115,7 +154,7 @@ class StudentServiceImplPatchMeTest {
 
         StudentDTO dto = new StudentDTO(
                 ID, "c", "h", LocalDate.of(1999, 5, 5), "new bio", null,
-                CourseEnum.FIRST, BusynessEnum.FREE, "A", "B", null, null, null, null, null, 1L, "S",
+                CourseEnum.FIRST, BusynessEnum.FREE, null, null, "A", "B", null, null, null, null, null, 1L, "S",
                 List.of(new SkillDTO(1L, "Java")),
                 false,
                 false,
@@ -125,7 +164,7 @@ class StudentServiceImplPatchMeTest {
         when(studentTools.mapToDTO(studentEnt)).thenReturn(dto);
 
         PatchStudentMeReq req = new PatchStudentMeReq(
-                null, null, null, "new bio", null, null,
+                null, null, null, "new bio", null, null, null, null,
                 null, null, null, null, null, null, null, null,
                 List.of(1L), null, null);
 

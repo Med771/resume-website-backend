@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import ru.ai.sin.models.enums.BusynessEnum;
+import ru.ai.sin.models.enums.JobSearchStatus;
 import ru.ai.sin.validation.MinAge;
 import ru.ai.sin.models.enums.CourseEnum;
 
@@ -32,7 +33,7 @@ public record PatchStudentMeReq(
         @Schema(description = "Дата рождения")
         @JsonFormat(pattern = "yyyy-MM-dd")
         @Past(message = "Birth date must be in the past")
-        @MinAge(14)
+        @MinAge()
         LocalDate birthDate,
 
         @Schema(description = "Краткая информация о студенте")
@@ -42,8 +43,14 @@ public record PatchStudentMeReq(
         @Schema(description = "Текущий курс (1–5)")
         CourseEnum course,
 
-        @Schema(description = "Тип занятости")
+        @Schema(description = "Тип занятости: EMPLOYED — фулл-тайм, FREELANCE — парт-тайм, FREE — нет занятости, PROJECT_WORK — проектная работа")
         BusynessEnum busyness,
+
+        @Schema(description = "Желаемая занятость. На макете «Желаемый формат»: EMPLOYED — фулл-тайм, FREELANCE — парт-тайм, PROJECT_WORK — проектная работа. null — не менять")
+        BusynessEnum desiredBusyness,
+
+        @Schema(description = "Статус поиска работы. null — не менять")
+        JobSearchStatus jobSearchStatus,
 
         @Schema(description = "Имя")
         @Size(min = 1, max = 255, message = "First name must be less than 255 characters")

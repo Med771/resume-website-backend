@@ -6,8 +6,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
 import ru.ai.sin.logic.experience.ExperienceEnt;
@@ -27,6 +30,7 @@ import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,6 +60,15 @@ class AccountApprovalServiceImplTest {
 
     @InjectMocks
     private AccountApprovalServiceImpl service;
+
+    private static UserEnt studentUser(AccountStatus status) {
+        StudentEnt student = new StudentEnt();
+        student.setId(UUID.randomUUID());
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setAccountStatus(status);
+        user.setStudent(student);
+        return user;
+    }
 
     @Test
     void approve_setsCatalogVisibleForLinkedStudent() {
@@ -79,6 +93,37 @@ class AccountApprovalServiceImplTest {
         assertThat(captor.getValue().isCatalogVisible()).isTrue();
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
         verify(verificationOtpMailer).trySendAccountApproved("student@test.local", "student");
+    }
+
+    @Test
+    void listStudents_returnsEveryAccountStatus() {
+        when(userRepo.findByRole(eq(RoleEnum.STUDENT), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(
+                        studentUser(AccountStatus.PENDING_APPROVAL),
+                        studentUser(AccountStatus.APPROVED),
+                        studentUser(AccountStatus.REJECTED)
+                )));
+
+        var page = service.listStudents(0, 20);
+
+        assertThat(page.data()).extracting(AccountApprovalUserDTO::accountStatus)
+                .containsExactly(
+                        AccountStatus.PENDING_APPROVAL,
+                        AccountStatus.APPROVED,
+                        AccountStatus.REJECTED);
+        verify(userRepo).findByRole(eq(RoleEnum.STUDENT), any(Pageable.class));
+        verify(userRepo, never()).findByAccountStatus(any(), any());
+    }
+
+    @Test
+    void listPending_stillOnlyWaitingAccounts() {
+        when(userRepo.findByAccountStatus(eq(AccountStatus.PENDING_APPROVAL), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        service.listPending(null, 0, 20);
+
+        verify(userRepo).findByAccountStatus(eq(AccountStatus.PENDING_APPROVAL), any(Pageable.class));
+        verify(userRepo, never()).findByRole(any(), any());
     }
 
     @Test
@@ -199,6 +244,47 @@ class AccountApprovalServiceImplTest {
                 eq("student"),
                 eq("Анкета заполнена недостаточно"),
                 eq("Нет описания опыта"));
+    }
+
+    @Test
+    void reject_approvedStudent_hidesCardAndSendsEmail() {
+        StudentEnt student = new StudentEnt();
+        student.setCatalogVisible(true);
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.APPROVED);
+        user.setStudent(student);
+        user.setRegistrationEmail("student@test.local");
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(securityHelper.getCurrentUsername()).thenReturn("admin");
+
+        service.reject(USER_ID, new AccountRejectReq("INVALID_DATA", null));
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.REJECTED);
+        assertThat(student.isCatalogVisible()).isFalse();
+        assertThat(student.getRejectionReason()).isEqualTo("INVALID_DATA");
+        verify(studentRepo).save(student);
+        verify(verificationOtpMailer).trySendAccountRejected(
+                eq("student@test.local"),
+                eq("student"),
+                eq("Данные или контакты выглядят некорректно"),
+                isNull());
+    }
+
+    @Test
+    void reject_approvedRecruiter_throwsBadRequest() {
+        UserEnt user = new UserEnt(RoleEnum.RECRUITER, "r", "recruiter", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.APPROVED);
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> service.reject(USER_ID, null))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("уже обработан");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        verify(userRepo, never()).save(any());
     }
 
     @Test

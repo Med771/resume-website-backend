@@ -16,9 +16,6 @@ public interface SiteProjectService {
 
     SiteProjectDTO getById(UUID id);
 
-    /** Публичная главная: visibleToAnonymous + окно публикации, без участников, обрезка limit. */
-    List<SiteProjectDTO> listForVitrina(int limit);
-
     SiteProjectDTO create(CreateSiteProjectReq req);
 
     SiteProjectDTO update(UUID id, UpdateSiteProjectReq req);

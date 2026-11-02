@@ -60,6 +60,8 @@ class StudentControllerMvcTest {
                 null,
                 CourseEnum.FIRST,
                 BusynessEnum.EMPLOYED,
+                null,
+                null,
                 "Ivan",
                 "Petrov",
                 null,
@@ -205,6 +207,22 @@ class StudentControllerMvcTest {
         MockMultipartFile file = new MockMultipartFile("avatarFile", "photo.jpg", "image/jpeg", new byte[] {1, 2, 3});
 
         mockMvc.perform(multipart("/student/photo/{id}", STUDENT_ID).file(file).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void deletePhoto_noContentForStudent() throws Exception {
+        mockMvc.perform(delete("/student/photo/{id}", STUDENT_ID).with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(studentService).deletePhoto(STUDENT_ID);
+    }
+
+    @Test
+    @WithMockUser(roles = "RECRUITER")
+    void deletePhoto_forbiddenForRecruiter() throws Exception {
+        mockMvc.perform(delete("/student/photo/{id}", STUDENT_ID).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 

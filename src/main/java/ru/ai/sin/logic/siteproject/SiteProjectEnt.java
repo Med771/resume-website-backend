@@ -57,6 +57,8 @@ public class SiteProjectEnt {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
+    /** Устаревший флаг анонимной главной. Колонка остаётся, новые правила показа на неё не опираются. */
+    @Deprecated
     @Column(name = "visible_to_anonymous", nullable = false)
     private boolean visibleToAnonymous;
 

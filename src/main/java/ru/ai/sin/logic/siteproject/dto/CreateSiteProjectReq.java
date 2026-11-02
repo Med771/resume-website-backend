@@ -29,7 +29,7 @@ public record CreateSiteProjectReq(
         List<SiteProjectImageReq> images,
         @Schema(description = "ID навыков из справочника; полная замена списка при создании")
         List<@Positive Long> skillIds,
-        @Schema(description = "Показывать на `GET /public/vitrina/home`; если false — только в `POST /projects/filter` для авторизованных (плюс окно публикации)")
+        @Schema(description = "Устаревший флаг показа анонимам. Сохраняется в карточке; при false проект остаётся в `POST /projects/filter` для вошедших (плюс окно публикации)")
         boolean visibleToAnonymous,
         @Schema(description = "Нижняя граница публикации; null — без ограничения «не раньше»")
         LocalDateTime publishedFrom,

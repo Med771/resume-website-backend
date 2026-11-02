@@ -8,7 +8,8 @@ import lombok.Getter;
 public enum BusynessEnum {
     FREE("free"),
     FREELANCE("freelance"),
-    EMPLOYED("employed");
+    EMPLOYED("employed"),
+    PROJECT_WORK("project_work");
 
 
     private final String busyness;

@@ -3,6 +3,7 @@ package ru.ai.sin.logic.experience;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.ReportingPolicy;
 
 import ru.ai.sin.logic.experience.dto.*;
@@ -19,6 +20,7 @@ public interface ExperienceMapper {
 
     // ---------------- ExperienceEnt -> ExperienceDTO ----------------
     @Mapping(target = "companyId", source = "entity.company.id")
+    @Mapping(target = "companyWebsite", source = "entity.company.website")
     @Mapping(target = "studentId", source = "entity.student.id")
     ExperienceDTO toDTO(ExperienceEnt entity, ExperienceRes experience);
 
@@ -30,5 +32,6 @@ public interface ExperienceMapper {
     @Mapping(target = "timestamps", ignore = true)
     @Mapping(target = "company", ignore = true)
     @Mapping(target = "student", ignore = true)
+    @Mapping(target = "experienceType", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntityFromDto(UpdateExperienceReq dto, @MappingTarget ExperienceEnt entity);
 }

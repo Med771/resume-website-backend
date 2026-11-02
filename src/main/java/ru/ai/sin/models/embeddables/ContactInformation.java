@@ -21,6 +21,8 @@ public class ContactInformation {
     @Column(name = "telegram_username", length = 32)
     private String telegramUsername;
 
+    /** Устаревший id пользователя бота Telegram. Контактный username — отдельное поле. */
+    @Deprecated
     @Column(name = "telegram_user_id", unique = true, length = 16)
     private String telegramUserId;
 }

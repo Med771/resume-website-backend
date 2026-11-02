@@ -21,12 +21,14 @@ import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
 
 import ru.ai.sin.logic.experience.dto.*;
+import ru.ai.sin.models.enums.ExperienceType;
 
 import ru.ai.sin.tools.CompanyTools;
 import ru.ai.sin.tools.ExperienceTools;
 
 import ru.ai.sin.tools.StudentTools;
 
+import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -86,8 +88,12 @@ public class ExperienceServiceImpl implements ExperienceService {
     public ExperienceDTO create(AddExperienceReq addExperienceReq) {
         UUID studentId = accountAccessHelper.resolveStudentIdForResumeMutation(addExperienceReq.studentId());
         accountAccessHelper.requireStudentCanMutateResume(studentId);
+        requireValidDates(addExperienceReq.startDate(), addExperienceReq.endDate());
 
         ExperienceEnt experienceEnt = experienceMapper.toEntity(addExperienceReq);
+        if (experienceEnt.getExperienceType() == null) {
+            experienceEnt.setExperienceType(ExperienceType.WORK);
+        }
 
         updateActiveCompanyOrThrow(addExperienceReq.companyId(), experienceEnt);
         updateActiveStudentOrThrow(studentId, experienceEnt);
@@ -117,6 +123,7 @@ public class ExperienceServiceImpl implements ExperienceService {
     ) {
         ExperienceEnt experienceEnt = experienceTools.getExperienceOrThrow(id);
         accountAccessHelper.requireStudentCanMutateResume(experienceEnt.getStudent().getId());
+        requireValidDates(updateExperienceReq.startDate(), updateExperienceReq.endDate());
 
         experienceMapper.updateEntityFromDto(updateExperienceReq, experienceEnt);
 
@@ -167,5 +174,11 @@ public class ExperienceServiceImpl implements ExperienceService {
             return new FilterExperienceReq(studentId, filter == null ? null : filter.companyId());
         }
         return filter;
+    }
+
+    private static void requireValidDates(LocalDate startDate, LocalDate endDate) {
+        if (endDate != null && startDate != null && endDate.isBefore(startDate)) {
+            throw new BadRequestException("Дата окончания работы не может быть раньше даты начала");
+        }
     }
 }

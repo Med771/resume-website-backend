@@ -6,7 +6,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -25,11 +24,5 @@ class NewFeaturesIntegrationTest extends AbstractPostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"eventType\":\"PAGE_VIEW\",\"path\":\"/it-test\"}"))
                 .andExpect(status().isNoContent());
-    }
-
-    @Test
-    void publicVitrinaHome_list_noAuth_returns200() throws Exception {
-        mockMvc.perform(get("/public/vitrina/home"))
-                .andExpect(status().isOk());
     }
 }

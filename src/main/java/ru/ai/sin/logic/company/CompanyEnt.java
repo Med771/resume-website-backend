@@ -29,6 +29,9 @@ public class CompanyEnt {
     @Column(nullable = false)
     private String name;
 
+    @Column()
+    private String website;
+
     @Embedded
     private TimeStamped timestamps = new TimeStamped();
 

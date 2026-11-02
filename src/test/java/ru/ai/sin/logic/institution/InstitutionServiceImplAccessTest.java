@@ -11,6 +11,7 @@ import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.education.EducationEnt;
+import ru.ai.sin.models.enums.EducationType;
 import ru.ai.sin.logic.institution.dto.AddInstitutionReq;
 import ru.ai.sin.logic.institution.dto.InstitutionDTO;
 import ru.ai.sin.logic.institution.dto.InstitutionRes;
@@ -58,7 +59,7 @@ class InstitutionServiceImplAccessTest {
 
     @Test
     void create_studentIgnoresForeignStudentId() {
-        AddInstitutionReq req = new AddInstitutionReq(1L, OTHER_ID, 2020, 2024);
+        AddInstitutionReq req = new AddInstitutionReq(1L, OTHER_ID, 2020, 2024, null, null, null);
         when(accountAccessHelper.resolveStudentIdForResumeMutation(OTHER_ID)).thenReturn(OWN_ID);
 
         InstitutionEnt ent = new InstitutionEnt();
@@ -66,7 +67,7 @@ class InstitutionServiceImplAccessTest {
         when(educationTools.getEducationOrThrow(1L)).thenReturn(new EducationEnt());
         when(studentTools.getStudentOrThrow(OWN_ID)).thenReturn(student(OWN_ID));
         when(institutionRepo.save(ent)).thenReturn(ent);
-        InstitutionDTO dto = new InstitutionDTO(1L, OWN_ID, new InstitutionRes(1L, 2020, 2024));
+        InstitutionDTO dto = new InstitutionDTO(1L, OWN_ID, new InstitutionRes(1L, 2020, 2024, EducationType.STATE, null, null));
         when(institutionTools.mapToDTO(ent)).thenReturn(dto);
         when(securityHelper.getCurrentUsername()).thenReturn("stu");
 
@@ -81,7 +82,7 @@ class InstitutionServiceImplAccessTest {
         doThrow(new ForbiddenException("Нет доступа к профилю студента"))
                 .when(accountAccessHelper).requireStudentCanMutateResume(OTHER_ID);
 
-        assertThatThrownBy(() -> institutionService.update(5L, new UpdateInstitutionReq(1L, OWN_ID, 2020, 2024)))
+        assertThatThrownBy(() -> institutionService.update(5L, new UpdateInstitutionReq(1L, OWN_ID, 2020, 2024, null, null, null)))
                 .isInstanceOf(ForbiddenException.class);
     }
 

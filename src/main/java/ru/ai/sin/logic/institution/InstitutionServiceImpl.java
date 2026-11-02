@@ -19,6 +19,7 @@ import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.models.enums.EducationType;
 
 import ru.ai.sin.logic.institution.dto.*;
 
@@ -88,6 +89,9 @@ public class InstitutionServiceImpl implements InstitutionService {
         accountAccessHelper.requireStudentCanMutateResume(studentId);
 
         InstitutionEnt institutionEnt = institutionMapper.toEntity(addInstitutionReq);
+        if (institutionEnt.getEducationType() == null) {
+            institutionEnt.setEducationType(EducationType.STATE);
+        }
 
         updateActiveEducationOrThrow(addInstitutionReq.educationId(), institutionEnt);
         updateActiveStudentOrThrow(studentId, institutionEnt);

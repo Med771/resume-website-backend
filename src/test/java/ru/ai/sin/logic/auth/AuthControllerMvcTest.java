@@ -139,8 +139,7 @@ class AuthControllerMvcTest {
                                   "passwordConfirm": "SecurePass123",
                                   "email": "ivan@test.local",
                                   "phoneNumber": "+79990001122",
-                                  "birthDate": "2000-05-05",
-                                  "phoneVerificationId": "11111111-1111-1111-1111-111111111111"
+                                  "birthDate": "2000-05-05"
                                 }
                                 """))
                 .andExpect(status().isNoContent())

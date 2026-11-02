@@ -18,8 +18,6 @@ import java.util.UUID;
 
 @Repository
 public interface RecruiterRepo extends JpaRepository<RecruiterEnt, UUID>, JpaSpecificationExecutor<RecruiterEnt> {
-    Optional<RecruiterEnt> findByContactInformationTelegramUserId(String telegramUserId);
-
     Optional<RecruiterEnt> findByUserInformationEmail(String email);
 
     @Query("""

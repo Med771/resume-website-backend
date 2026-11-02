@@ -13,6 +13,8 @@ import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.models.embeddables.TimeStamped;
 
 import ru.ai.sin.logic.company.CompanyEnt;
+import ru.ai.sin.models.enums.ExperienceType;
+import ru.ai.sin.models.enums.convertor.ExperienceTypeConverter;
 
 import java.time.LocalDate;
 
@@ -39,6 +41,10 @@ public class ExperienceEnt {
 
     @Column(name = "end_date")
     private LocalDate endDate;
+
+    @Column(name = "experience_type", nullable = false, length = 32)
+    @Convert(converter = ExperienceTypeConverter.class)
+    private ExperienceType experienceType = ExperienceType.WORK;
 
     @Embedded
     private TimeStamped timestamps = new TimeStamped();

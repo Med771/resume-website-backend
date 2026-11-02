@@ -2,6 +2,7 @@ package ru.ai.sin.logic.student;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -136,7 +137,7 @@ class StudentServiceImplVisibilityTest {
 
         assertThat(page.data()).containsExactly(card);
         assertThat(page.totalElements()).isEqualTo(1);
-        verify(studentRepo, never()).findAll(any(Specification.class), any(Pageable.class));
+        verify(studentRepo, never()).findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class));
     }
 
     @Test
@@ -149,7 +150,7 @@ class StudentServiceImplVisibilityTest {
 
         assertThat(page.data()).isEmpty();
         assertThat(page.totalElements()).isEqualTo(1);
-        verify(studentRepo, never()).findAll(any(Specification.class), any(Pageable.class));
+        verify(studentRepo, never()).findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class));
     }
 
     @Test
@@ -163,7 +164,7 @@ class StudentServiceImplVisibilityTest {
         PageResponse<StudentDTO> page = studentService.getAllByFilter(PageRequest.of(0, 20), emptyFilter());
 
         assertThat(page.data()).containsExactly(dto);
-        verify(studentRepo, never()).findAll(any(Specification.class), any(Pageable.class));
+        verify(studentRepo, never()).findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class));
     }
 
     @Test
@@ -171,7 +172,7 @@ class StudentServiceImplVisibilityTest {
         StudentEnt own = new StudentEnt();
         own.setId(ID);
         when(accountAccessHelper.requireCurrentUser()).thenReturn(studentUser(AccountStatus.APPROVED, own));
-        when(studentRepo.findAll(any(Specification.class), any(Pageable.class)))
+        when(studentRepo.findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(own)));
         StudentCardDTO card = new StudentCardDTO(ID, null, "A", "B", null, null, CourseEnum.FIRST, "S", List.of(), null);
         when(studentTools.mapToCardDTO(own)).thenReturn(card);
@@ -179,7 +180,7 @@ class StudentServiceImplVisibilityTest {
         PageResponse<StudentCardDTO> page = studentService.getAllCardsByFilter(PageRequest.of(0, 20), emptyFilter());
 
         assertThat(page.data()).containsExactly(card);
-        verify(studentRepo).findAll(any(Specification.class), any(Pageable.class));
+        verify(studentRepo).findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class));
     }
 
     private static UserEnt studentUser(AccountStatus status, StudentEnt student) {
@@ -197,7 +198,7 @@ class StudentServiceImplVisibilityTest {
     private static StudentDTO sampleDto() {
         return new StudentDTO(
                 ID, "c", "h", LocalDate.of(1999, 5, 5), null, null,
-                CourseEnum.FIRST, BusynessEnum.FREE, "A", "B", null, null, null, null, null, 1L, "S",
+                CourseEnum.FIRST, BusynessEnum.FREE, null, null, "A", "B", null, null, null, null, null, 1L, "S",
                 List.of(new SkillDTO(1L, "x")),
                 false,
                 false,

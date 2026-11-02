@@ -3,6 +3,7 @@ package ru.ai.sin.logic.institution;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.ReportingPolicy;
 
 import ru.ai.sin.logic.institution.dto.*;
@@ -30,5 +31,8 @@ public interface InstitutionMapper {
     @Mapping(target = "timestamps", ignore = true)
     @Mapping(target = "education", ignore = true)
     @Mapping(target = "student", ignore = true)
+    @Mapping(target = "educationType", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "direction", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "educationLevel", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntityFromDto(UpdateInstitutionReq dto, @MappingTarget InstitutionEnt entity);
 }

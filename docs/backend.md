@@ -24,13 +24,12 @@ ru.ai.sin
 Без cookie открыты:
 
 - `/auth/**`, кроме `POST /auth/confirm-email` и `POST /auth/resend-email-confirmation` (нужен вошедший студент)
-- `/verification/phone/**`, `/telegram/webhook`
-- `/public/vitrina/**`, `/public/analytics/**`
+- `/public/analytics/**`
 - `/main/**`, `/ws/**`, Swagger, `/error`, `OPTIONS /**`
 
 `/admin/**` — только **ADMIN**. Всё остальное требует вход, точные роли стоят на методах через `@PreAuthorize`.
 
-`/public/students/**` и `/public/vacancies/**` вход требуют. Анонимная главная — `GET /public/vitrina/home`.
+`/public/students/**` и `/public/vacancies/**` вход требуют.
 
 Роли: **STUDENT**, **RECRUITER**, **ADMIN**. В токене authority вида `ROLE_STUDENT`. Админ входит через `/auth/admin/login`, студент и рекрутер — через `/auth/login`.
 
@@ -46,11 +45,11 @@ ru.ai.sin
 
 **Вакансия.** Рекрутер создаёт черновик, отправляет на модерацию, админ публикует или отклоняет. Студент откликается. Принятый отклик тоже открывает переписку в общем чате пары.
 
-**Регистрация.** Студент: `POST /auth/register-student`, сразу cookie и черновик карточки (`catalog_visible = false`), код из 4 цифр на почту. Рекрутер: подтверждает телефон, `POST /auth/register-recruiter` сразу создаёт профиль и пользователя со статусом `PENDING_APPROVAL` и выдаёт cookie. Оба аккаунта одобряет админ в `/admin/account-approvals`. Одобрение студента включает показ карточки в каталоге. Студента без подтверждённой почты одобрить нельзя.
+**Регистрация.** Студент: `POST /auth/register-student`, сразу cookie и черновик карточки (`catalog_visible = false`), код из 4 цифр на почту. Рекрутер: `POST /auth/register-recruiter` сразу создаёт профиль и пользователя со статусом `PENDING_APPROVAL` и выдаёт cookie. Телефон в анкете — контакт, без отдельной проверки. Оба аккаунта одобряет админ в `/admin/account-approvals`. Одобрение студента включает показ карточки в каталоге. Студента без подтверждённой почты одобрить нельзя.
 
 Таблица `recruiter_registration_requests` и `/admin/recruiter-registration-requests` в коде есть. Текущая саморегистрация новые строки туда не пишет.
 
-**Проекты сайта.** `/projects`: читать могут все три роли, создавать и менять — админ. На анонимной главной те же записи с `visible_to_anonymous` и окном публикации, без списка студентов.
+**Проекты сайта.** `/projects`: читать могут все три роли, создавать и менять — админ. Не-админ видит проект внутри окна публикации. Поле `visible_to_anonymous` устарело и в карточке сохраняется.
 
 **Аналитика.** `POST /public/analytics/events` без входа, лимит по IP. Сводки — `/admin/analytics/**`.
 
@@ -89,4 +88,4 @@ Handshake `/ws` на HTTP открыт всем. Токен на connect сер�
 
 ## Конфиг
 
-`src/main/resources/application.yaml`: база, Flyway, CORS, JWT, лимиты регистрации и аналитики, Telegram, демо-логин админа (`app.user.logins`), путь к файлам.
+`src/main/resources/application.yaml`: база, Flyway, CORS, JWT, лимиты регистрации и аналитики, почта, демо-логин админа (`app.user.logins`), путь к файлам.

@@ -59,6 +59,20 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AccountApprovalUserDTO> listStudents(int page, int size) {
+        PageRequest pr = PageRequest.of(page, size);
+        Page<UserEnt> result = userRepo.findByRole(RoleEnum.STUDENT, pr);
+        return new PageResponse<>(
+                result.getContent().stream().map(this::toDto).toList(),
+                page,
+                size,
+                result.getTotalElements(),
+                result.getTotalPages()
+        );
+    }
+
+    @Override
     @Transactional
     public void approve(UUID userId) {
         UserEnt user = userRepo.findById(userId)
@@ -118,7 +132,7 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     public void reject(UUID userId, AccountRejectReq body) {
         UserEnt user = userRepo.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь не найден: " + userId));
-        if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL) {
+        if (!canReject(user)) {
             throw new BadRequestException("Аккаунт уже обработан");
         }
         if (user.getRole() == RoleEnum.STUDENT) {
@@ -132,6 +146,14 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
                 securityHelper.getCurrentUsername(),
                 body != null ? body.reasonCode() : null,
                 body != null ? body.comment() : null);
+    }
+
+    private static boolean canReject(UserEnt user) {
+        if (user.getRole() == RoleEnum.STUDENT) {
+            return user.getAccountStatus() == AccountStatus.PENDING_APPROVAL
+                    || user.getAccountStatus() == AccountStatus.APPROVED;
+        }
+        return user.getAccountStatus() == AccountStatus.PENDING_APPROVAL;
     }
 
     private void rejectStudent(UserEnt user, AccountRejectReq body) {

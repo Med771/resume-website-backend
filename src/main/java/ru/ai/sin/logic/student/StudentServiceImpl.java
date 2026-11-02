@@ -10,6 +10,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.FileNotFoundException;
 import ru.ai.sin.models.PageResponse;
 import ru.ai.sin.models.embeddables.ContactInformation;
 import ru.ai.sin.models.embeddables.UserInformation;
@@ -23,7 +25,6 @@ import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
-import ru.ai.sin.logic.portfolio.PortfolioEnt;
 import ru.ai.sin.logic.portfolio.PortfolioRepo;
 import ru.ai.sin.logic.request.RequestRepo;
 import ru.ai.sin.logic.student.dto.*;
@@ -35,15 +36,13 @@ import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.logic.speciality.SpecialityEnt;
-import ru.ai.sin.logic.skill.SkillEnt;
-import ru.ai.sin.logic.skill.SkillRepo;
-import ru.ai.sin.tools.SkillTools;
 import ru.ai.sin.tools.SpecialityTools;
 import ru.ai.sin.tools.StudentTools;
 import ru.ai.sin.tools.UserTools;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
+import ru.ai.sin.models.enums.JobSearchStatus;
 import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.LocalDate;
@@ -59,7 +58,6 @@ import java.util.UUID;
 public class StudentServiceImpl implements StudentService {
 
     private final StudentRepo studentRepo;
-    private final SkillRepo skillRepo;
     private final PortfolioRepo portfolioRepo;
     private final ExperienceRepo experienceRepo;
     private final InstitutionRepo institutionRepo;
@@ -71,8 +69,6 @@ public class StudentServiceImpl implements StudentService {
 
     private final StudentTools studentTools;
     private final SpecialityTools specialityTools;
-    private final SkillTools skillTools;
-    private final StudentCvAttachmentService studentCvAttachmentService;
     private final StudentSkillsMutator studentSkillsMutator;
 
     private final FileHelper fileHelper;
@@ -120,6 +116,25 @@ public class StudentServiceImpl implements StudentService {
         }
 
         studentEnt.setImagePath(filePath);
+        StudentProfileScoring.applyTo(studentEnt);
+        studentReviewState.onStudentSelfEdit(studentEnt);
+    }
+
+    @Override
+    @Transactional
+    public void deletePhoto(UUID id) {
+        accountAccessHelper.requireStudentOwnsProfile(id);
+        StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
+        String imagePath = studentEnt.getImagePath();
+        if (imagePath == null || imagePath.isBlank()) {
+            return;
+        }
+        try {
+            fileHelper.deleteFile(imagePath);
+        } catch (FileNotFoundException ignored) {
+            // файла уже нет, путь в анкете всё равно очищаем
+        }
+        studentEnt.setImagePath(null);
         StudentProfileScoring.applyTo(studentEnt);
         studentReviewState.onStudentSelfEdit(studentEnt);
     }
@@ -250,37 +265,6 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    public StudentDTO createExtended(CreateStudentExtendedReq createStudentExtendedReq) {
-        AddStudentReq base = toAddStudentReq(createStudentExtendedReq);
-        StudentEnt studentEnt = studentMapper.toEntity(base);
-        studentEnt.setSpeciality(specialityTools.getSpecialityOrThrow(createStudentExtendedReq.specialityId()));
-        studentEnt.setSkills(resolveSkillsForExtended(createStudentExtendedReq));
-        applyCreateCatalogFlags(base, studentEnt);
-        studentEnt = saveNewStudent(
-                studentEnt, createStudentExtendedReq.email(), createStudentExtendedReq.telegramUsername());
-
-        createPortfolioForStudent(studentEnt, createStudentExtendedReq.portfolio());
-        studentCvAttachmentService.attachExperiences(studentEnt, createStudentExtendedReq.experiences());
-        studentCvAttachmentService.attachInstitutions(studentEnt, createStudentExtendedReq.institutions());
-
-        StudentProfileScoring.applyTo(studentEnt);
-        studentRepo.save(studentEnt);
-
-        if (hasAccountCredentials(createStudentExtendedReq.username(), createStudentExtendedReq.password())) {
-            linkStudentAccount(
-                    studentEnt,
-                    createStudentExtendedReq.username(),
-                    createStudentExtendedReq.password(),
-                    buildStudentDisplayName(base));
-        }
-
-        StudentDTO studentDTO = studentTools.mapToDTO(studentEnt);
-        log.info("User: {}, created extended student: {}", securityHelper.getCurrentUsername(), studentDTO);
-        return studentDTO;
-    }
-
-    @Override
-    @Transactional
     public StudentDTO update(
             UUID id,
             UpdateStudentReq updateStudentReq
@@ -332,6 +316,8 @@ public class StudentServiceImpl implements StudentService {
                 patchStudentReq.bio(),
                 patchStudentReq.course(),
                 patchStudentReq.busyness(),
+                patchStudentReq.desiredBusyness(),
+                patchStudentReq.jobSearchStatus(),
                 patchStudentReq.firstName(),
                 patchStudentReq.lastName(),
                 patchStudentReq.middleName(),
@@ -383,6 +369,8 @@ public class StudentServiceImpl implements StudentService {
                 req.bio(),
                 req.course(),
                 req.busyness(),
+                req.desiredBusyness(),
+                req.jobSearchStatus(),
                 req.firstName(),
                 req.lastName(),
                 req.middleName(),
@@ -469,30 +457,6 @@ public class StudentServiceImpl implements StudentService {
         log.info("User: {}, deleted a student: {} with data: {}", securityHelper.getCurrentUsername(), id, snapshot);
     }
 
-    private AddStudentReq toAddStudentReq(CreateStudentExtendedReq req) {
-        return new AddStudentReq(
-                req.city(),
-                req.hhLink(),
-                req.birthDate(),
-                req.bio(),
-                req.course(),
-                req.busyness(),
-                req.firstName(),
-                req.lastName(),
-                req.middleName(),
-                req.gender(),
-                req.email(),
-                req.phoneNumber(),
-                req.telegramUsername(),
-                req.specialityId(),
-                List.of(),
-                req.username(),
-                req.password(),
-                req.publicProfileConsent(),
-                req.manualSortOrder()
-        );
-    }
-
     private void linkStudentAccount(StudentEnt studentEnt, String username, String password, String displayName) {
         if (username == null || username.isBlank()) {
             throw new BadRequestException("Укажите логин для учётной записи");
@@ -532,10 +496,6 @@ public class StudentServiceImpl implements StudentService {
         return combined.isEmpty() ? null : combined;
     }
 
-    private static boolean hasAccountCredentials(String username, String password) {
-        return username != null && !username.isBlank() && password != null && !password.isBlank();
-    }
-
     private StudentEnt saveNewStudent(StudentEnt studentEnt, String email, String telegramUsername) {
         try {
             return studentRepo.save(studentEnt);
@@ -553,6 +513,8 @@ public class StudentServiceImpl implements StudentService {
             String bio,
             CourseEnum course,
             BusynessEnum busyness,
+            BusynessEnum desiredBusyness,
+            JobSearchStatus jobSearchStatus,
             String firstName,
             String lastName,
             String middleName,
@@ -581,6 +543,12 @@ public class StudentServiceImpl implements StudentService {
         }
         if (busyness != null) {
             studentEnt.setBusyness(busyness);
+        }
+        if (desiredBusyness != null) {
+            studentEnt.setDesiredBusyness(desiredBusyness);
+        }
+        if (jobSearchStatus != null) {
+            studentEnt.setJobSearchStatus(jobSearchStatus);
         }
 
         if (studentEnt.getUserInformation() == null) {
@@ -628,73 +596,6 @@ public class StudentServiceImpl implements StudentService {
     private static void applyCreateCatalogFlags(AddStudentReq addStudentReq, StudentEnt studentEnt) {
         studentEnt.setPublicProfileConsent(Boolean.TRUE.equals(addStudentReq.publicProfileConsent()));
         studentEnt.setManualSortOrder(addStudentReq.manualSortOrder());
-    }
-
-    private Set<SkillEnt> resolveSkillsForExtended(CreateStudentExtendedReq req) {
-        Set<SkillEnt> resolvedSkills = new HashSet<>(studentSkillsMutator.resolveSkillsByIdsOrThrow(req.skillsIds()));
-
-        if (req.skills() == null || req.skills().isEmpty()) {
-            return resolvedSkills;
-        }
-
-        for (CreateStudentSkillReq skillReq : req.skills()) {
-            if (skillReq == null) {
-                continue;
-            }
-
-            if (skillReq.id() != null) {
-                resolvedSkills.add(skillTools.getSkillOrThrow(skillReq.id()));
-                continue;
-            }
-
-            if (isBlank(skillReq.name())) {
-                throw new BadRequestException("Skill id or skill name is required");
-            }
-
-            String skillName = normalize(skillReq.name());
-            SkillEnt skillEnt = skillRepo.findByNameIgnoreCase(skillName)
-                    .orElseGet(() -> createSkill(skillName));
-            resolvedSkills.add(skillEnt);
-        }
-
-        return resolvedSkills;
-    }
-
-    private SkillEnt createSkill(String skillName) {
-        try {
-            return skillRepo.save(new SkillEnt(skillName));
-        } catch (DataIntegrityViolationException ignored) {
-            return skillRepo.findByNameIgnoreCase(skillName)
-                    .orElseThrow(() -> new BadRequestException("Unable to create skill: " + skillName));
-        }
-    }
-
-    private void createPortfolioForStudent(StudentEnt studentEnt, List<CreateStudentPortfolioReq> portfolioItems) {
-        if (portfolioItems == null || portfolioItems.isEmpty()) {
-            return;
-        }
-
-        for (CreateStudentPortfolioReq item : portfolioItems) {
-            if (item == null) {
-                continue;
-            }
-
-            PortfolioEnt portfolioEnt = new PortfolioEnt();
-            portfolioEnt.setName(item.name());
-            portfolioEnt.setLink(item.link());
-            portfolioEnt.setAdditionalInfo(item.additionalInfo());
-            portfolioEnt.setStudent(studentEnt);
-
-            portfolioRepo.save(portfolioEnt);
-        }
-    }
-
-    private String normalize(String value) {
-        return value == null ? null : value.trim();
-    }
-
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
     }
 
     @Override

@@ -68,7 +68,9 @@ erDiagram
 | bio | TEXT | |
 | image_path | VARCHAR(255) UNIQUE | файл аватара |
 | course | VARCHAR(16) | `1` … `5` |
-| busyness | VARCHAR(32) | `free`, `freelance`, `employed` |
+| busyness | VARCHAR(32) | `free` нет занятости, `freelance` парт-тайм, `employed` фулл-тайм, `project_work` проектная работа |
+| job_search_status | VARCHAR(32) | статус поиска: `looking`, `considering`, `not_looking`; пусто, пока не указан |
+| desired_busyness | VARCHAR(32) | желаемая занятость: `employed`, `freelance`, `project_work`; пусто, пока не указана |
 | middle_name | VARCHAR(255) | отчество |
 | gender | VARCHAR(16) | `MALE`, `FEMALE` |
 | first_name, last_name | VARCHAR(255) | |
@@ -162,7 +164,7 @@ erDiagram
 
 ### `institution`
 
-Учёба конкретного студента: `id` BIGINT, `start_year`, `end_year`, `education_id` FK, `student_id` FK, даты.
+Учёба конкретного студента: `id` BIGINT, `start_year`, `end_year`, `education_type` (`STATE` гос. образование, `COURSE` курс; без поля сохраняется `STATE`), `direction` и `education_level` (необязательные строки до 255 символов), `education_id` FK, `student_id` FK, даты.
 
 ### `portfolio`
 

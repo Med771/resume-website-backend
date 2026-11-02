@@ -68,20 +68,6 @@ app:
   analytics:
     rate-limit-per-ip-per-minute: 300
 
-  vitrina:
-    home:
-      students-limit: 100
-      projects-limit: 100
-
-  # Deprecated
-  telegram:
-    enabled: false
-    bot-token: ${TELEGRAM_BOT_TOKEN}
-    bot-username: ${TELEGRAM_BOT_USERNAME}
-    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET}
-    verification-ttl-minutes: 15
-    allow-dev-confirm: false
-
   mail:
     enabled: true
     from: ${MAIL_FROM}

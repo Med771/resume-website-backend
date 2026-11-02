@@ -20,7 +20,7 @@ public record AccountApprovalUserDTO(
         UUID studentId,
         UUID recruiterId,
         LocalDateTime createdAt,
-        @Schema(description = "Телефон подтверждён через Telegram при регистрации")
+        @Schema(description = "Устарело. Флаг подтверждения телефона через Telegram. Новая регистрация пишет false")
         boolean phoneVerified,
         @Schema(description = "Почта подтверждена кодом после саморегистрации")
         boolean emailVerified,
