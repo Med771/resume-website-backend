@@ -7,10 +7,10 @@
 ## Что можно без cookie
 
 - `POST /public/analytics/events`
-- `GET /main/status`, `GET /main/photo/{image_path}`
+- `GET /main/status`
 - регистрация, логин, refresh, logout
 
-`/public/students/**` и `/public/vacancies/**` без cookie отвечают **401**. Каталог после входа: `POST /student/cardsFilter` и `GET /vacancies`.
+`/public/students/**` устарел. Каталог после входа: `POST /student/cardsFilter`. `/public/vacancies/**` без cookie отвечает **401**. Вакансии после входа: `GET /vacancies`.
 
 ## Сессия
 
@@ -46,4 +46,4 @@ Handshake не требует cookie. Подписывайтесь на чаты
 
 ## Картинки
 
-Аватар: `POST /student/photo/{id}` (студент или админ). Показ: `GET /main/photo/{image_path}`.
+Аватар: `POST /student/photo/{id}` (студент или админ). Показ: `GET /main/photo/{image_path}` — нужен вход, те же правила, что у карточки `GET /student/{id}`. Студент и рекрутер с любым своим статусом видят фото одобренного видимого студента.

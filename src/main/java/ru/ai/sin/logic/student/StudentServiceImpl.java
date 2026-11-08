@@ -146,22 +146,6 @@ public class StudentServiceImpl implements StudentService {
             FilterStudentReq filterStudentReq
     ) {
         UserEnt currentUser = accountAccessHelper.requireCurrentUser();
-        if (isUnapprovedStudent(currentUser)) {
-            StudentEnt own = currentUser.getStudent();
-            if (own == null || pageable.getPageNumber() > 0) {
-                return emptyPage(pageable, own == null ? 0 : 1);
-            }
-            return new PageResponse<>(
-                    List.of(studentTools.mapToCardDTO(own)),
-                    pageable.getPageNumber(),
-                    pageable.getPageSize(),
-                    1,
-                    1);
-        }
-        if (currentUser.getRole() != RoleEnum.STUDENT) {
-            accountAccessHelper.requireApprovedAccount();
-        }
-
         Page<StudentEnt> page = loadCatalogPage(pageable, filterStudentReq, currentUser);
 
         return new PageResponse<>(
@@ -183,22 +167,6 @@ public class StudentServiceImpl implements StudentService {
             FilterStudentReq filterStudentReq
     ) {
         UserEnt currentUser = accountAccessHelper.requireCurrentUser();
-        if (isUnapprovedStudent(currentUser)) {
-            StudentEnt own = currentUser.getStudent();
-            if (own == null || pageable.getPageNumber() > 0) {
-                return emptyPage(pageable, own == null ? 0 : 1);
-            }
-            return new PageResponse<>(
-                    List.of(studentTools.mapToDTO(own)),
-                    pageable.getPageNumber(),
-                    pageable.getPageSize(),
-                    1,
-                    1);
-        }
-        if (currentUser.getRole() != RoleEnum.STUDENT) {
-            accountAccessHelper.requireApprovedAccount();
-        }
-
         Page<StudentEnt> page = loadCatalogPage(pageable, filterStudentReq, currentUser);
 
         return new PageResponse<>(
@@ -216,7 +184,9 @@ public class StudentServiceImpl implements StudentService {
     ) {
         boolean admin = currentUser.getRole() == RoleEnum.ADMIN;
         UUID ownId = null;
-        if (!admin && currentUser.getRole() == RoleEnum.STUDENT && currentUser.getStudent() != null) {
+        if (!admin && currentUser.getRole() == RoleEnum.STUDENT
+                && currentUser.getAccountStatus() == AccountStatus.APPROVED
+                && currentUser.getStudent() != null) {
             ownId = currentUser.getStudent().getId();
         }
         Sort sort = StudentSortResolver.resolve(filterStudentReq);
@@ -228,16 +198,6 @@ public class StudentServiceImpl implements StudentService {
                 StudentSpecifications.byFilters(filterStudentReq, admin, false, !admin, ownId),
                 effectivePageable);
     }
-
-    private static boolean isUnapprovedStudent(UserEnt user) {
-        return user.getRole() == RoleEnum.STUDENT && user.getAccountStatus() != AccountStatus.APPROVED;
-    }
-
-    private static <T> PageResponse<T> emptyPage(Pageable pageable, long totalElements) {
-        int totalPages = totalElements == 0 ? 0 : 1;
-        return new PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), totalElements, totalPages);
-    }
-
 
     @Override
     @Transactional

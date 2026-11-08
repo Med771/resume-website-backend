@@ -147,18 +147,13 @@ public class AccountAccessHelper {
 
     /**
      * Своя карточка студента видна всегда. Админ видит любую.
-     * Чужую карточку видят одобренный студент и рекрутер, если она открыта в каталоге
-     * и аккаунт владельца {@code APPROVED}. Иначе 404.
-     * Студент без одобрения чужие карточки не видит.
+     * Чужую карточку видят студент и рекрутер с любым своим статусом,
+     * если она открыта в каталоге и аккаунт владельца {@code APPROVED}. Иначе 404.
      */
     public void requireCanReadStudentResumeDetails(UUID studentId) {
         if (studentId == null) {
             UserEnt user = requireCurrentUser();
-            if (user.getRole() == RoleEnum.ADMIN) {
-                return;
-            }
-            if (user.getRole() == RoleEnum.RECRUITER) {
-                requireApprovedAccount();
+            if (user.getRole() == RoleEnum.ADMIN || user.getRole() == RoleEnum.RECRUITER) {
                 return;
             }
             throw new ForbiddenException("Нет доступа к данным резюме");
@@ -173,13 +168,6 @@ public class AccountAccessHelper {
             studentTools.getStudentOrThrow(studentId);
             return;
         }
-
-        if (viewer != null
-                && viewer.getRole() == RoleEnum.STUDENT
-                && viewer.getAccountStatus() != AccountStatus.APPROVED) {
-            throw new NotFoundException("Failed to find student by id " + studentId);
-        }
-        requireApprovedAccount();
 
         StudentEnt studentEnt = studentTools.getStudentOrThrow(studentId);
         if (!studentEnt.isCatalogVisible() || !isStudentAccountApproved(studentId)) {

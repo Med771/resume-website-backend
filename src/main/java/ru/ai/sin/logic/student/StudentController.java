@@ -102,11 +102,8 @@ public class StudentController {
             description = """
                     Полная карточка `StudentDTO`.
 
-                    Студент без одобрения видит только свою карточку: чужой id — **404**.
-                    Одобренный студент и рекрутер видят чужую карточку, если у неё аккаунт **APPROVED** и `catalogVisible=true`. Иначе **404**.
-                    Свою карточку студент видит и когда она скрыта. Админ видит любую.
-
-                    Рекрутеру нужен статус **APPROVED**, иначе **403**. Админу одобрение не нужно.""")
+                    Студент и рекрутер с любым своим статусом видят чужую карточку, если у неё аккаунт **APPROVED** и `catalogVisible=true`. Иначе **404**.
+                    Свою карточку студент видит всегда, даже если она скрыта или ещё не одобрена. Админ видит любую.""")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<StudentDTO> getById(@PathVariable @NotNull UUID id) {
@@ -120,13 +117,11 @@ public class StudentController {
             description = """
                     Постраничная выдача `StudentCardDTO` по фильтрам из тела.
 
-                    Студент без одобрения получает только свою карточку (на первой странице).
-                    Одобренный студент и рекрутер видят студентов со статусом **APPROVED** и `catalogVisible=true`.
-                    Своя карточка студента остаётся в выдаче, даже если она скрыта. Админ видит всех.
+                    Студент и рекрутер с любым своим статусом видят студентов со статусом **APPROVED** и `catalogVisible=true`.
+                    Скрытый и не одобренный в список не попадают. Своя ещё не одобренная карточка в список не входит: она на `GET /student/me`.
+                    Одобренный студент видит свою карточку, даже если она скрыта. Админ видит всех.
 
-                    **Пагинация:** `page`, `size` в query. **Сортировка:** только из JSON (`sortBy`, `sortDirection`, `useDefaultRanking`), не из `sort=`.
-
-                    Рекрутеру нужен статус **APPROVED**, иначе **403**. Админу одобрение не нужно.""")
+                    **Пагинация:** `page`, `size` в query. **Сортировка:** только из JSON (`sortBy`, `sortDirection`, `useDefaultRanking`), не из `sort=`.""")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/cardsFilter")
     public ResponseEntity<PageResponse<StudentCardDTO>> getCardsAllByFilters(

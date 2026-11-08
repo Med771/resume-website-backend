@@ -125,46 +125,47 @@ class StudentServiceImplVisibilityTest {
     }
 
     @Test
-    void cardsFilter_unapprovedStudent_seesOnlySelf() {
+    void cardsFilter_unapprovedStudent_usesCatalogQuery() {
         StudentEnt own = new StudentEnt();
         own.setId(ID);
-        own.setCatalogVisible(false);
         when(accountAccessHelper.requireCurrentUser()).thenReturn(studentUser(AccountStatus.PENDING_APPROVAL, own));
-        StudentCardDTO card = new StudentCardDTO(ID, null, "A", "B", null, null, CourseEnum.FIRST, "S", List.of(), null);
-        when(studentTools.mapToCardDTO(own)).thenReturn(card);
+        when(studentRepo.findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
 
         PageResponse<StudentCardDTO> page = studentService.getAllCardsByFilter(PageRequest.of(0, 20), emptyFilter());
 
-        assertThat(page.data()).containsExactly(card);
-        assertThat(page.totalElements()).isEqualTo(1);
-        verify(studentRepo, never()).findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class));
-    }
-
-    @Test
-    void cardsFilter_unapprovedStudent_secondPageEmpty() {
-        StudentEnt own = new StudentEnt();
-        own.setId(ID);
-        when(accountAccessHelper.requireCurrentUser()).thenReturn(studentUser(AccountStatus.PENDING_APPROVAL, own));
-
-        PageResponse<StudentCardDTO> page = studentService.getAllCardsByFilter(PageRequest.of(1, 20), emptyFilter());
-
         assertThat(page.data()).isEmpty();
-        assertThat(page.totalElements()).isEqualTo(1);
-        verify(studentRepo, never()).findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class));
+        verify(studentRepo).findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class));
+        verify(accountAccessHelper, never()).requireApprovedAccount();
     }
 
     @Test
-    void filter_unapprovedStudent_seesOnlySelf() {
+    void filter_unapprovedStudent_usesCatalogQuery() {
         StudentEnt own = new StudentEnt();
         own.setId(ID);
         when(accountAccessHelper.requireCurrentUser()).thenReturn(studentUser(AccountStatus.REJECTED, own));
-        StudentDTO dto = sampleDto();
-        when(studentTools.mapToDTO(own)).thenReturn(dto);
+        when(studentRepo.findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
 
         PageResponse<StudentDTO> page = studentService.getAllByFilter(PageRequest.of(0, 20), emptyFilter());
 
-        assertThat(page.data()).containsExactly(dto);
-        verify(studentRepo, never()).findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class));
+        assertThat(page.data()).isEmpty();
+        verify(studentRepo).findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class));
+    }
+
+    @Test
+    void cardsFilter_unapprovedRecruiter_usesCatalogQuery() {
+        UserEnt recruiter = new UserEnt();
+        recruiter.setRole(RoleEnum.RECRUITER);
+        recruiter.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        when(accountAccessHelper.requireCurrentUser()).thenReturn(recruiter);
+        when(studentRepo.findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        studentService.getAllCardsByFilter(PageRequest.of(0, 20), emptyFilter());
+
+        verify(studentRepo).findAll(ArgumentMatchers.<Specification<StudentEnt>>any(), any(Pageable.class));
+        verify(accountAccessHelper, never()).requireApprovedAccount();
     }
 
     @Test

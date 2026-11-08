@@ -17,7 +17,7 @@
 
 Короткие списки: `POST /student/cardsFilter`. Полные: `POST /student/filter`. Пагинация — `page` и `size`. Порядок задают `sortBy`, `sortDirection` и `useDefaultRanking` в теле. Query-параметр `sort` игнорируется.
 
-`GET /public/students/{id}` и `POST /public/students/cards` требуют вход. Это укороченная карточка без контактов.
+`GET /public/students/{id}` и `POST /public/students/cards` устарели и пока отвечают по-старому. Каталог — `POST /student/cardsFilter` и `POST /student/filter`. Студент и рекрутер с любым своим статусом видят карточки с аккаунтом `APPROVED` и `catalogVisible=true`. Своя ещё не одобренная анкета в этот список не входит: она на `GET /student/me`. Фото `GET /main/photo/{image_path}` требует вход и открывается по тем же правилам, что `GET /student/{id}`.
 
 Менять свою карточку может студент: `PATCH /student/me` и фото `POST /student/photo/{id}`. Чужую — нет.
 

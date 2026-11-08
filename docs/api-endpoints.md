@@ -47,8 +47,8 @@
 | DELETE | `/student/{id}` | A |
 | POST | `/admin/students/reorder` | A |
 | POST | `/admin/students/bulk-visibility` | A |
-| GET | `/public/students/{id}` | вход |
-| POST | `/public/students/cards` | вход |
+| GET | `/public/students/{id}` | вход, устарел |
+| POST | `/public/students/cards` | вход, устарел |
 
 Карточка с `catalog_visible = false` для студента и рекрутера — 404.
 
