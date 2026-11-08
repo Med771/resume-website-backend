@@ -8,8 +8,12 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 import ru.ai.sin.config.property.MailProperties;
 import ru.ai.sin.exception.models.BadRequestException;
+import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
+import ru.ai.sin.models.enums.AnalyticsEventType;
 
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -19,6 +23,7 @@ public class VerificationOtpMailer {
 
     private final JavaMailSender mailSender;
     private final MailProperties mailProperties;
+    private final AnalyticsEventWriter analyticsEventWriter;
 
     public void sendOtp(String toEmail, String code, int ttlMinutes) {
         if (!trySendOtp(toEmail, code, ttlMinutes)) {
@@ -34,7 +39,8 @@ public class VerificationOtpMailer {
                 toEmail,
                 "Код подтверждения — Singularity Resume",
                 buildBody(code, ttlMinutes),
-                "Verification OTP");
+                "Verification OTP",
+                "VERIFICATION_OTP");
     }
 
     public boolean trySendStudentEmailOtp(String toEmail, String code, int ttlMinutes) {
@@ -42,7 +48,8 @@ public class VerificationOtpMailer {
                 toEmail,
                 "Код подтверждения — Singularity Resume",
                 buildStudentEmailOtpBody(code, ttlMinutes),
-                "Student email OTP");
+                "Student email OTP",
+                "STUDENT_EMAIL_OTP");
     }
 
     public boolean trySendPasswordReset(String toEmail, String code, int ttlMinutes, String username) {
@@ -50,7 +57,8 @@ public class VerificationOtpMailer {
                 toEmail,
                 "Код для смены пароля — Singularity Resume",
                 buildPasswordResetBody(code, ttlMinutes, username),
-                "Password reset");
+                "Password reset",
+                "PASSWORD_RESET");
     }
 
     public boolean trySendRegistrationSuccess(String toEmail, String username) {
@@ -58,7 +66,8 @@ public class VerificationOtpMailer {
                 toEmail,
                 "Регистрация завершена — Singularity Resume",
                 buildRegistrationSuccessBody(username),
-                "Registration success");
+                "Registration success",
+                "REGISTRATION_SUCCESS");
     }
 
     public boolean trySendProfileSubmitted(String toEmail) {
@@ -66,7 +75,8 @@ public class VerificationOtpMailer {
                 toEmail,
                 "Анкета отправлена — Singularity Resume",
                 buildProfileSubmittedBody(),
-                "Profile submitted");
+                "Profile submitted",
+                "PROFILE_SUBMITTED");
     }
 
     public boolean trySendAccountApproved(String toEmail, String username) {
@@ -74,7 +84,8 @@ public class VerificationOtpMailer {
                 toEmail,
                 "Аккаунт одобрен — Singularity Resume",
                 buildAccountApprovedBody(username),
-                "Account approved");
+                "Account approved",
+                "ACCOUNT_APPROVED");
     }
 
     public boolean trySendAccountRejected(String toEmail, String username, String reasonText, String comment) {
@@ -82,21 +93,28 @@ public class VerificationOtpMailer {
                 toEmail,
                 "Аккаунт не одобрен — Singularity Resume",
                 buildAccountRejectedBody(username, reasonText, comment),
-                "Account rejected");
+                "Account rejected",
+                "ACCOUNT_REJECTED");
     }
 
     /**
      * @return empty when the server accepted the message, otherwise the error text
      */
     public Optional<String> trySendPlain(String toEmail, String subject, String body) {
-        return Optional.ofNullable(sendPlain(toEmail, subject, body, "Admin broadcast"));
+        return Optional.ofNullable(sendPlain(toEmail, subject, body, "Admin broadcast", "ADMIN_BROADCAST"));
     }
 
-    private boolean trySend(String toEmail, String subject, String body, String logLabel) {
-        return sendPlain(toEmail, subject, body, logLabel) == null;
+    private boolean trySend(String toEmail, String subject, String body, String logLabel, String kind) {
+        return sendPlain(toEmail, subject, body, logLabel, kind) == null;
     }
 
-    private String sendPlain(String toEmail, String subject, String body, String logLabel) {
+    private String sendPlain(String toEmail, String subject, String body, String logLabel, String kind) {
+        String error = deliver(toEmail, subject, body, logLabel);
+        recordEmail(kind, toEmail, subject, error);
+        return error;
+    }
+
+    private String deliver(String toEmail, String subject, String body, String logLabel) {
         if (!mailProperties.isEnabled()) {
             log.warn("{} email skipped: app.mail.enabled=false", logLabel);
             return "Почта выключена";
@@ -121,6 +139,18 @@ public class VerificationOtpMailer {
             log.warn("Failed to send {} email to {}: {}", logLabel, maskEmail(toEmail), error);
             return error;
         }
+    }
+
+    private void recordEmail(String kind, String toEmail, String subject, String error) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("kind", kind);
+        payload.put("to", toEmail);
+        payload.put("subject", subject);
+        payload.put("success", error == null);
+        if (error != null) {
+            payload.put("error", error);
+        }
+        analyticsEventWriter.record(AnalyticsEventType.EMAIL_SENT.getCode(), "/mail", null, payload);
     }
 
     private static String describeMailError(Exception ex) {

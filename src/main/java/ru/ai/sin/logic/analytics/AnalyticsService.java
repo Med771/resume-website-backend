@@ -1,12 +1,15 @@
 package ru.ai.sin.logic.analytics;
 
 import jakarta.servlet.http.HttpServletRequest;
+import ru.ai.sin.logic.analytics.dto.AnalyticsEventDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsEventInReq;
+import ru.ai.sin.logic.analytics.dto.AnalyticsEventsReq;
 import ru.ai.sin.logic.analytics.dto.AnalyticsFunnelDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsSummaryDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsSummaryReq;
 import ru.ai.sin.logic.analytics.dto.EntityPopulationSummaryDTO;
 import ru.ai.sin.logic.analytics.dto.EntityPopulationSummaryReq;
+import ru.ai.sin.models.PageResponse;
 
 public interface AnalyticsService {
 
@@ -17,4 +20,6 @@ public interface AnalyticsService {
     EntityPopulationSummaryDTO summarizeEntityPopulation(EntityPopulationSummaryReq req);
 
     AnalyticsFunnelDTO summarizeFunnel(AnalyticsSummaryReq req);
+
+    PageResponse<AnalyticsEventDTO> listEvents(AnalyticsEventsReq req);
 }

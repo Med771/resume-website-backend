@@ -13,12 +13,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.javamail.JavaMailSender;
 import ru.ai.sin.config.property.MailProperties;
 import ru.ai.sin.exception.models.BadRequestException;
+import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
 
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -29,6 +33,8 @@ class VerificationOtpMailerTest {
 
     @Mock
     private JavaMailSender mailSender;
+    @Mock
+    private AnalyticsEventWriter analyticsEventWriter;
 
     private MailProperties mailProperties;
     private VerificationOtpMailer mailer;
@@ -38,11 +44,11 @@ class VerificationOtpMailerTest {
         mailProperties = new MailProperties();
         mailProperties.setEnabled(true);
         mailProperties.setFrom("med77.2@ya.ru");
-        mailer = new VerificationOtpMailer(mailSender, mailProperties);
+        mailer = new VerificationOtpMailer(mailSender, mailProperties, analyticsEventWriter);
     }
 
     @Test
-    void sendOtp_buildsMessage() throws Exception {
+    void sendOtp_buildsMessage() {
         MimeMessage mimeMessage = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
@@ -51,6 +57,14 @@ class VerificationOtpMailerTest {
         ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender).send(captor.capture());
         assertThat(captor.getValue()).isSameAs(mimeMessage);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
+        verify(analyticsEventWriter).record(eq("EMAIL_SENT"), eq("/mail"), isNull(), payload.capture());
+        assertThat(payload.getValue()).containsEntry("kind", "VERIFICATION_OTP");
+        assertThat(payload.getValue()).containsEntry("to", "recipient@example.com");
+        assertThat(payload.getValue()).containsEntry("success", true);
+        assertThat(payload.getValue().values()).noneMatch(value -> String.valueOf(value).contains("1234"));
     }
 
     @Test

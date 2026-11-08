@@ -13,6 +13,7 @@ import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
+import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
 import ru.ai.sin.logic.experience.ExperienceEnt;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionEnt;
@@ -34,6 +35,7 @@ import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -67,6 +69,8 @@ class AccountApprovalServiceImplTest {
     private SecurityHelper securityHelper;
     @Mock
     private VerificationOtpMailer verificationOtpMailer;
+    @Mock
+    private AnalyticsEventWriter analyticsEventWriter;
 
     @InjectMocks
     private AccountApprovalServiceImpl service;
@@ -103,6 +107,13 @@ class AccountApprovalServiceImplTest {
         assertThat(captor.getValue().isCatalogVisible()).isTrue();
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
         verify(verificationOtpMailer).trySendAccountApproved("student@test.local", "student");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
+        verify(analyticsEventWriter).record(
+                eq("ACCOUNT_APPROVED"), eq("/admin/account-approvals/approve"), isNull(), payload.capture());
+        assertThat(payload.getValue()).containsEntry("targetUserId", USER_ID);
+        assertThat(payload.getValue()).containsEntry("role", "STUDENT");
     }
 
     @Test
@@ -287,6 +298,12 @@ class AccountApprovalServiceImplTest {
                 eq("student"),
                 eq("Анкета заполнена недостаточно"),
                 eq("Нет описания опыта"));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
+        verify(analyticsEventWriter).record(
+                eq("ACCOUNT_REJECTED"), eq("/admin/account-approvals/reject"), isNull(), payload.capture());
+        assertThat(payload.getValue()).containsEntry("reasonCode", "INCOMPLETE_PROFILE");
     }
 
     @Test

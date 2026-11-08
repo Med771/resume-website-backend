@@ -10,6 +10,7 @@ import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
 import ru.ai.sin.logic.company.CompanyEnt;
 import ru.ai.sin.logic.experience.dto.AddExperienceReq;
 import ru.ai.sin.logic.experience.dto.ExperienceDTO;
@@ -53,6 +54,8 @@ class ExperienceServiceImplAccessTest {
     private AccountAccessHelper accountAccessHelper;
     @Mock
     private StudentReviewState studentReviewState;
+    @Mock
+    private StudentProfileChangeRecorder studentProfileChangeRecorder;
 
     @InjectMocks
     private ExperienceServiceImpl experienceService;

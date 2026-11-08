@@ -15,7 +15,10 @@ public enum AnalyticsEventType {
     CHAT_MESSAGE_SENT("CHAT_MESSAGE_SENT"),
     CHAT_TU_CONFIRMED("CHAT_TU_CONFIRMED"),
     CHAT_TU_REJECTED("CHAT_TU_REJECTED"),
-    CHAT_SUCCESS("CHAT_SUCCESS");
+    CHAT_SUCCESS("CHAT_SUCCESS"),
+    EMAIL_SENT("EMAIL_SENT"),
+    ACCOUNT_REJECTED("ACCOUNT_REJECTED"),
+    STUDENT_PROFILE_CHANGED("STUDENT_PROFILE_CHANGED");
 
     private final String code;
 
@@ -30,5 +33,13 @@ public enum AnalyticsEventType {
             }
         }
         throw new IllegalArgumentException("Unknown eventType: " + raw);
+    }
+
+    /** Типы, которые сайт может прислать на публичный приём. Остальные пишет только сервер. */
+    public boolean acceptedFromClient() {
+        return switch (this) {
+            case EMAIL_SENT, ACCOUNT_REJECTED, STUDENT_PROFILE_CHANGED -> false;
+            default -> true;
+        };
     }
 }

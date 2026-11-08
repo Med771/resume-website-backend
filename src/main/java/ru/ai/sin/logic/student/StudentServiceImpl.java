@@ -22,6 +22,7 @@ import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
 import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
@@ -81,6 +82,7 @@ public class StudentServiceImpl implements StudentService {
     private final ProfileCommunicationGateService profileCommunicationGateService;
     private final VerificationOtpMailer verificationOtpMailer;
     private final StudentReviewState studentReviewState;
+    private final StudentProfileChangeRecorder studentProfileChangeRecorder;
 
     /**
      * Один read-only boundary на загрузку + маппинг: {@link StudentTools#getStudentOrThrow} завершает свой вложенный tx,
@@ -118,6 +120,8 @@ public class StudentServiceImpl implements StudentService {
         studentEnt.setImagePath(filePath);
         StudentProfileScoring.applyTo(studentEnt);
         studentReviewState.onStudentSelfEdit(studentEnt);
+        studentProfileChangeRecorder.record(
+                studentEnt.getId(), "/student/photo", "photo", "update", null, List.of("imagePath"));
     }
 
     @Override
@@ -137,6 +141,8 @@ public class StudentServiceImpl implements StudentService {
         studentEnt.setImagePath(null);
         StudentProfileScoring.applyTo(studentEnt);
         studentReviewState.onStudentSelfEdit(studentEnt);
+        studentProfileChangeRecorder.record(
+                studentEnt.getId(), "/student/photo", "photo", "delete", null, List.of());
     }
 
     @Override
@@ -343,6 +349,11 @@ public class StudentServiceImpl implements StudentService {
 
         StudentProfileScoring.applyTo(studentEnt);
         studentReviewState.onStudentSelfEdit(studentEnt);
+        List<String> changedFields = StudentProfileChangeRecorder.cardFields(req);
+        if (!changedFields.isEmpty()) {
+            studentProfileChangeRecorder.record(
+                    studentEnt.getId(), "/student/me", "card", "update", null, changedFields);
+        }
         return studentTools.mapToDTO(studentEnt);
     }
 

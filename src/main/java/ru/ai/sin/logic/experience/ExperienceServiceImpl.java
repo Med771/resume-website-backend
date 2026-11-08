@@ -19,6 +19,7 @@ import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
 
 import ru.ai.sin.logic.experience.dto.*;
 import ru.ai.sin.models.enums.ExperienceType;
@@ -29,6 +30,7 @@ import ru.ai.sin.tools.ExperienceTools;
 import ru.ai.sin.tools.StudentTools;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -49,6 +51,7 @@ public class ExperienceServiceImpl implements ExperienceService {
     private final SecurityHelper securityHelper;
     private final AccountAccessHelper accountAccessHelper;
     private final StudentReviewState studentReviewState;
+    private final StudentProfileChangeRecorder studentProfileChangeRecorder;
 
     private void updateActiveCompanyOrThrow(long companyId, ExperienceEnt experienceEnt) {
         experienceEnt.setCompany(companyTools.getCompanyOrThrow(companyId));
@@ -108,6 +111,7 @@ public class ExperienceServiceImpl implements ExperienceService {
         }
 
         studentReviewState.onStudentSelfEdit(experienceEnt.getStudent());
+        recordExperienceChange(experienceEnt, "create", StudentProfileChangeRecorder.experienceFields(addExperienceReq));
         ExperienceDTO experienceDTO = experienceTools.mapToDTO(experienceEnt);
 
         log.info("User: {}, created a new experience: {}", securityHelper.getCurrentUsername(), experienceDTO);
@@ -140,6 +144,7 @@ public class ExperienceServiceImpl implements ExperienceService {
         }
 
         studentReviewState.onStudentSelfEdit(experienceEnt.getStudent());
+        recordExperienceChange(experienceEnt, "update", StudentProfileChangeRecorder.experienceFields(updateExperienceReq));
         ExperienceDTO experienceDTO = experienceTools.mapToDTO(experienceEnt);
 
         log.info("User: {}, updated a experience: {} with data: {}", securityHelper.getCurrentUsername(), id, experienceDTO);
@@ -163,7 +168,21 @@ public class ExperienceServiceImpl implements ExperienceService {
         }
 
         studentReviewState.onStudentSelfEdit(experienceEnt.getStudent());
+        recordExperienceChange(experienceEnt, "delete", List.of());
         log.info("User: {}, deleted a experience: {} with data: {}", securityHelper.getCurrentUsername(), id, experienceEnt);
+    }
+
+    private void recordExperienceChange(ExperienceEnt experienceEnt, String action, List<String> fields) {
+        if (experienceEnt.getStudent() == null) {
+            return;
+        }
+        studentProfileChangeRecorder.record(
+                experienceEnt.getStudent().getId(),
+                "/experience",
+                "experience",
+                action,
+                experienceEnt.getId(),
+                fields);
     }
 
     private FilterExperienceReq scopeResumeReadFilter(FilterExperienceReq filter) {

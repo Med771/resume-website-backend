@@ -10,11 +10,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.ai.sin.logic.analytics.dto.AnalyticsEventDTO;
+import ru.ai.sin.logic.analytics.dto.AnalyticsEventsReq;
 import ru.ai.sin.logic.analytics.dto.AnalyticsFunnelDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsSummaryDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsSummaryReq;
 import ru.ai.sin.logic.analytics.dto.EntityPopulationSummaryDTO;
 import ru.ai.sin.logic.analytics.dto.EntityPopulationSummaryReq;
+import ru.ai.sin.models.PageResponse;
 
 @RestController
 @RequestMapping("/admin/analytics")
@@ -66,5 +69,15 @@ public class AdminAnalyticsController {
     @PostMapping("/funnel")
     public ResponseEntity<AnalyticsFunnelDTO> funnel(@Valid @RequestBody AnalyticsSummaryReq req) {
         return ResponseEntity.ok(analyticsService.summarizeFunnel(req));
+    }
+
+    @Operation(
+            summary = "События журнала за интервал",
+            description = """
+                    Страница строк: время, тип, путь, пользователь, сессия и `payload`.
+                    Интервал **[from, to)**. Без `eventType` — все события, включая посещения.""")
+    @PostMapping("/events")
+    public ResponseEntity<PageResponse<AnalyticsEventDTO>> events(@Valid @RequestBody AnalyticsEventsReq req) {
+        return ResponseEntity.ok(analyticsService.listEvents(req));
     }
 }

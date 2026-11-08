@@ -292,9 +292,10 @@ PK `(chat_id, user_id)`. `last_read_message_id` UUID, `last_read_at` TIMESTAMP. 
 |---------|-----|--------|
 | id | BIGSERIAL PK | |
 | occurred_at | TIMESTAMP | |
-| event_type | VARCHAR(64) | `PAGE_VIEW`, `REGISTRATION_STARTED`, `REGISTRATION_COMPLETED`, `ACCOUNT_APPROVED`, `APPLICATION_SUBMITTED`, `REQUEST_SUBMITTED`, `CHAT_MESSAGE_SENT`, `CHAT_TU_CONFIRMED`, `CHAT_TU_REJECTED`, `CHAT_SUCCESS` |
+| event_type | VARCHAR(64) | посещение с сайта или действие сервера |
 | path | VARCHAR(1024) | |
 | session_id | UUID | |
 | user_id | UUID | если пользователь известен |
 | ip_hash | VARCHAR(128) | |
 | user_agent | VARCHAR(512) | |
+| payload | JSONB | подробности действия; у посещения пусто |

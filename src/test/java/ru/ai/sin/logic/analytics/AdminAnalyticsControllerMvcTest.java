@@ -12,14 +12,18 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.ai.sin.config.MethodSecurityTestConfig;
 import ru.ai.sin.filter.JwtCookieAuthenticationFilter;
+import ru.ai.sin.logic.analytics.dto.AnalyticsEventDTO;
+import ru.ai.sin.logic.analytics.dto.AnalyticsEventsReq;
 import ru.ai.sin.logic.analytics.dto.AnalyticsPathCountRow;
 import ru.ai.sin.logic.analytics.dto.AnalyticsSummaryDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsSummaryReq;
 import ru.ai.sin.logic.analytics.dto.EntityPopulationSummaryDTO;
 import ru.ai.sin.logic.analytics.dto.EntityPopulationSummaryReq;
+import ru.ai.sin.models.PageResponse;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -115,6 +119,35 @@ class AdminAnalyticsControllerMvcTest {
                 LocalDateTime.now().minusDays(7),
                 LocalDateTime.now());
         mockMvc.perform(post("/admin/analytics/entity-population")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void events_ok() throws Exception {
+        when(analyticsService.listEvents(any())).thenReturn(new PageResponse<>(
+                List.of(new AnalyticsEventDTO(
+                        1L,
+                        LocalDateTime.now(),
+                        "EMAIL_SENT",
+                        "/mail",
+                        null,
+                        null,
+                        Map.of("kind", "STUDENT_EMAIL_OTP"))),
+                0,
+                20,
+                1,
+                1));
+        AnalyticsEventsReq body = new AnalyticsEventsReq(
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(1),
+                "EMAIL_SENT",
+                0,
+                20);
+        mockMvc.perform(post("/admin/analytics/events")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))

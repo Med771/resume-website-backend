@@ -12,6 +12,8 @@ import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
+import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
+import ru.ai.sin.models.enums.AnalyticsEventType;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
 import ru.ai.sin.logic.portfolio.PortfolioRepo;
@@ -31,8 +33,11 @@ import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -49,6 +54,7 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     private final InstitutionRepo institutionRepo;
     private final SecurityHelper securityHelper;
     private final VerificationOtpMailer verificationOtpMailer;
+    private final AnalyticsEventWriter analyticsEventWriter;
 
     @Override
     @Transactional(readOnly = true)
@@ -118,6 +124,7 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
             }
         }
         log.info("Account approved: userId={} by {}", userId, securityHelper.getCurrentUsername());
+        recordAccountDecision(user, AnalyticsEventType.ACCOUNT_APPROVED.getCode(), "/admin/account-approvals/approve", null, null);
     }
 
     @Override
@@ -155,6 +162,40 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
                 securityHelper.getCurrentUsername(),
                 body != null ? body.reasonCode() : null,
                 body != null ? body.comment() : null);
+        String reasonCode = user.getStudent() != null
+                ? user.getStudent().getRejectionReason()
+                : body != null ? body.reasonCode() : null;
+        String comment = user.getStudent() != null
+                ? user.getStudent().getRejectionComment()
+                : body != null ? body.comment() : null;
+        recordAccountDecision(user, AnalyticsEventType.ACCOUNT_REJECTED.getCode(), "/admin/account-approvals/reject", reasonCode, comment);
+    }
+
+    private void recordAccountDecision(
+            UserEnt user,
+            String eventType,
+            String path,
+            String reasonCode,
+            String comment
+    ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("targetUserId", user.getId());
+        payload.put("role", user.getRole() == null ? null : user.getRole().name());
+        payload.put("studentId", user.getStudent() == null ? null : user.getStudent().getId());
+        payload.put("recruiterId", user.getRecruiter() == null ? null : user.getRecruiter().getId());
+        if (AnalyticsEventType.ACCOUNT_REJECTED.getCode().equals(eventType)) {
+            payload.put("reasonCode", reasonCode);
+            payload.put("comment", comment);
+        }
+        analyticsEventWriter.record(eventType, path, currentUserId(), payload);
+    }
+
+    private UUID currentUserId() {
+        Optional<UserEnt> found = userRepo.findByUsername(securityHelper.getCurrentUsername());
+        if (found.isEmpty()) {
+            return null;
+        }
+        return found.get().getId();
     }
 
     private static boolean canReject(UserEnt user) {

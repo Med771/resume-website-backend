@@ -169,6 +169,7 @@
 | POST | `/admin/analytics/summary` | A |
 | POST | `/admin/analytics/entity-population` | A |
 | POST | `/admin/analytics/funnel` | A |
+| POST | `/admin/analytics/events` | A, страница событий с `payload` |
 | GET | `/admin/storage/files` | A |
 | POST | `/admin/storage/files` | A, multipart |
 | DELETE | `/admin/storage/files/{fileName}` | A |
