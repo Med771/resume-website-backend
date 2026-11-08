@@ -54,10 +54,22 @@ class StudentFindStringIntegrationTest extends AbstractPostgresIntegrationTest {
 
     @Test
     @Transactional
-    void ignoresBio() {
+    void fallsBackToBioWhenNameMisses() {
         StudentEnt student = save("Анна", "Петрова", "Сергеевна", "мои проекты", true);
 
-        assertThat(search("мои", false, null)).doesNotContain(student.getId());
+        assertThat(search("мои", false, null)).contains(student.getId());
+    }
+
+    @Test
+    @Transactional
+    void nameMatchIsNotReplacedByBio() {
+        StudentEnt byName = save("Анна", "Моисеева", "Сергеевна", "текст", true);
+        StudentEnt byBio = save("Иван", "Петров", "Сергеевич", "мои проекты", true);
+
+        List<UUID> found = search("мои", false, null);
+
+        assertThat(found).contains(byName.getId());
+        assertThat(found).doesNotContain(byBio.getId());
     }
 
     @Test
@@ -178,9 +190,14 @@ class StudentFindStringIntegrationTest extends AbstractPostgresIntegrationTest {
                 null,
                 null,
                 null);
-        return studentRepo.findAll(
-                        StudentSpecifications.byFilters(filter, includeHidden, false),
-                        PageRequest.of(0, 200))
+        return StudentSpecifications.findPage(
+                        studentRepo,
+                        PageRequest.of(0, 200),
+                        filter,
+                        includeHidden,
+                        false,
+                        false,
+                        null)
                 .map(StudentEnt::getId)
                 .toList();
     }

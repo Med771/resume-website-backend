@@ -40,9 +40,8 @@ public class PublicCatalogStudentService {
     public PageResponse<StudentCardDTO> listCards(Pageable pageable, FilterStudentReq filterStudentReq) {
         Sort sort = StudentSortResolver.resolve(filterStudentReq);
         Pageable effective = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-        Page<StudentEnt> page = studentRepo.findAll(
-                StudentSpecifications.byFilters(filterStudentReq, false, true),
-                effective);
+        Page<StudentEnt> page = StudentSpecifications.findPage(
+                studentRepo, effective, filterStudentReq, false, true, false, null);
         return new PageResponse<>(
                 page.getContent().stream().map(studentTools::mapToCardDTO).toList(),
                 pageable.getPageNumber(),

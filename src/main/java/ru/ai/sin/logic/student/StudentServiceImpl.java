@@ -194,9 +194,8 @@ public class StudentServiceImpl implements StudentService {
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
                 sort);
-        return studentRepo.findAll(
-                StudentSpecifications.byFilters(filterStudentReq, admin, false, !admin, ownId),
-                effectivePageable);
+        return StudentSpecifications.findPage(
+                studentRepo, effectivePageable, filterStudentReq, admin, false, !admin, ownId);
     }
 
     @Override

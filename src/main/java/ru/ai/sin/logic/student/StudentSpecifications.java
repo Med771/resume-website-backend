@@ -10,6 +10,8 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import ru.ai.sin.logic.student.dto.FilterStudentReq;
@@ -26,7 +28,44 @@ import java.util.UUID;
 
 public final class StudentSpecifications {
 
+    public enum FindText {
+        NAME,
+        BIO
+    }
+
     private StudentSpecifications() {}
+
+    /**
+     * Сначала подстрока в ФИО. Если никого нет, тот же фильтр по описанию.
+     * Пустая страница при ненулевом результате по имени описание не открывает.
+     */
+    public static Page<StudentEnt> findPage(
+            StudentRepo studentRepo,
+            Pageable pageable,
+            FilterStudentReq filterStudentReq,
+            boolean includeHiddenFromCatalog,
+            boolean requirePublicConsent,
+            boolean requireApprovedAccount,
+            UUID alwaysIncludeStudentId
+    ) {
+        Page<StudentEnt> byName = studentRepo.findAll(
+                byFilters(filterStudentReq, includeHiddenFromCatalog, requirePublicConsent,
+                        requireApprovedAccount, alwaysIncludeStudentId, FindText.NAME),
+                pageable);
+        if (!hasFindString(filterStudentReq) || byName.getTotalElements() > 0) {
+            return byName;
+        }
+        return studentRepo.findAll(
+                byFilters(filterStudentReq, includeHiddenFromCatalog, requirePublicConsent,
+                        requireApprovedAccount, alwaysIncludeStudentId, FindText.BIO),
+                pageable);
+    }
+
+    private static boolean hasFindString(FilterStudentReq filterStudentReq) {
+        return filterStudentReq != null
+                && filterStudentReq.findString() != null
+                && !filterStudentReq.findString().isBlank();
+    }
 
     /**
      * @param includeHiddenFromCatalog если false, студенты с catalog_visible = false исключаются из выборки
@@ -37,7 +76,7 @@ public final class StudentSpecifications {
             boolean includeHiddenFromCatalog,
             boolean requirePublicConsent
     ) {
-        return byFilters(filterStudentReq, includeHiddenFromCatalog, requirePublicConsent, false, null);
+        return byFilters(filterStudentReq, includeHiddenFromCatalog, requirePublicConsent, false, null, FindText.NAME);
     }
 
     /**
@@ -50,6 +89,18 @@ public final class StudentSpecifications {
             boolean requirePublicConsent,
             boolean requireApprovedAccount,
             UUID alwaysIncludeStudentId
+    ) {
+        return byFilters(filterStudentReq, includeHiddenFromCatalog, requirePublicConsent,
+                requireApprovedAccount, alwaysIncludeStudentId, FindText.NAME);
+    }
+
+    public static Specification<StudentEnt> byFilters(
+            FilterStudentReq filterStudentReq,
+            boolean includeHiddenFromCatalog,
+            boolean requirePublicConsent,
+            boolean requireApprovedAccount,
+            UUID alwaysIncludeStudentId,
+            FindText findText
     ) {
 
         return (root, query, cb) -> {
@@ -70,26 +121,18 @@ public final class StudentSpecifications {
                     predicates, root, query, cb,
                     includeHiddenFromCatalog, requireApprovedAccount, alwaysIncludeStudentId);
 
-            if (filterStudentReq.findString() != null && !filterStudentReq.findString().isBlank()) {
-                String filter = filterStudentReq.findString().toLowerCase();
-
-                Expression<String> fullName = cb.lower(cb.concat(
-                        cb.concat(
-                                cb.concat(cb.coalesce(root.get("userInformation").get("firstName"), ""), " "),
-                                cb.coalesce(root.get("userInformation").get("lastName"), "")),
-                        cb.concat(" ", cb.coalesce(root.get("middleName"), ""))
-                ));
-
-                Predicate fullNameLike = cb.like(fullName, "%" + filter + "%");
-
-                if (filter.length() <= 3) {
-                    predicates.add(fullNameLike);
+            if (hasFindString(filterStudentReq)) {
+                String filter = "%" + filterStudentReq.findString().trim().toLowerCase() + "%";
+                if (findText == FindText.BIO) {
+                    predicates.add(cb.like(cb.lower(cb.coalesce(root.get("bio"), "")), filter));
                 } else {
-                    double threshold = filter.length() <= 8 ? 0.4 : 0.5;
-                    Expression<Double> fullNameSimilarity = cb.function(
-                            "word_similarity", Double.class, cb.literal(filter), fullName);
-                    Predicate fullNameFuzzy = cb.greaterThanOrEqualTo(fullNameSimilarity, threshold);
-                    predicates.add(cb.or(fullNameFuzzy, fullNameLike));
+                    Expression<String> fullName = cb.lower(cb.concat(
+                            cb.concat(
+                                    cb.concat(cb.coalesce(root.get("userInformation").get("firstName"), ""), " "),
+                                    cb.coalesce(root.get("userInformation").get("lastName"), "")),
+                            cb.concat(" ", cb.coalesce(root.get("middleName"), ""))
+                    ));
+                    predicates.add(cb.like(fullName, filter));
                 }
             }
 
