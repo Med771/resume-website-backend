@@ -6,6 +6,7 @@ import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.ForbiddenException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
@@ -23,6 +24,7 @@ public class AccountAccessHelper {
     private final UserRepo userRepo;
     private final UserTools userTools;
     private final StudentTools studentTools;
+    private final StudentProfileVersionService profileVersions;
 
     public UserEnt requireCurrentUser() {
         String username = securityHelper.getCurrentUsername();
@@ -170,7 +172,10 @@ public class AccountAccessHelper {
         }
 
         StudentEnt studentEnt = studentTools.getStudentOrThrow(studentId);
-        if (!studentEnt.isCatalogVisible() || !isStudentAccountApproved(studentId)) {
+        if (!studentEnt.isCatalogVisible()) {
+            throw new NotFoundException("Failed to find student by id " + studentId);
+        }
+        if (!isStudentAccountApproved(studentId) && !profileVersions.hasPublishedVersion(studentId)) {
             throw new NotFoundException("Failed to find student by id " + studentId);
         }
     }

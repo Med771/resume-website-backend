@@ -12,6 +12,7 @@ import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
@@ -104,6 +105,8 @@ class StudentServiceImplPatchMeTest {
     private StudentReviewState studentReviewState;
     @Mock
     private StudentProfileChangeRecorder studentProfileChangeRecorder;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private StudentServiceImpl studentService;

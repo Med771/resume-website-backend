@@ -276,7 +276,14 @@ public final class StudentSpecifications {
         approved.where(
                 cb.equal(user.get("student"), root),
                 cb.equal(user.get("accountStatus"), AccountStatus.APPROVED));
-        return cb.exists(approved);
+        Subquery<Integer> published = query.subquery(Integer.class);
+        Root<ru.ai.sin.logic.student.version.StudentProfileVersionEnt> version = published.from(
+                ru.ai.sin.logic.student.version.StudentProfileVersionEnt.class);
+        published.select(cb.literal(1));
+        published.where(
+                cb.equal(version.get("studentId"), root.get("id")),
+                cb.equal(version.get("status"), ru.ai.sin.logic.student.version.StudentProfileVersionStatus.APPROVED));
+        return cb.or(cb.exists(approved), cb.exists(published));
     }
 
 

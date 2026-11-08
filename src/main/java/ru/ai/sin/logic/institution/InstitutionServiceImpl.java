@@ -20,6 +20,7 @@ import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.models.enums.EducationType;
 
 import ru.ai.sin.logic.institution.dto.*;
@@ -30,6 +31,7 @@ import ru.ai.sin.tools.StudentTools;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -50,6 +52,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     private final AccountAccessHelper accountAccessHelper;
     private final StudentReviewState studentReviewState;
     private final StudentProfileChangeRecorder studentProfileChangeRecorder;
+    private final StudentProfileVersionService profileVersions;
 
     private void updateActiveEducationOrThrow(long educationId, InstitutionEnt institutionEnt) {
         institutionEnt.setEducation(educationTools.getEducationOrThrow(educationId));
@@ -72,6 +75,10 @@ public class InstitutionServiceImpl implements InstitutionService {
     @Transactional(readOnly = true)
     public PageResponse<InstitutionDTO> getAllByFilter(Pageable pageable, FilterInstitutionReq filterInstitutionReq) {
         FilterInstitutionReq effective = scopeResumeReadFilter(filterInstitutionReq);
+        Optional<PageResponse<InstitutionDTO>> drafted = profileVersions.draftEducation(effective, pageable);
+        if (drafted.isPresent()) {
+            return drafted.get();
+        }
 
         Page<InstitutionEnt> page = institutionRepo.findAll(
                 InstitutionSpecifications.byFilters(effective),
@@ -90,6 +97,13 @@ public class InstitutionServiceImpl implements InstitutionService {
     public InstitutionDTO create(AddInstitutionReq addInstitutionReq) {
         UUID studentId = accountAccessHelper.resolveStudentIdForResumeMutation(addInstitutionReq.studentId());
         accountAccessHelper.requireStudentCanMutateResume(studentId);
+        Optional<InstitutionDTO> drafted = profileVersions.captureEducationCreate(studentId, addInstitutionReq);
+        if (drafted.isPresent()) {
+            studentProfileChangeRecorder.record(
+                    studentId, "/institution", "education", "create", drafted.get().institution().id(),
+                    StudentProfileChangeRecorder.institutionFields(addInstitutionReq));
+            return drafted.get();
+        }
 
         InstitutionEnt institutionEnt = institutionMapper.toEntity(addInstitutionReq);
         if (institutionEnt.getEducationType() == null) {
@@ -125,6 +139,14 @@ public class InstitutionServiceImpl implements InstitutionService {
     ) {
         InstitutionEnt institutionEnt = institutionTools.getInstitutionOrThrow(id);
         accountAccessHelper.requireStudentCanMutateResume(institutionEnt.getStudent().getId());
+        Optional<InstitutionDTO> drafted = profileVersions.captureEducationUpdate(
+                institutionEnt.getStudent().getId(), id, updateInstitutionReq);
+        if (drafted.isPresent()) {
+            studentProfileChangeRecorder.record(
+                    institutionEnt.getStudent().getId(), "/institution", "education", "update", id,
+                    StudentProfileChangeRecorder.institutionFields(updateInstitutionReq));
+            return drafted.get();
+        }
 
         institutionMapper.updateEntityFromDto(updateInstitutionReq, institutionEnt);
 
@@ -153,6 +175,11 @@ public class InstitutionServiceImpl implements InstitutionService {
     public void deleteById(long id) {
         InstitutionEnt institutionEnt = institutionTools.getInstitutionOrThrow(id);
         accountAccessHelper.requireStudentCanMutateResume(institutionEnt.getStudent().getId());
+        if (profileVersions.captureEducationDelete(institutionEnt.getStudent().getId(), id)) {
+            studentProfileChangeRecorder.record(
+                    institutionEnt.getStudent().getId(), "/institution", "education", "delete", id, List.of());
+            return;
+        }
 
         try {
             institutionRepo.delete(institutionEnt);
@@ -186,7 +213,10 @@ public class InstitutionServiceImpl implements InstitutionService {
         UUID studentId = accountAccessHelper.resolveStudentIdForResumeRead(requested);
         accountAccessHelper.requireCanReadStudentResumeDetails(studentId);
         if (studentId != null && (filter == null || !studentId.equals(filter.studentId()))) {
-            return new FilterInstitutionReq(studentId, filter == null ? null : filter.educationId());
+            return new FilterInstitutionReq(
+                    studentId,
+                    filter == null ? null : filter.educationId(),
+                    filter == null ? null : filter.published());
         }
         return filter;
     }

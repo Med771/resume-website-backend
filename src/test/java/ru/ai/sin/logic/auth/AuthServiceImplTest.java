@@ -30,6 +30,7 @@ import ru.ai.sin.logic.registration.EmailOtpAttemptLimiter;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
 import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -89,6 +90,9 @@ class AuthServiceImplTest {
     @Mock
     private VerificationOtpMailer verificationOtpMailer;
 
+    @Mock
+    private StudentProfileVersionService profileVersions;
+
     private AuthServiceImpl authService;
 
     @BeforeEach
@@ -112,7 +116,8 @@ class AuthServiceImplTest {
                 registrationPasswordPolicy,
                 emailOtpAttemptLimiter,
                 mailProperties,
-                verificationOtpMailer);
+                verificationOtpMailer,
+                profileVersions);
     }
 
     @Test

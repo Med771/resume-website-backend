@@ -14,6 +14,7 @@ import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
 import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.experience.ExperienceEnt;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionEnt;
@@ -71,6 +72,8 @@ class AccountApprovalServiceImplTest {
     private VerificationOtpMailer verificationOtpMailer;
     @Mock
     private AnalyticsEventWriter analyticsEventWriter;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private AccountApprovalServiceImpl service;

@@ -11,6 +11,7 @@ import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.company.CompanyEnt;
 import ru.ai.sin.logic.experience.dto.AddExperienceReq;
 import ru.ai.sin.logic.experience.dto.ExperienceDTO;
@@ -53,6 +54,8 @@ class ExperienceTypeDefaultsTest {
     private StudentReviewState studentReviewState;
     @Mock
     private StudentProfileChangeRecorder studentProfileChangeRecorder;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private ExperienceServiceImpl experienceService;

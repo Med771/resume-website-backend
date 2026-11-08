@@ -9,6 +9,7 @@ import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.ForbiddenException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
@@ -38,12 +39,14 @@ class AccountAccessHelperTest {
     private UserTools userTools;
     @Mock
     private StudentTools studentTools;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     private AccountAccessHelper helper;
 
     @BeforeEach
     void setUp() {
-        helper = new AccountAccessHelper(securityHelper, userRepo, userTools, studentTools);
+        helper = new AccountAccessHelper(securityHelper, userRepo, userTools, studentTools, profileVersions);
     }
 
     @Test

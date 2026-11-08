@@ -10,6 +10,7 @@ import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.student.StudentRepo;
 
 import java.util.Optional;
@@ -34,6 +35,8 @@ class MainServiceImplTest {
     private AccountAccessHelper accountAccessHelper;
     @Mock
     private SecurityHelper securityHelper;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private MainServiceImpl service;

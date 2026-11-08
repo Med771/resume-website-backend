@@ -13,6 +13,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -29,6 +30,8 @@ public interface PortfolioRepo extends JpaRepository<PortfolioEnt, Long>, JpaSpe
     Page<PortfolioEnt> findAll(Specification<PortfolioEnt> spec, @NonNull Pageable pageable);
 
     void deleteByStudent_Id(UUID studentId);
+
+    List<PortfolioEnt> findAllByStudent_Id(UUID studentId);
 
     boolean existsByStudent_Id(UUID studentId);
 

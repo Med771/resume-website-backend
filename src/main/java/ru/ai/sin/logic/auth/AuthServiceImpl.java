@@ -29,6 +29,7 @@ import ru.ai.sin.logic.auth.dto.TokenPair;
 import ru.ai.sin.logic.registration.ClientIpResolver;
 import ru.ai.sin.logic.registration.EmailOtpAttemptLimiter;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.logic.verification.VerificationOtpMailer;
@@ -61,6 +62,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailOtpAttemptLimiter emailOtpAttemptLimiter;
     private final MailProperties mailProperties;
     private final VerificationOtpMailer verificationOtpMailer;
+    private final StudentProfileVersionService profileVersions;
 
     @Override
     public TokenPair login(LoginRequest request) {
@@ -99,6 +101,9 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new BadCredentialsException("Not authenticated"));
         UserEnt user = userRepo.findByUsernameFetchingLinks(username)
                 .orElseThrow(() -> new BadCredentialsException("Not authenticated"));
+        if (user.getStudent() != null) {
+            profileVersions.expireDueDrafts();
+        }
         AccountStatus status = user.getAccountStatus() != null ? user.getAccountStatus() : AccountStatus.APPROVED;
         String rejectionReason = null;
         String rejectionComment = null;
@@ -116,7 +121,8 @@ public class AuthServiceImpl implements AuthService {
                 user.isEmailVerified(),
                 user.isHintsDisabled(),
                 rejectionReason,
-                rejectionComment);
+                rejectionComment,
+                user.getStudent() == null ? null : profileVersions.activeGraceEndsAt(user.getStudent().getId()));
     }
 
     private static String blankToNull(String value) {

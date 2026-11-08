@@ -90,6 +90,7 @@ class AuthControllerMvcTest {
                 true,
                 false,
                 null,
+                null,
                 null));
 
         mockMvc.perform(get("/auth/me"))

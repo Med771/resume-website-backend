@@ -21,6 +21,7 @@ import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.skill.SkillEnt;
 import ru.ai.sin.logic.skill.SkillOrder;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
@@ -55,11 +56,13 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     private final SecurityHelper securityHelper;
     private final VerificationOtpMailer verificationOtpMailer;
     private final AnalyticsEventWriter analyticsEventWriter;
+    private final StudentProfileVersionService profileVersions;
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<AccountApprovalUserDTO> listStudents(int page, int size) {
         PageRequest pr = PageRequest.of(page, size);
+        profileVersions.expireDueDrafts();
         Page<UserEnt> result = userRepo.findByRole(RoleEnum.STUDENT, pr);
         Set<UUID> studentIds = result.getContent().stream()
                 .map(UserEnt::getStudent)
@@ -92,7 +95,8 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     public void approve(UUID userId) {
         UserEnt user = userRepo.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь не найден: " + userId));
-        if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL) {
+        boolean republish = user.getStudent() != null && profileVersions.hasUnpublished(user.getStudent().getId());
+        if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL && !republish) {
             throw new BadRequestException("Аккаунт уже обработан");
         }
         if (user.getRole() == RoleEnum.STUDENT) {
@@ -103,9 +107,13 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
             if (studentProfile == null) {
                 throw new BadRequestException("Анкета неполная: нет анкеты");
             }
-            List<String> problems = StudentApprovalCompleteness.problems(studentProfile);
-            if (!problems.isEmpty()) {
-                throw new BadRequestException("Анкета неполная: " + String.join(", ", problems));
+            if (republish) {
+                profileVersions.assertUnpublishedComplete(studentProfile);
+            } else {
+                List<String> problems = StudentApprovalCompleteness.problems(studentProfile);
+                if (!problems.isEmpty()) {
+                    throw new BadRequestException("Анкета неполная: " + String.join(", ", problems));
+                }
             }
         }
         user.setAccountStatus(AccountStatus.APPROVED);
@@ -122,6 +130,9 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
             if (email != null) {
                 verificationOtpMailer.trySendAccountApproved(email, user.getUsername());
             }
+        }
+        if (user.getRole() == RoleEnum.STUDENT && user.getStudent() != null) {
+            profileVersions.publishOnApprove(user.getStudent());
         }
         log.info("Account approved: userId={} by {}", userId, securityHelper.getCurrentUsername());
         recordAccountDecision(user, AnalyticsEventType.ACCOUNT_APPROVED.getCode(), "/admin/account-approvals/approve", null, null);
@@ -218,7 +229,10 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         if (student != null) {
             student.setRejectionReason(reason.getCode());
             student.setRejectionComment(comment);
-            student.setCatalogVisible(false);
+            profileVersions.markLatestDraftRejected(student.getId());
+            if (!profileVersions.hasPublishedVersion(student.getId())) {
+                student.setCatalogVisible(false);
+            }
             studentRepo.save(student);
         }
         String email = studentEmail(user);

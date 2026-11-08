@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
@@ -16,6 +17,7 @@ public class StudentReviewState {
 
     private final UserRepo userRepo;
     private final SecurityHelper securityHelper;
+    private final StudentProfileVersionService profileVersions;
 
     /**
      * Правка своей анкеты студентом: одобренная или отклонённая карточка снова ждёт проверки и скрывается.
@@ -33,6 +35,9 @@ public class StudentReviewState {
         }
         AccountStatus status = user.getAccountStatus();
         if (status != AccountStatus.APPROVED && status != AccountStatus.REJECTED) {
+            return;
+        }
+        if (profileVersions.hasPublishedVersion(student.getId())) {
             return;
         }
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);

@@ -20,6 +20,7 @@ import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
 import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 
 import ru.ai.sin.logic.experience.dto.*;
 import ru.ai.sin.models.enums.ExperienceType;
@@ -32,6 +33,7 @@ import ru.ai.sin.tools.StudentTools;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -52,6 +54,7 @@ public class ExperienceServiceImpl implements ExperienceService {
     private final AccountAccessHelper accountAccessHelper;
     private final StudentReviewState studentReviewState;
     private final StudentProfileChangeRecorder studentProfileChangeRecorder;
+    private final StudentProfileVersionService profileVersions;
 
     private void updateActiveCompanyOrThrow(long companyId, ExperienceEnt experienceEnt) {
         experienceEnt.setCompany(companyTools.getCompanyOrThrow(companyId));
@@ -73,6 +76,10 @@ public class ExperienceServiceImpl implements ExperienceService {
     @Transactional(readOnly = true)
     public PageResponse<ExperienceDTO> getAllByFilter(Pageable pageable, FilterExperienceReq filterExperienceReq) {
         FilterExperienceReq effective = scopeResumeReadFilter(filterExperienceReq);
+        Optional<PageResponse<ExperienceDTO>> drafted = profileVersions.draftExperiences(effective, pageable);
+        if (drafted.isPresent()) {
+            return drafted.get();
+        }
 
         Page<ExperienceEnt> page = experienceRepo.findAll(
                 ExperienceSpecifications.byFilters(effective),
@@ -92,6 +99,13 @@ public class ExperienceServiceImpl implements ExperienceService {
         UUID studentId = accountAccessHelper.resolveStudentIdForResumeMutation(addExperienceReq.studentId());
         accountAccessHelper.requireStudentCanMutateResume(studentId);
         requireValidDates(addExperienceReq.startDate(), addExperienceReq.endDate());
+        Optional<ExperienceDTO> drafted = profileVersions.captureExperienceCreate(studentId, addExperienceReq);
+        if (drafted.isPresent()) {
+            studentProfileChangeRecorder.record(
+                    studentId, "/experience", "experience", "create", drafted.get().experience().id(),
+                    StudentProfileChangeRecorder.experienceFields(addExperienceReq));
+            return drafted.get();
+        }
 
         ExperienceEnt experienceEnt = experienceMapper.toEntity(addExperienceReq);
         if (experienceEnt.getExperienceType() == null) {
@@ -128,6 +142,14 @@ public class ExperienceServiceImpl implements ExperienceService {
         ExperienceEnt experienceEnt = experienceTools.getExperienceOrThrow(id);
         accountAccessHelper.requireStudentCanMutateResume(experienceEnt.getStudent().getId());
         requireValidDates(updateExperienceReq.startDate(), updateExperienceReq.endDate());
+        Optional<ExperienceDTO> drafted = profileVersions.captureExperienceUpdate(
+                experienceEnt.getStudent().getId(), id, updateExperienceReq);
+        if (drafted.isPresent()) {
+            studentProfileChangeRecorder.record(
+                    experienceEnt.getStudent().getId(), "/experience", "experience", "update", id,
+                    StudentProfileChangeRecorder.experienceFields(updateExperienceReq));
+            return drafted.get();
+        }
 
         experienceMapper.updateEntityFromDto(updateExperienceReq, experienceEnt);
 
@@ -157,6 +179,11 @@ public class ExperienceServiceImpl implements ExperienceService {
     public void deleteById(long id) {
         ExperienceEnt experienceEnt = experienceTools.getExperienceOrThrow(id);
         accountAccessHelper.requireStudentCanMutateResume(experienceEnt.getStudent().getId());
+        if (profileVersions.captureExperienceDelete(experienceEnt.getStudent().getId(), id)) {
+            studentProfileChangeRecorder.record(
+                    experienceEnt.getStudent().getId(), "/experience", "experience", "delete", id, List.of());
+            return;
+        }
 
         try {
             experienceRepo.delete(experienceEnt);
@@ -190,7 +217,10 @@ public class ExperienceServiceImpl implements ExperienceService {
         UUID studentId = accountAccessHelper.resolveStudentIdForResumeRead(requested);
         accountAccessHelper.requireCanReadStudentResumeDetails(studentId);
         if (studentId != null && (filter == null || !studentId.equals(filter.studentId()))) {
-            return new FilterExperienceReq(studentId, filter == null ? null : filter.companyId());
+            return new FilterExperienceReq(
+                    studentId,
+                    filter == null ? null : filter.companyId(),
+                    filter == null ? null : filter.published());
         }
         return filter;
     }

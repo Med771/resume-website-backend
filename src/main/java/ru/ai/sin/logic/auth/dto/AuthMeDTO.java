@@ -24,6 +24,9 @@ public record AuthMeDTO(
         String rejectionReason,
 
         @Schema(description = "Комментарий администратора к отказу. Только у студента со статусом REJECTED")
-        String rejectionComment
+        String rejectionComment,
+
+        @Schema(description = "До какого момента можно вернуть прошлую анкету. Пусто, если пяти минут нет")
+        java.time.LocalDateTime draftGraceEndsAt
 ) {
 }

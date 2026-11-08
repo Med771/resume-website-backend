@@ -27,7 +27,9 @@ import org.springframework.web.multipart.MultipartFile;
 import ru.ai.sin.models.PageResponse;
 
 import ru.ai.sin.logic.student.dto.*;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -46,6 +48,7 @@ import java.util.UUID;
 public class StudentController {
 
     private final StudentService studentService;
+    private final StudentProfileVersionService profileVersions;
 
     @Operation(
             summary = "Текущий студент (ЛК)",
@@ -58,6 +61,37 @@ public class StudentController {
     public ResponseEntity<StudentDTO> getMe() {
         return ResponseEntity.ok(studentService.getLinkedForCurrentUser()
                 .orElseThrow(() -> new NotFoundException("К аккаунту не привязана карточка студента")));
+    }
+
+    @Operation(summary = "Одобренная анкета, которую видит каталог")
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping(path = "/me/published")
+    public ResponseEntity<StudentDTO> publishedMe() {
+        return ResponseEntity.ok(profileVersions.publishedForCurrent());
+    }
+
+    @Operation(summary = "Свои версии анкеты: номер, статус и время")
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping(path = "/me/versions")
+    public ResponseEntity<List<StudentProfileVersionItemDTO>> myVersions() {
+        return ResponseEntity.ok(profileVersions.listForCurrent());
+    }
+
+    @Operation(summary = "Одна своя версия анкеты")
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping(path = "/me/versions/{number}")
+    public ResponseEntity<StudentDTO> myVersion(@PathVariable int number) {
+        return ResponseEntity.ok(profileVersions.versionForCurrent(number));
+    }
+
+    @Operation(summary = "Вернуть прошлую анкету в течение пяти минут")
+    @PreAuthorize("hasRole('STUDENT')")
+    @PostMapping(path = "/me/revert-draft")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revertDraft() {
+        StudentDTO me = studentService.getLinkedForCurrentUser()
+                .orElseThrow(() -> new NotFoundException("К аккаунту не привязана карточка студента"));
+        profileVersions.revertDraft(me.id());
     }
 
     @Operation(

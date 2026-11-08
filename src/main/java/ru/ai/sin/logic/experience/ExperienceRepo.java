@@ -33,6 +33,8 @@ public interface ExperienceRepo extends JpaRepository<ExperienceEnt, Long>, JpaS
 
     void deleteByStudent_Id(UUID studentId);
 
+    List<ExperienceEnt> findAllByStudent_Id(UUID studentId);
+
     boolean existsByStudent_Id(UUID studentId);
 
     @Query("select distinct e.student.id from ExperienceEnt e where e.student.id in :ids")

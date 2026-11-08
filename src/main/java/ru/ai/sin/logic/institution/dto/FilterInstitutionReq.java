@@ -4,5 +4,6 @@ import java.util.UUID;
 
 public record FilterInstitutionReq(
         UUID studentId,
-        Long educationId) {
+        Long educationId,
+        Boolean published) {
 }

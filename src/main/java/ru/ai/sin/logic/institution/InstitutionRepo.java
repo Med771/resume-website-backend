@@ -13,6 +13,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -30,6 +31,8 @@ public interface InstitutionRepo extends JpaRepository<InstitutionEnt, Long>, Jp
     );
 
     void deleteByStudent_Id(UUID studentId);
+
+    List<InstitutionEnt> findAllByStudent_Id(UUID studentId);
 
     boolean existsByStudent_Id(UUID studentId);
 
