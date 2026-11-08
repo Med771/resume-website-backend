@@ -6,12 +6,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import java.util.Collection;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -29,7 +31,8 @@ public interface InstitutionRepo extends JpaRepository<InstitutionEnt, Long>, Jp
 
     void deleteByStudent_Id(UUID studentId);
 
-    List<InstitutionEnt> findAllByStudent_Id(UUID studentId);
-
     boolean existsByStudent_Id(UUID studentId);
+
+    @Query("select distinct i.student.id from InstitutionEnt i where i.student.id in :ids")
+    Set<UUID> findStudentIdsByStudentIdIn(@Param("ids") Collection<UUID> ids);
 }

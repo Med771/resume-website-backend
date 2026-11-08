@@ -22,7 +22,7 @@
 ## Рекрутер
 
 1. `POST /auth/register-recruiter`. Сервер сразу создаёт профиль и пользователя и выдаёт cookie. Телефон в анкете — контакт.
-2. В ЛК статус `PENDING_APPROVAL`, пока админ не одобрит аккаунт в `/admin/account-approvals`.
+2. В ЛК статус `PENDING_APPROVAL`, пока админ не одобрит аккаунт (`POST /admin/account-approvals/{userId}/approve`).
 3. `GET /recruiter/me`, каталог `POST /student/cardsFilter`, карточка `GET /student/{id}`.
 4. Пишет студенту: `POST /request`. Чат создаётся сразу.
 5. После согласия студента переписывается в `/chat`.
@@ -33,7 +33,7 @@
 
 Вход: `POST /auth/admin/login`.
 
-- Очередь аккаунтов: `/admin/account-approvals`. Одобрение студента ставит `catalog_visible = true`.
+- Список студентов: `/admin/account-approvals/students`. В строке есть `hasPortfolio`, `hasExperience`, `hasEducation`. Одобрение студента ставит `catalog_visible = true`.
 - Старые заявки из `recruiter_registration_requests`: `/admin/recruiter-registration-requests`. Новая саморегистрация эту таблицу не заполняет.
 - Карточки студентов, видимость, ручной порядок.
 - Справочники: компании, навыки, специальности, учебные заведения.

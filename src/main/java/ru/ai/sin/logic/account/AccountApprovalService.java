@@ -4,13 +4,10 @@ import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
 import ru.ai.sin.models.PageResponse;
-import ru.ai.sin.models.enums.RoleEnum;
 
 import java.util.UUID;
 
 public interface AccountApprovalService {
-
-    PageResponse<AccountApprovalUserDTO> listPending(RoleEnum role, int page, int size);
 
     PageResponse<AccountApprovalUserDTO> listStudents(int page, int size);
 

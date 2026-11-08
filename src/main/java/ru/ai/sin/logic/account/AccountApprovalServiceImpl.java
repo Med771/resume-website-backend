@@ -12,6 +12,9 @@ import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
+import ru.ai.sin.logic.experience.ExperienceRepo;
+import ru.ai.sin.logic.institution.InstitutionRepo;
+import ru.ai.sin.logic.portfolio.PortfolioRepo;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.skill.SkillEnt;
 import ru.ai.sin.logic.skill.SkillOrder;
@@ -30,7 +33,9 @@ import ru.ai.sin.models.enums.RoleEnum;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -39,32 +44,36 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
 
     private final UserRepo userRepo;
     private final StudentRepo studentRepo;
+    private final PortfolioRepo portfolioRepo;
+    private final ExperienceRepo experienceRepo;
+    private final InstitutionRepo institutionRepo;
     private final SecurityHelper securityHelper;
     private final VerificationOtpMailer verificationOtpMailer;
-
-    @Override
-    @Transactional(readOnly = true)
-    public PageResponse<AccountApprovalUserDTO> listPending(RoleEnum role, int page, int size) {
-        PageRequest pr = PageRequest.of(page, size);
-        Page<UserEnt> result = role == null
-                ? userRepo.findByAccountStatus(AccountStatus.PENDING_APPROVAL, pr)
-                : userRepo.findByAccountStatusAndRole(AccountStatus.PENDING_APPROVAL, role, pr);
-        return new PageResponse<>(
-                result.getContent().stream().map(this::toDto).toList(),
-                page,
-                size,
-                result.getTotalElements(),
-                result.getTotalPages()
-        );
-    }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<AccountApprovalUserDTO> listStudents(int page, int size) {
         PageRequest pr = PageRequest.of(page, size);
         Page<UserEnt> result = userRepo.findByRole(RoleEnum.STUDENT, pr);
+        Set<UUID> studentIds = result.getContent().stream()
+                .map(UserEnt::getStudent)
+                .filter(Objects::nonNull)
+                .map(StudentEnt::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<UUID> withPortfolio = studentIds.isEmpty()
+                ? Set.of()
+                : portfolioRepo.findStudentIdsByStudentIdIn(studentIds);
+        Set<UUID> withExperience = studentIds.isEmpty()
+                ? Set.of()
+                : experienceRepo.findStudentIdsByStudentIdIn(studentIds);
+        Set<UUID> withEducation = studentIds.isEmpty()
+                ? Set.of()
+                : institutionRepo.findStudentIdsByStudentIdIn(studentIds);
         return new PageResponse<>(
-                result.getContent().stream().map(this::toDto).toList(),
+                result.getContent().stream()
+                        .map(user -> toDto(user, withPortfolio, withExperience, withEducation))
+                        .toList(),
                 page,
                 size,
                 result.getTotalElements(),
@@ -212,7 +221,12 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         return null;
     }
 
-    private AccountApprovalUserDTO toDto(UserEnt u) {
+    private AccountApprovalUserDTO toDto(
+            UserEnt u,
+            Set<UUID> withPortfolio,
+            Set<UUID> withExperience,
+            Set<UUID> withEducation
+    ) {
         String email = null;
         String phone = null;
         String telegram = null;
@@ -310,7 +324,10 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
                 busyness,
                 bio,
                 profileTextScore,
-                skills
+                skills,
+                student != null && student.getId() != null && withPortfolio.contains(student.getId()),
+                student != null && student.getId() != null && withExperience.contains(student.getId()),
+                student != null && student.getId() != null && withEducation.contains(student.getId())
         );
     }
 }
