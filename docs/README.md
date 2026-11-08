@@ -22,5 +22,6 @@ Backend платформы резюме: каталог студентов, за
 | [architecture/company-and-experience.md](./architecture/company-and-experience.md) | Компания: ссылка, методы, связь с опытом |
 | [architecture/experience.md](./architecture/experience.md)                         | Опыт студента: поля, методы, тип          |
 | [architecture/education.md](./architecture/education.md)                           | Учёба студента: тип, направление, уровень |
+| [architecture/mail.md](./architecture/mail.md)                                     | Письма: готовые тексты и тексты админа    |
 
 Роли в базе и в JWT: **STUDENT**, **RECRUITER**, **ADMIN**.
