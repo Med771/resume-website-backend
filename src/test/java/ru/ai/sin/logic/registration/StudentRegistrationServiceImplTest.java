@@ -265,6 +265,31 @@ class StudentRegistrationServiceImplTest {
     }
 
     @Test
+    void confirmEmail_recruiter_marksVerified() {
+        UserEnt user = pendingStudentWithOtp();
+        user.setRole(RoleEnum.RECRUITER);
+        stubCurrentUser(user);
+        when(passwordEncoder.matches("1234", "otp-hash")).thenReturn(true);
+
+        service.confirmEmail("1234");
+
+        assertThat(user.isEmailVerified()).isTrue();
+        verify(userRepo).save(user);
+    }
+
+    @Test
+    void resendEmailConfirmation_recruiter_usesRegistrationEmail() {
+        UserEnt user = pendingStudentWithOtp();
+        user.setRole(RoleEnum.RECRUITER);
+        user.setRegistrationEmail("boss@test.local");
+        stubCurrentUser(user);
+
+        service.resendEmailConfirmation();
+
+        verify(verificationOtpMailer).trySendStudentEmailOtp(eq("boss@test.local"), anyString(), eq(15));
+    }
+
+    @Test
     void confirmEmail_alreadyVerified_isNoop() {
         UserEnt user = pendingStudentWithOtp();
         user.setEmailVerified(true);
@@ -279,7 +304,7 @@ class StudentRegistrationServiceImplTest {
     @Test
     void confirmEmail_nonStudent_forbidden() {
         UserEnt user = pendingStudentWithOtp();
-        user.setRole(RoleEnum.RECRUITER);
+        user.setRole(RoleEnum.ADMIN);
         stubCurrentUser(user);
 
         assertThatThrownBy(() -> service.confirmEmail("1234"))

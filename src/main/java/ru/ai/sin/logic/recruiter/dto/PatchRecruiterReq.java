@@ -35,6 +35,10 @@ public record PatchRecruiterReq(
 
         @Schema(description = "Telegram username")
         @Size(min = 1, max = 32, message = "Telegram username must be less than 32 characters")
-        String telegramUsername
+        String telegramUsername,
+
+        @Schema(description = "Отчество. null — не менять")
+        @Size(max = 255, message = "Middle name must be less than 255 characters")
+        String middleName
 ) {
 }

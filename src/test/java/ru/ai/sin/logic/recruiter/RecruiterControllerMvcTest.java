@@ -51,6 +51,7 @@ class RecruiterControllerMvcTest {
                 "ann@acme.test",
                 "+79990001122",
                 "ann_tg",
+                null,
                 null
         );
     }

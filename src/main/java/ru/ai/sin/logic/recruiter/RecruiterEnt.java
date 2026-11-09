@@ -32,6 +32,9 @@ public class RecruiterEnt {
     @Column(name = "city")
     private String city;
 
+    @Column(name = "middle_name")
+    private String middleName;
+
     @Embedded
     private UserInformation userInformation = new UserInformation();
 

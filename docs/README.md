@@ -25,5 +25,6 @@ Backend платформы резюме: каталог студентов, за
 | [architecture/mail.md](./architecture/mail.md)                                     | Письма: готовые тексты и тексты админа    |
 | [architecture/analytics.md](./architecture/analytics.md)                           | Журнал посещений и действий               |
 | [architecture/profile-versions.md](./architecture/profile-versions.md)             | Версии анкеты после одобрения             |
+| [architecture/recruiter.md](./architecture/recruiter.md)                           | Регистрация и личный кабинет работодателя |
 
 Роли в базе и в JWT: **STUDENT**, **RECRUITER**, **ADMIN**.

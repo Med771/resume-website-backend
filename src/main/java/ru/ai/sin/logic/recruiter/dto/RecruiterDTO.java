@@ -34,5 +34,8 @@ public record RecruiterDTO(
         String telegramUsername,
 
         @Size(min = 1, max = 32, message = "Telegram user id must be less than 32 characters")
-        String telegramUserId) {
+        String telegramUserId,
+
+        @Size(max = 255, message = "Middle name must be less than 255 characters")
+        String middleName) {
 }

@@ -26,6 +26,7 @@ public interface RecruiterMapper {
     @Mapping(source = "contactInformation.phoneNumber", target = "phoneNumber")
     @Mapping(source = "contactInformation.telegramUsername", target = "telegramUsername")
     @Mapping(source = "contactInformation.telegramUserId", target = "telegramUserId")
+    @Mapping(source = "middleName", target = "middleName")
     RecruiterDTO toDTO(RecruiterEnt entity);
 
     // ---------------- UpdateRecruiterReq -> RecruiterEnt ----------------
@@ -51,6 +52,7 @@ public interface RecruiterMapper {
     @Mapping(target = "contactInformation.telegramUserId", ignore = true)
     @Mapping(target = "contactInformation.phoneNumber", source = "phoneNumber")
     @Mapping(target = "contactInformation.telegramUsername", source = "telegramUsername")
+    @Mapping(target = "middleName", source = "middleName")
     void patchEntityFromDto(PatchRecruiterReq dto, @MappingTarget RecruiterEnt entity);
 
 }

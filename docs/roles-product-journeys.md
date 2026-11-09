@@ -21,7 +21,7 @@
 
 ## Рекрутер
 
-1. `POST /auth/register-recruiter`. Сервер сразу создаёт профиль и пользователя и выдаёт cookie. Телефон в анкете — контакт.
+1. `POST /auth/register-recruiter`. Сервер сразу создаёт профиль и пользователя и выдаёт cookie. Обязательны почта, фамилия, имя и компания. Код с почты подтверждают `POST /auth/confirm-email`.
 2. В ЛК статус `PENDING_APPROVAL`, пока админ не одобрит аккаунт (`POST /admin/account-approvals/{userId}/approve`).
 3. `GET /recruiter/me`, каталог `POST /student/cardsFilter`, карточка `GET /student/{id}`.
 4. Пишет студенту: `POST /request`. Чат создаётся сразу.
