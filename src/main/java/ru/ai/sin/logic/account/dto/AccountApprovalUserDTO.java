@@ -42,6 +42,9 @@ public record AccountApprovalUserDTO(
         @Schema(description = "Есть хотя бы одна запись опыта")
         boolean hasExperience,
         @Schema(description = "Есть хотя бы одна запись учёбы студента")
-        boolean hasEducation
+        boolean hasEducation,
+
+        @Schema(description = "Отчество работодателя. У студента пусто")
+        String middleName
 ) {
 }

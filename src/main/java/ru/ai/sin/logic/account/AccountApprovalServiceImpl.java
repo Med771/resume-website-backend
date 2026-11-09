@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ai.sin.exception.models.BadRequestException;
@@ -12,6 +13,7 @@ import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
+import ru.ai.sin.logic.account.dto.RecruiterApprovalSortField;
 import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
 import ru.ai.sin.models.enums.AnalyticsEventType;
 import ru.ai.sin.logic.experience.ExperienceRepo;
@@ -21,6 +23,7 @@ import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.skill.SkillEnt;
 import ru.ai.sin.logic.skill.SkillOrder;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.dto.StudentSortDirection;
 import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.user.UserEnt;
@@ -82,6 +85,33 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         return new PageResponse<>(
                 result.getContent().stream()
                         .map(user -> toDto(user, withPortfolio, withExperience, withEducation))
+                        .toList(),
+                page,
+                size,
+                result.getTotalElements(),
+                result.getTotalPages()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AccountApprovalUserDTO> listRecruiters(
+            int page,
+            int size,
+            String findString,
+            AccountStatus accountStatus,
+            Boolean emailVerified,
+            String city,
+            RecruiterApprovalSortField sortBy,
+            StudentSortDirection sortDirection
+    ) {
+        PageRequest pr = PageRequest.of(page, size);
+        Specification<UserEnt> spec = RecruiterApprovalSpecifications.recruiters(
+                findString, accountStatus, emailVerified, city, sortBy, sortDirection);
+        Page<UserEnt> result = userRepo.findAll(spec, pr);
+        return new PageResponse<>(
+                result.getContent().stream()
+                        .map(user -> toDto(user, Set.of(), Set.of(), Set.of()))
                         .toList(),
                 page,
                 size,
@@ -294,12 +324,15 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         BusynessEnum busyness = null;
         String bio = null;
         Integer profileTextScore = null;
+        String middleName = null;
         List<String> skills = List.of();
         LocalDateTime createdAt = null;
 
         RecruiterEnt recruiter = u.getRecruiter();
         if (recruiter != null) {
             companyName = recruiter.getCompanyName();
+            city = recruiter.getCity();
+            middleName = recruiter.getMiddleName();
             if (recruiter.getUserInformation() != null) {
                 firstName = recruiter.getUserInformation().getFirstName();
                 lastName = recruiter.getUserInformation().getLastName();
@@ -382,7 +415,8 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
                 skills,
                 student != null && student.getId() != null && withPortfolio.contains(student.getId()),
                 student != null && student.getId() != null && withExperience.contains(student.getId()),
-                student != null && student.getId() != null && withEducation.contains(student.getId())
+                student != null && student.getId() != null && withEducation.contains(student.getId()),
+                middleName
         );
     }
 }

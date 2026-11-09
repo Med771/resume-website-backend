@@ -3,16 +3,20 @@ package ru.ai.sin.logic.account;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
+import ru.ai.sin.logic.account.dto.RecruiterApprovalSortField;
+import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
 import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.experience.ExperienceEnt;
@@ -77,6 +81,20 @@ class AccountApprovalServiceImplTest {
 
     @InjectMocks
     private AccountApprovalServiceImpl service;
+
+    private static UserEnt recruiterUser(AccountStatus status, String company, String lastName, String middleName) {
+        RecruiterEnt recruiter = new RecruiterEnt();
+        recruiter.setId(UUID.randomUUID());
+        recruiter.setCompanyName(company);
+        recruiter.setCity("Казань");
+        recruiter.setMiddleName(middleName);
+        recruiter.getUserInformation().setFirstName("Иван");
+        recruiter.getUserInformation().setLastName(lastName);
+        UserEnt user = new UserEnt(RoleEnum.RECRUITER, lastName + " Иван", "boss", "hash");
+        user.setAccountStatus(status);
+        user.setRecruiter(recruiter);
+        return user;
+    }
 
     private static UserEnt studentUser(AccountStatus status) {
         StudentEnt student = new StudentEnt();
@@ -145,6 +163,62 @@ class AccountApprovalServiceImplTest {
         });
         verify(userRepo).findByRole(eq(RoleEnum.STUDENT), any(Pageable.class));
         verify(userRepo, never()).findByAccountStatus(any(), any());
+    }
+
+    @Test
+    void listRecruiters_returnsEveryAccountStatus() {
+        when(userRepo.findAll(ArgumentMatchers.<Specification<UserEnt>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(
+                        recruiterUser(AccountStatus.PENDING_APPROVAL, "Альфа", "Иванов", "Петрович"),
+                        recruiterUser(AccountStatus.APPROVED, "Бета", "Петров", null),
+                        recruiterUser(AccountStatus.REJECTED, "Гамма", "Сидоров", null)
+                )));
+
+        var page = service.listRecruiters(0, 20, null, null, null, null, null, null);
+
+        assertThat(page.data()).extracting(AccountApprovalUserDTO::accountStatus)
+                .containsExactly(
+                        AccountStatus.PENDING_APPROVAL,
+                        AccountStatus.APPROVED,
+                        AccountStatus.REJECTED);
+        assertThat(page.data().getFirst().middleName()).isEqualTo("Петрович");
+        assertThat(page.data()).allSatisfy(dto -> {
+            assertThat(dto.hasPortfolio()).isFalse();
+            assertThat(dto.hasExperience()).isFalse();
+            assertThat(dto.hasEducation()).isFalse();
+        });
+        verify(portfolioRepo, never()).findStudentIdsByStudentIdIn(any());
+        verify(experienceRepo, never()).findStudentIdsByStudentIdIn(any());
+        verify(institutionRepo, never()).findStudentIdsByStudentIdIn(any());
+    }
+
+    @Test
+    void recruiterFilter_statusLeavesOne_blankFindDoesNotNarrow() {
+        List<UserEnt> recruiters = List.of(
+                recruiterUser(AccountStatus.PENDING_APPROVAL, "Альфа", "Иванов", null),
+                recruiterUser(AccountStatus.APPROVED, "Ромашка", "Петров", "Сергеевич"),
+                recruiterUser(AccountStatus.REJECTED, "Гамма", "Сидоров", null)
+        );
+
+        assertThat(recruiters.stream()
+                .filter(user -> RecruiterApprovalSpecifications.matches(user, "  ", null, null, null))
+                .toList()).hasSize(3);
+        assertThat(recruiters.stream()
+                .filter(user -> RecruiterApprovalSpecifications.matches(
+                        user, null, AccountStatus.APPROVED, null, null))
+                .map(user -> user.getRecruiter().getCompanyName())
+                .toList()).containsExactly("Ромашка");
+        assertThat(recruiters.stream()
+                .filter(user -> RecruiterApprovalSpecifications.matches(user, "серге", null, null, null))
+                .toList()).hasSize(1);
+
+        when(userRepo.findAll(ArgumentMatchers.<Specification<UserEnt>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(recruiters.get(1))));
+        var page = service.listRecruiters(
+                0, 20, null, AccountStatus.APPROVED, null, null,
+                RecruiterApprovalSortField.ACCOUNT_STATUS, null);
+        assertThat(page.data()).extracting(AccountApprovalUserDTO::accountStatus)
+                .containsExactly(AccountStatus.APPROVED);
     }
 
     @Test
