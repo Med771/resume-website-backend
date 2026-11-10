@@ -87,7 +87,7 @@ class AdminAuthControllerMvcTest {
         when(authService.getCurrentSession()).thenReturn(
                 new ru.ai.sin.logic.auth.dto.AuthMeDTO(
                         java.util.UUID.fromString("11111111-1111-1111-1111-111111111111"),
-                        "admin", "ADMIN", "APPROVED", true, false, null, null));
+                        "admin", "ADMIN", "APPROVED", true, false, null, null, null));
 
         mockMvc.perform(get("/auth/admin/me").with(csrf()))
                 .andExpect(status().isOk())

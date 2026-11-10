@@ -11,6 +11,8 @@ import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
@@ -45,6 +47,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -99,6 +103,10 @@ class StudentServiceImplPatchMeTest {
     private VerificationOtpMailer verificationOtpMailer;
     @Mock
     private StudentReviewState studentReviewState;
+    @Mock
+    private StudentProfileChangeRecorder studentProfileChangeRecorder;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private StudentServiceImpl studentService;
@@ -174,6 +182,13 @@ class StudentServiceImplPatchMeTest {
         verify(studentSkillsMutator).replaceSkills(studentEnt, List.of(1L));
         verify(accountAccessHelper).requireStudentCanMutateResume(ID);
         assertThat(studentEnt.getProfileTextScore()).isGreaterThan(0);
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<List<String>> fields = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(studentProfileChangeRecorder).record(
+                eq(ID), eq("/student/me"), eq("card"), eq("update"), isNull(), fields.capture());
+        assertThat(fields.getValue()).containsExactly("bio", "skillsIds");
+        assertThat(fields.getValue()).noneMatch(field -> field.contains("new bio"));
     }
 
     @Test

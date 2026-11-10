@@ -4,5 +4,6 @@ import java.util.UUID;
 
 public record FilterExperienceReq(
         UUID studentId,
-        Long companyId) {
+        Long companyId,
+        Boolean published) {
 }

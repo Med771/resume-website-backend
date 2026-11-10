@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import ru.ai.sin.config.property.MailProperties;
 import ru.ai.sin.config.property.RegistrationProperties;
 import ru.ai.sin.config.property.UserProperties;
 import ru.ai.sin.exception.models.BadRequestException;
@@ -25,10 +26,14 @@ import ru.ai.sin.logic.registration.RegistrationIpRateLimiter;
 import ru.ai.sin.logic.registration.RegistrationPasswordPolicy;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
+import ru.ai.sin.logic.verification.VerificationOtpMailer;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.RoleEnum;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.time.LocalDateTime;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Service
@@ -39,6 +44,8 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
     private final RegistrationPasswordPolicy passwordPolicy;
     private final RegistrationProperties registrationProperties;
     private final UserProperties userProperties;
+    private final MailProperties mailProperties;
+    private final VerificationOtpMailer verificationOtpMailer;
 
     private final UserRepo userRepo;
     private final RecruiterRepo recruiterRepo;
@@ -63,10 +70,6 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         String email = trimToNull(req.email());
         String phone = trimToNull(req.phoneNumber());
 
-        if (phone == null) {
-            throw new BadRequestException("Укажите номер телефона");
-        }
-
         validateUsernameAvailable(username);
 
         if (email != null && recruiterRepo.existsByNormalizedEmail(email)) {
@@ -86,9 +89,6 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         if (email == null) {
             throw new BadRequestException("Укажите email");
         }
-        if (!StringUtils.hasText(city)) {
-            throw new BadRequestException("Укажите город");
-        }
 
         AddRecruiterReq addRecruiterReq = new AddRecruiterReq(
                 companyName,
@@ -100,6 +100,7 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         );
         RecruiterEnt recruiter = recruiterMapper.toEntity(addRecruiterReq);
         recruiter.setCity(city);
+        recruiter.setMiddleName(trimToNull(req.middleName()));
         try {
             recruiter = recruiterRepo.save(recruiter);
         } catch (DataIntegrityViolationException ex) {
@@ -114,7 +115,10 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         );
         user.setRecruiter(recruiter);
         user.setPhoneVerified(false);
+        user.setEmailVerified(false);
+        user.setRegistrationEmail(email);
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        issueEmailOtp(user, email);
 
         try {
             userRepo.save(user);
@@ -140,10 +144,18 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         }
     }
 
-    private static String buildDisplayName(RecruiterSelfRegistrationReq req) {
-        if (req.name() != null && !req.name().isBlank()) {
-            return req.name().trim();
+    private void issueEmailOtp(UserEnt user, String email) {
+        String code = String.format("%04d", ThreadLocalRandom.current().nextInt(10_000));
+        int ttl = Math.max(1, mailProperties.getOtpTtlMinutes());
+        user.setEmailOtpHash(passwordEncoder.encode(code));
+        user.setEmailOtpExpiresAt(LocalDateTime.now().plusMinutes(ttl));
+        boolean sent = verificationOtpMailer.trySendStudentEmailOtp(email, code, ttl);
+        if (!sent && !mailProperties.isAllowDevConfirm()) {
+            log.warn("Email OTP not sent for username={}", user.getUsername());
         }
+    }
+
+    private static String buildDisplayName(RecruiterSelfRegistrationReq req) {
         return ParticipantDisplayNames.fromFio(req.lastName(), req.firstName(), req.middleName());
     }
 

@@ -3,19 +3,28 @@ package ru.ai.sin.logic.account;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
+import ru.ai.sin.logic.account.dto.RecruiterApprovalSortField;
+import ru.ai.sin.logic.recruiter.RecruiterEnt;
+import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.experience.ExperienceEnt;
+import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionEnt;
+import ru.ai.sin.logic.institution.InstitutionRepo;
 import ru.ai.sin.logic.portfolio.PortfolioEnt;
+import ru.ai.sin.logic.portfolio.PortfolioRepo;
 import ru.ai.sin.logic.skill.SkillEnt;
 import ru.ai.sin.logic.speciality.SpecialityEnt;
 import ru.ai.sin.logic.student.StudentEnt;
@@ -31,7 +40,9 @@ import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,12 +65,36 @@ class AccountApprovalServiceImplTest {
     @Mock
     private StudentRepo studentRepo;
     @Mock
+    private PortfolioRepo portfolioRepo;
+    @Mock
+    private ExperienceRepo experienceRepo;
+    @Mock
+    private InstitutionRepo institutionRepo;
+    @Mock
     private SecurityHelper securityHelper;
     @Mock
     private VerificationOtpMailer verificationOtpMailer;
+    @Mock
+    private AnalyticsEventWriter analyticsEventWriter;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private AccountApprovalServiceImpl service;
+
+    private static UserEnt recruiterUser(AccountStatus status, String company, String lastName, String middleName) {
+        RecruiterEnt recruiter = new RecruiterEnt();
+        recruiter.setId(UUID.randomUUID());
+        recruiter.setCompanyName(company);
+        recruiter.setCity("Казань");
+        recruiter.setMiddleName(middleName);
+        recruiter.getUserInformation().setFirstName("Иван");
+        recruiter.getUserInformation().setLastName(lastName);
+        UserEnt user = new UserEnt(RoleEnum.RECRUITER, lastName + " Иван", "boss", "hash");
+        user.setAccountStatus(status);
+        user.setRecruiter(recruiter);
+        return user;
+    }
 
     private static UserEnt studentUser(AccountStatus status) {
         StudentEnt student = new StudentEnt();
@@ -93,6 +128,13 @@ class AccountApprovalServiceImplTest {
         assertThat(captor.getValue().isCatalogVisible()).isTrue();
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
         verify(verificationOtpMailer).trySendAccountApproved("student@test.local", "student");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
+        verify(analyticsEventWriter).record(
+                eq("ACCOUNT_APPROVED"), eq("/admin/account-approvals/approve"), isNull(), payload.capture());
+        assertThat(payload.getValue()).containsEntry("targetUserId", USER_ID);
+        assertThat(payload.getValue()).containsEntry("role", "STUDENT");
     }
 
     @Test
@@ -103,6 +145,9 @@ class AccountApprovalServiceImplTest {
                         studentUser(AccountStatus.APPROVED),
                         studentUser(AccountStatus.REJECTED)
                 )));
+        when(portfolioRepo.findStudentIdsByStudentIdIn(any())).thenReturn(Set.of());
+        when(experienceRepo.findStudentIdsByStudentIdIn(any())).thenReturn(Set.of());
+        when(institutionRepo.findStudentIdsByStudentIdIn(any())).thenReturn(Set.of());
 
         var page = service.listStudents(0, 20);
 
@@ -111,19 +156,105 @@ class AccountApprovalServiceImplTest {
                         AccountStatus.PENDING_APPROVAL,
                         AccountStatus.APPROVED,
                         AccountStatus.REJECTED);
+        assertThat(page.data()).allSatisfy(dto -> {
+            assertThat(dto.hasPortfolio()).isFalse();
+            assertThat(dto.hasExperience()).isFalse();
+            assertThat(dto.hasEducation()).isFalse();
+        });
         verify(userRepo).findByRole(eq(RoleEnum.STUDENT), any(Pageable.class));
         verify(userRepo, never()).findByAccountStatus(any(), any());
     }
 
     @Test
-    void listPending_stillOnlyWaitingAccounts() {
-        when(userRepo.findByAccountStatus(eq(AccountStatus.PENDING_APPROVAL), any(Pageable.class)))
+    void listRecruiters_returnsEveryAccountStatus() {
+        when(userRepo.findAll(ArgumentMatchers.<Specification<UserEnt>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(
+                        recruiterUser(AccountStatus.PENDING_APPROVAL, "Альфа", "Иванов", "Петрович"),
+                        recruiterUser(AccountStatus.APPROVED, "Бета", "Петров", null),
+                        recruiterUser(AccountStatus.REJECTED, "Гамма", "Сидоров", null)
+                )));
+
+        var page = service.listRecruiters(0, 20, null, null, null, null, null, null);
+
+        assertThat(page.data()).extracting(AccountApprovalUserDTO::accountStatus)
+                .containsExactly(
+                        AccountStatus.PENDING_APPROVAL,
+                        AccountStatus.APPROVED,
+                        AccountStatus.REJECTED);
+        assertThat(page.data().getFirst().middleName()).isEqualTo("Петрович");
+        assertThat(page.data()).allSatisfy(dto -> {
+            assertThat(dto.hasPortfolio()).isFalse();
+            assertThat(dto.hasExperience()).isFalse();
+            assertThat(dto.hasEducation()).isFalse();
+        });
+        verify(portfolioRepo, never()).findStudentIdsByStudentIdIn(any());
+        verify(experienceRepo, never()).findStudentIdsByStudentIdIn(any());
+        verify(institutionRepo, never()).findStudentIdsByStudentIdIn(any());
+    }
+
+    @Test
+    void recruiterFilter_statusLeavesOne_blankFindDoesNotNarrow() {
+        List<UserEnt> recruiters = List.of(
+                recruiterUser(AccountStatus.PENDING_APPROVAL, "Альфа", "Иванов", null),
+                recruiterUser(AccountStatus.APPROVED, "Ромашка", "Петров", "Сергеевич"),
+                recruiterUser(AccountStatus.REJECTED, "Гамма", "Сидоров", null)
+        );
+
+        assertThat(recruiters.stream()
+                .filter(user -> RecruiterApprovalSpecifications.matches(user, "  ", null, null, null))
+                .toList()).hasSize(3);
+        assertThat(recruiters.stream()
+                .filter(user -> RecruiterApprovalSpecifications.matches(
+                        user, null, AccountStatus.APPROVED, null, null))
+                .map(user -> user.getRecruiter().getCompanyName())
+                .toList()).containsExactly("Ромашка");
+        assertThat(recruiters.stream()
+                .filter(user -> RecruiterApprovalSpecifications.matches(user, "серге", null, null, null))
+                .toList()).hasSize(1);
+
+        when(userRepo.findAll(ArgumentMatchers.<Specification<UserEnt>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(recruiters.get(1))));
+        var page = service.listRecruiters(
+                0, 20, null, AccountStatus.APPROVED, null, null,
+                RecruiterApprovalSortField.ACCOUNT_STATUS, null);
+        assertThat(page.data()).extracting(AccountApprovalUserDTO::accountStatus)
+                .containsExactly(AccountStatus.APPROVED);
+    }
+
+    @Test
+    void listStudents_portfolioFlagOnly() {
+        UUID studentId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        StudentEnt student = new StudentEnt();
+        student.setId(studentId);
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setStudent(student);
+
+        when(userRepo.findByRole(eq(RoleEnum.STUDENT), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(user)));
+        when(portfolioRepo.findStudentIdsByStudentIdIn(Set.of(studentId))).thenReturn(Set.of(studentId));
+        when(experienceRepo.findStudentIdsByStudentIdIn(Set.of(studentId))).thenReturn(Set.of());
+        when(institutionRepo.findStudentIdsByStudentIdIn(Set.of(studentId))).thenReturn(Set.of());
+
+        var page = service.listStudents(0, 20);
+
+        AccountApprovalUserDTO dto = page.data().getFirst();
+        assertThat(dto.hasPortfolio()).isTrue();
+        assertThat(dto.hasExperience()).isFalse();
+        assertThat(dto.hasEducation()).isFalse();
+    }
+
+    @Test
+    void listStudents_emptyPageDoesNotQuerySections() {
+        when(userRepo.findByRole(eq(RoleEnum.STUDENT), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        service.listPending(null, 0, 20);
+        var page = service.listStudents(0, 20);
 
-        verify(userRepo).findByAccountStatus(eq(AccountStatus.PENDING_APPROVAL), any(Pageable.class));
-        verify(userRepo, never()).findByRole(any(), any());
+        assertThat(page.data()).isEmpty();
+        verify(portfolioRepo, never()).findStudentIdsByStudentIdIn(any());
+        verify(experienceRepo, never()).findStudentIdsByStudentIdIn(any());
+        verify(institutionRepo, never()).findStudentIdsByStudentIdIn(any());
     }
 
     @Test
@@ -244,6 +375,12 @@ class AccountApprovalServiceImplTest {
                 eq("student"),
                 eq("Анкета заполнена недостаточно"),
                 eq("Нет описания опыта"));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
+        verify(analyticsEventWriter).record(
+                eq("ACCOUNT_REJECTED"), eq("/admin/account-approvals/reject"), isNull(), payload.capture());
+        assertThat(payload.getValue()).containsEntry("reasonCode", "INCOMPLETE_PROFILE");
     }
 
     @Test

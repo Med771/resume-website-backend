@@ -47,8 +47,8 @@
 | DELETE | `/student/{id}` | A |
 | POST | `/admin/students/reorder` | A |
 | POST | `/admin/students/bulk-visibility` | A |
-| GET | `/public/students/{id}` | вход |
-| POST | `/public/students/cards` | вход |
+| GET | `/public/students/{id}` | вход, устарел |
+| POST | `/public/students/cards` | вход, устарел |
 
 Карточка с `catalog_visible = false` для студента и рекрутера — 404.
 
@@ -119,15 +119,15 @@
 | POST | `/user/filter` | A |
 | POST | `/user` | A |
 | DELETE | `/user/{id}` | A |
-| GET | `/admin/account-approvals` | A, устарел: только ожидающие, ещё и рекрутеры |
-| GET | `/admin/account-approvals/students` | A, все студенты и их статус |
+| GET | `/admin/account-approvals/students` | A, все студенты и их статус; `hasPortfolio`, `hasExperience`, `hasEducation` |
+| GET | `/admin/account-approvals/recruiters` | A, все работодатели и их статус; поиск и сортировка |
 | POST | `/admin/account-approvals/{userId}/approve` | A |
 | POST | `/admin/account-approvals/{userId}/reject` | A |
 | POST | `/admin/recruiter-registration-requests/filter` | A |
 | POST | `/admin/recruiter-registration-requests/{id}/approve` | A |
 | POST | `/admin/recruiter-registration-requests/{id}/reject` | A |
 
-Живая регистрация рекрутера идёт через `POST /auth/register-recruiter`. Очередь рекрутеров на проверке — устаревший `GET /admin/account-approvals`. Студентов со всеми статусами отдаёт `GET /admin/account-approvals/students`. Методы `/admin/recruiter-registration-requests` работают со строками таблицы `recruiter_registration_requests`; текущая форма новые строки туда не добавляет.
+Живая регистрация рекрутера идёт через `POST /auth/register-recruiter`. Всех работодателей со статусами отдаёт `GET /admin/account-approvals/recruiters`. Одобрение и отклонение — `POST /admin/account-approvals/{userId}/approve` и `reject`. Студентов со всеми статусами отдаёт `GET /admin/account-approvals/students`: в строке `hasPortfolio`, `hasExperience`, `hasEducation` — есть ли хотя бы одна запись портфолио, опыта и учёбы. Методы `/admin/recruiter-registration-requests` работают со строками таблицы `recruiter_registration_requests`; текущая форма новые строки туда не добавляет.
 
 Студента без подтверждённой почты админ одобрить не может (400).
 
@@ -170,6 +170,7 @@
 | POST | `/admin/analytics/summary` | A |
 | POST | `/admin/analytics/entity-population` | A |
 | POST | `/admin/analytics/funnel` | A |
+| POST | `/admin/analytics/events` | A, страница событий с `payload` |
 | GET | `/admin/storage/files` | A |
 | POST | `/admin/storage/files` | A, multipart |
 | DELETE | `/admin/storage/files/{fileName}` | A |

@@ -7,16 +7,23 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
+
+import java.util.List;
+import java.util.UUID;
 import org.springframework.web.bind.annotation.RestController;
 import ru.ai.sin.logic.student.dto.AdminStudentMailReq;
 import ru.ai.sin.logic.student.dto.AdminStudentMailResult;
 import ru.ai.sin.logic.student.dto.BulkStudentVisibilityReq;
 import ru.ai.sin.logic.student.dto.BulkStudentVisibilityResult;
 import ru.ai.sin.logic.student.dto.ReorderStudentsReq;
+import ru.ai.sin.logic.student.dto.StudentProfileVersionItemDTO;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 
 @RestController
 @RequestMapping("/admin/students")
@@ -28,6 +35,13 @@ public class StudentAdminController {
 
     private final StudentService studentService;
     private final AdminStudentMailService adminStudentMailService;
+    private final StudentProfileVersionService profileVersions;
+
+    @Operation(summary = "Версии анкеты студента")
+    @GetMapping("/{id}/profile-versions")
+    public List<StudentProfileVersionItemDTO> versions(@PathVariable UUID id) {
+        return profileVersions.listForAdmin(id);
+    }
 
     @Operation(summary = "Изменить ручной порядок карточек студентов")
     @PostMapping("/reorder")

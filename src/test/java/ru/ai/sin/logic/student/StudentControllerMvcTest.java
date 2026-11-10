@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import ru.ai.sin.config.MethodSecurityTestConfig;
 import ru.ai.sin.filter.JwtCookieAuthenticationFilter;
 import ru.ai.sin.logic.student.dto.StudentDTO;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.skill.dto.SkillDTO;
 import ru.ai.sin.models.PageResponse;
 import ru.ai.sin.models.enums.BusynessEnum;
@@ -46,6 +47,9 @@ class StudentControllerMvcTest {
 
     @MockitoBean
     private StudentService studentService;
+
+    @MockitoBean
+    private StudentProfileVersionService profileVersions;
 
     @MockitoBean
     private JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;

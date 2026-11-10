@@ -90,6 +90,7 @@ class AuthControllerMvcTest {
                 true,
                 false,
                 null,
+                null,
                 null));
 
         mockMvc.perform(get("/auth/me"))
@@ -223,14 +224,14 @@ class AuthControllerMvcTest {
 
     @Test
     @WithMockUser(roles = "RECRUITER")
-    void confirmEmail_recruiter_forbidden() throws Exception {
+    void confirmEmail_recruiter_noContent() throws Exception {
         mockMvc.perform(post("/auth/confirm-email")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"1234\"}")
                         .with(csrf()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isNoContent());
 
-        verify(studentRegistrationService, never()).confirmEmail(any());
+        verify(studentRegistrationService).confirmEmail("1234");
     }
 
     @Test

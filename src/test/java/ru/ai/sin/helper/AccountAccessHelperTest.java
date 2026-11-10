@@ -9,6 +9,7 @@ import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.ForbiddenException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
@@ -38,12 +39,14 @@ class AccountAccessHelperTest {
     private UserTools userTools;
     @Mock
     private StudentTools studentTools;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     private AccountAccessHelper helper;
 
     @BeforeEach
     void setUp() {
-        helper = new AccountAccessHelper(securityHelper, userRepo, userTools, studentTools);
+        helper = new AccountAccessHelper(securityHelper, userRepo, userTools, studentTools, profileVersions);
     }
 
     @Test
@@ -184,13 +187,39 @@ class AccountAccessHelperTest {
     }
 
     @Test
-    void requireCanReadStudentResumeDetails_unapprovedStudent_otherNotFound() {
+    void requireCanReadStudentResumeDetails_unapprovedStudent_otherApprovedVisible_ok() {
         UserEnt pending = user(RoleEnum.STUDENT, student(OWN_ID, true));
         pending.setAccountStatus(AccountStatus.PENDING_APPROVAL);
         when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.of(pending));
+        when(securityHelper.isCurrentUserAdmin()).thenReturn(false);
+        when(studentTools.getStudentOrThrow(OTHER_ID)).thenReturn(student(OTHER_ID, true));
+        when(userRepo.findByStudent_Id(OTHER_ID)).thenReturn(Optional.of(user(RoleEnum.STUDENT, null)));
+
+        assertThatCode(() -> helper.requireCanReadStudentResumeDetails(OTHER_ID)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void requireCanReadStudentResumeDetails_unapprovedStudent_otherHidden_notFound() {
+        UserEnt pending = user(RoleEnum.STUDENT, student(OWN_ID, true));
+        pending.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.of(pending));
+        when(securityHelper.isCurrentUserAdmin()).thenReturn(false);
+        when(studentTools.getStudentOrThrow(OTHER_ID)).thenReturn(student(OTHER_ID, false));
 
         assertThatThrownBy(() -> helper.requireCanReadStudentResumeDetails(OTHER_ID))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void requireCanReadStudentResumeDetails_unapprovedRecruiter_otherApprovedVisible_ok() {
+        UserEnt recruiter = user(RoleEnum.RECRUITER, null);
+        recruiter.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.of(recruiter));
+        when(securityHelper.isCurrentUserAdmin()).thenReturn(false);
+        when(studentTools.getStudentOrThrow(OTHER_ID)).thenReturn(student(OTHER_ID, true));
+        when(userRepo.findByStudent_Id(OTHER_ID)).thenReturn(Optional.of(user(RoleEnum.STUDENT, null)));
+
+        assertThatCode(() -> helper.requireCanReadStudentResumeDetails(OTHER_ID)).doesNotThrowAnyException();
     }
 
     @Test
@@ -207,8 +236,6 @@ class AccountAccessHelperTest {
         UserEnt recruiter = user(RoleEnum.RECRUITER, null);
         recruiter.setAccountStatus(AccountStatus.APPROVED);
         when(userTools.findCurrentUserFetchingLinks()).thenReturn(Optional.of(recruiter));
-        when(securityHelper.getCurrentUsername()).thenReturn("rec");
-        when(userRepo.findByUsername("rec")).thenReturn(Optional.of(recruiter));
     }
 
     private static UserEnt user(RoleEnum role, StudentEnt student) {

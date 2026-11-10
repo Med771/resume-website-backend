@@ -35,8 +35,9 @@ public class MainController {
     @Operation(
             summary = "Получить фото",
             description = """
-                    Только после входа. Аватар студента — по тем же правилам, что карточка.
-                    Файл не из карточки видит только админ. Без сессии — 401.""")
+                    Только после входа. Аватар студента — по тем же правилам, что `GET /student/{id}`:
+                    студент и рекрутер с любым своим статусом видят фото одобренного видимого студента.
+                    Своё фото студент видит всегда. Файл не из карточки видит только админ. Без сессии — 401.""")
     @GetMapping(path = "photo/{image_path}")
     public ResponseEntity<byte[]> getPhoto(@PathVariable(name = "image_path") String imagePath) {
         byte[] bytes = mainService.getFileContent(imagePath);

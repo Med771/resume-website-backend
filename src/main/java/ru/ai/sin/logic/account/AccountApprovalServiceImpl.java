@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ai.sin.exception.models.BadRequestException;
@@ -12,10 +13,18 @@ import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
+import ru.ai.sin.logic.account.dto.RecruiterApprovalSortField;
+import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
+import ru.ai.sin.models.enums.AnalyticsEventType;
+import ru.ai.sin.logic.experience.ExperienceRepo;
+import ru.ai.sin.logic.institution.InstitutionRepo;
+import ru.ai.sin.logic.portfolio.PortfolioRepo;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.skill.SkillEnt;
 import ru.ai.sin.logic.skill.SkillOrder;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.dto.StudentSortDirection;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
@@ -28,9 +37,14 @@ import ru.ai.sin.models.enums.CourseEnum;
 import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -39,18 +53,39 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
 
     private final UserRepo userRepo;
     private final StudentRepo studentRepo;
+    private final PortfolioRepo portfolioRepo;
+    private final ExperienceRepo experienceRepo;
+    private final InstitutionRepo institutionRepo;
     private final SecurityHelper securityHelper;
     private final VerificationOtpMailer verificationOtpMailer;
+    private final AnalyticsEventWriter analyticsEventWriter;
+    private final StudentProfileVersionService profileVersions;
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<AccountApprovalUserDTO> listPending(RoleEnum role, int page, int size) {
+    public PageResponse<AccountApprovalUserDTO> listStudents(int page, int size) {
         PageRequest pr = PageRequest.of(page, size);
-        Page<UserEnt> result = role == null
-                ? userRepo.findByAccountStatus(AccountStatus.PENDING_APPROVAL, pr)
-                : userRepo.findByAccountStatusAndRole(AccountStatus.PENDING_APPROVAL, role, pr);
+        profileVersions.expireDueDrafts();
+        Page<UserEnt> result = userRepo.findByRole(RoleEnum.STUDENT, pr);
+        Set<UUID> studentIds = result.getContent().stream()
+                .map(UserEnt::getStudent)
+                .filter(Objects::nonNull)
+                .map(StudentEnt::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<UUID> withPortfolio = studentIds.isEmpty()
+                ? Set.of()
+                : portfolioRepo.findStudentIdsByStudentIdIn(studentIds);
+        Set<UUID> withExperience = studentIds.isEmpty()
+                ? Set.of()
+                : experienceRepo.findStudentIdsByStudentIdIn(studentIds);
+        Set<UUID> withEducation = studentIds.isEmpty()
+                ? Set.of()
+                : institutionRepo.findStudentIdsByStudentIdIn(studentIds);
         return new PageResponse<>(
-                result.getContent().stream().map(this::toDto).toList(),
+                result.getContent().stream()
+                        .map(user -> toDto(user, withPortfolio, withExperience, withEducation))
+                        .toList(),
                 page,
                 size,
                 result.getTotalElements(),
@@ -60,11 +95,24 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<AccountApprovalUserDTO> listStudents(int page, int size) {
+    public PageResponse<AccountApprovalUserDTO> listRecruiters(
+            int page,
+            int size,
+            String findString,
+            AccountStatus accountStatus,
+            Boolean emailVerified,
+            String city,
+            RecruiterApprovalSortField sortBy,
+            StudentSortDirection sortDirection
+    ) {
         PageRequest pr = PageRequest.of(page, size);
-        Page<UserEnt> result = userRepo.findByRole(RoleEnum.STUDENT, pr);
+        Specification<UserEnt> spec = RecruiterApprovalSpecifications.recruiters(
+                findString, accountStatus, emailVerified, city, sortBy, sortDirection);
+        Page<UserEnt> result = userRepo.findAll(spec, pr);
         return new PageResponse<>(
-                result.getContent().stream().map(this::toDto).toList(),
+                result.getContent().stream()
+                        .map(user -> toDto(user, Set.of(), Set.of(), Set.of()))
+                        .toList(),
                 page,
                 size,
                 result.getTotalElements(),
@@ -77,7 +125,8 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     public void approve(UUID userId) {
         UserEnt user = userRepo.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь не найден: " + userId));
-        if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL) {
+        boolean republish = user.getStudent() != null && profileVersions.hasUnpublished(user.getStudent().getId());
+        if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL && !republish) {
             throw new BadRequestException("Аккаунт уже обработан");
         }
         if (user.getRole() == RoleEnum.STUDENT) {
@@ -88,9 +137,13 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
             if (studentProfile == null) {
                 throw new BadRequestException("Анкета неполная: нет анкеты");
             }
-            List<String> problems = StudentApprovalCompleteness.problems(studentProfile);
-            if (!problems.isEmpty()) {
-                throw new BadRequestException("Анкета неполная: " + String.join(", ", problems));
+            if (republish) {
+                profileVersions.assertUnpublishedComplete(studentProfile);
+            } else {
+                List<String> problems = StudentApprovalCompleteness.problems(studentProfile);
+                if (!problems.isEmpty()) {
+                    throw new BadRequestException("Анкета неполная: " + String.join(", ", problems));
+                }
             }
         }
         user.setAccountStatus(AccountStatus.APPROVED);
@@ -108,7 +161,11 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
                 verificationOtpMailer.trySendAccountApproved(email, user.getUsername());
             }
         }
+        if (user.getRole() == RoleEnum.STUDENT && user.getStudent() != null) {
+            profileVersions.publishOnApprove(user.getStudent());
+        }
         log.info("Account approved: userId={} by {}", userId, securityHelper.getCurrentUsername());
+        recordAccountDecision(user, AnalyticsEventType.ACCOUNT_APPROVED.getCode(), "/admin/account-approvals/approve", null, null);
     }
 
     @Override
@@ -146,6 +203,40 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
                 securityHelper.getCurrentUsername(),
                 body != null ? body.reasonCode() : null,
                 body != null ? body.comment() : null);
+        String reasonCode = user.getStudent() != null
+                ? user.getStudent().getRejectionReason()
+                : body != null ? body.reasonCode() : null;
+        String comment = user.getStudent() != null
+                ? user.getStudent().getRejectionComment()
+                : body != null ? body.comment() : null;
+        recordAccountDecision(user, AnalyticsEventType.ACCOUNT_REJECTED.getCode(), "/admin/account-approvals/reject", reasonCode, comment);
+    }
+
+    private void recordAccountDecision(
+            UserEnt user,
+            String eventType,
+            String path,
+            String reasonCode,
+            String comment
+    ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("targetUserId", user.getId());
+        payload.put("role", user.getRole() == null ? null : user.getRole().name());
+        payload.put("studentId", user.getStudent() == null ? null : user.getStudent().getId());
+        payload.put("recruiterId", user.getRecruiter() == null ? null : user.getRecruiter().getId());
+        if (AnalyticsEventType.ACCOUNT_REJECTED.getCode().equals(eventType)) {
+            payload.put("reasonCode", reasonCode);
+            payload.put("comment", comment);
+        }
+        analyticsEventWriter.record(eventType, path, currentUserId(), payload);
+    }
+
+    private UUID currentUserId() {
+        Optional<UserEnt> found = userRepo.findByUsername(securityHelper.getCurrentUsername());
+        if (found.isEmpty()) {
+            return null;
+        }
+        return found.get().getId();
     }
 
     private static boolean canReject(UserEnt user) {
@@ -168,7 +259,10 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         if (student != null) {
             student.setRejectionReason(reason.getCode());
             student.setRejectionComment(comment);
-            student.setCatalogVisible(false);
+            profileVersions.markLatestDraftRejected(student.getId());
+            if (!profileVersions.hasPublishedVersion(student.getId())) {
+                student.setCatalogVisible(false);
+            }
             studentRepo.save(student);
         }
         String email = studentEmail(user);
@@ -212,7 +306,12 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         return null;
     }
 
-    private AccountApprovalUserDTO toDto(UserEnt u) {
+    private AccountApprovalUserDTO toDto(
+            UserEnt u,
+            Set<UUID> withPortfolio,
+            Set<UUID> withExperience,
+            Set<UUID> withEducation
+    ) {
         String email = null;
         String phone = null;
         String telegram = null;
@@ -225,12 +324,15 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         BusynessEnum busyness = null;
         String bio = null;
         Integer profileTextScore = null;
+        String middleName = null;
         List<String> skills = List.of();
         LocalDateTime createdAt = null;
 
         RecruiterEnt recruiter = u.getRecruiter();
         if (recruiter != null) {
             companyName = recruiter.getCompanyName();
+            city = recruiter.getCity();
+            middleName = recruiter.getMiddleName();
             if (recruiter.getUserInformation() != null) {
                 firstName = recruiter.getUserInformation().getFirstName();
                 lastName = recruiter.getUserInformation().getLastName();
@@ -310,7 +412,11 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
                 busyness,
                 bio,
                 profileTextScore,
-                skills
+                skills,
+                student != null && student.getId() != null && withPortfolio.contains(student.getId()),
+                student != null && student.getId() != null && withExperience.contains(student.getId()),
+                student != null && student.getId() != null && withEducation.contains(student.getId()),
+                middleName
         );
     }
 }

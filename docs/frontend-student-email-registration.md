@@ -52,4 +52,4 @@ Cookie и CORS: [frontend.md](./frontend.md).
 
 Фото: `POST /student/photo/{id}`. Отдельного `/student/me/photo` нет.
 
-Очередь админа: `GET /admin/account-approvals`. В карточке пользователя есть `emailVerified`.
+Список студентов у админа: `GET /admin/account-approvals/students`. В строке есть `emailVerified`.

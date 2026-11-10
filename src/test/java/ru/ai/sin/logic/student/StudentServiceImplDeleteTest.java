@@ -91,6 +91,8 @@ class StudentServiceImplDeleteTest {
     private VerificationOtpMailer verificationOtpMailer;
     @Mock
     private StudentReviewState studentReviewState;
+    @Mock
+    private ru.ai.sin.logic.student.version.StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private StudentServiceImpl studentService;

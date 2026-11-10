@@ -11,8 +11,10 @@ import org.springframework.web.bind.annotation.*;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
+import ru.ai.sin.logic.account.dto.RecruiterApprovalSortField;
+import ru.ai.sin.logic.student.dto.StudentSortDirection;
 import ru.ai.sin.models.PageResponse;
-import ru.ai.sin.models.enums.RoleEnum;
+import ru.ai.sin.models.enums.AccountStatus;
 
 import java.util.UUID;
 
@@ -25,33 +27,41 @@ public class AccountApprovalAdminController {
 
     private final AccountApprovalService accountApprovalService;
 
-    @Deprecated
-    @Operation(
-            summary = "Очередь аккаунтов на проверке",
-            description = """
-                    Устарело. Только `PENDING_APPROVAL`, необязательный фильтр `role`.
-                    Список студентов со всеми статусами — `GET /admin/account-approvals/students`.
-                    Очередь рекрутеров пока здесь.""")
-    @GetMapping
-    public ResponseEntity<PageResponse<AccountApprovalUserDTO>> list(
-            @RequestParam(required = false) RoleEnum role,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
-    ) {
-        return ResponseEntity.ok(accountApprovalService.listPending(role, page, size));
-    }
-
     @Operation(
             summary = "Все студенты со статусом аккаунта",
             description = """
                     Страница пользователей с ролью STUDENT: `PENDING_APPROVAL`, `APPROVED` и `REJECTED`.
-                    В строке `id` пользователя и `studentId` карточки. Пагинация: `page`, `size`.""")
+                    В строке `id` пользователя и `studentId` карточки.
+                    `hasPortfolio`, `hasExperience`, `hasEducation` — есть ли хотя бы одна запись.
+                    Пагинация: `page`, `size`.""")
     @GetMapping("/students")
     public ResponseEntity<PageResponse<AccountApprovalUserDTO>> listStudents(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
         return ResponseEntity.ok(accountApprovalService.listStudents(page, size));
+    }
+
+    @Operation(
+            summary = "Все работодатели со статусом аккаунта",
+            description = """
+                    Страница пользователей с ролью RECRUITER: `PENDING_APPROVAL`, `APPROVED` и `REJECTED`.
+                    Необязательные фильтры: `findString`, `accountStatus`, `emailVerified`, `city`.
+                    Сортировка: `sortBy` (`CREATED_AT`, `COMPANY_NAME`, `LAST_NAME`, `ACCOUNT_STATUS`) и `sortDirection`.
+                    Без сортировки — новые сверху. Пагинация: `page`, `size`.""")
+    @GetMapping("/recruiters")
+    public ResponseEntity<PageResponse<AccountApprovalUserDTO>> listRecruiters(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String findString,
+            @RequestParam(required = false) AccountStatus accountStatus,
+            @RequestParam(required = false) Boolean emailVerified,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) RecruiterApprovalSortField sortBy,
+            @RequestParam(required = false) StudentSortDirection sortDirection
+    ) {
+        return ResponseEntity.ok(accountApprovalService.listRecruiters(
+                page, size, findString, accountStatus, emailVerified, city, sortBy, sortDirection));
     }
 
     @Operation(

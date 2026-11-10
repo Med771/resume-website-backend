@@ -5,12 +5,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import ru.ai.sin.exception.models.ForbiddenException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.student.StudentRepo;
 
 import java.util.Optional;
@@ -35,6 +35,8 @@ class MainServiceImplTest {
     private AccountAccessHelper accountAccessHelper;
     @Mock
     private SecurityHelper securityHelper;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private MainServiceImpl service;
@@ -74,15 +76,14 @@ class MainServiceImplTest {
     }
 
     @Test
-    void recruiterWithoutApprovalIsForbidden() throws Exception {
+    void recruiterWithoutApprovalReadsApprovedAvatar() throws Exception {
         StudentEnt student = student("approved.jpg");
         when(studentRepo.findByImagePath("approved.jpg")).thenReturn(Optional.of(student));
-        org.mockito.Mockito.doThrow(new ForbiddenException("Аккаунт ожидает одобрения администратором"))
-                .when(accountAccessHelper).requireCanReadStudentResumeDetails(STUDENT_ID);
+        when(fileHelper.getFileContent("approved.jpg")).thenReturn(new byte[] {3});
 
-        assertThatThrownBy(() -> service.getFileContent("approved.jpg"))
-                .isInstanceOf(ForbiddenException.class);
-        verify(fileHelper, never()).getFileContent("approved.jpg");
+        assertThat(service.getFileContent("approved.jpg")).containsExactly(3);
+
+        verify(accountAccessHelper).requireCanReadStudentResumeDetails(STUDENT_ID);
     }
 
     @Test

@@ -68,17 +68,17 @@ public class AuthController {
         setAuthCookies(response, studentRegistrationService.registerAndIssueTokens(req, httpRequest));
     }
 
-    @Operation(summary = "Подтвердить почту кодом из письма", description = "Только STUDENT. 204, если уже подтверждена.")
+    @Operation(summary = "Подтвердить почту кодом из письма", description = "STUDENT и RECRUITER. 204, если уже подтверждена.")
     @PostMapping("/confirm-email")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void confirmEmail(@Valid @RequestBody ConfirmEmailReq req) {
         studentRegistrationService.confirmEmail(req.code());
     }
 
-    @Operation(summary = "Повторно отправить код подтверждения почты", description = "Только STUDENT.")
+    @Operation(summary = "Повторно отправить код подтверждения почты", description = "STUDENT и RECRUITER.")
     @PostMapping("/resend-email-confirmation")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void resendEmailConfirmation() {
         studentRegistrationService.resendEmailConfirmation();

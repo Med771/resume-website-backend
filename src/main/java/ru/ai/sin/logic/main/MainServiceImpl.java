@@ -10,6 +10,7 @@ import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 
 import java.io.FileNotFoundException;
 import java.util.Locale;
@@ -23,6 +24,7 @@ public class MainServiceImpl implements MainService {
     private final StudentRepo studentRepo;
     private final AccountAccessHelper accountAccessHelper;
     private final SecurityHelper securityHelper;
+    private final StudentProfileVersionService profileVersions;
 
     @Override
     public byte[] getFileContent(String fileName) {
@@ -40,6 +42,15 @@ public class MainServiceImpl implements MainService {
                 : studentRepo.findByImagePath(fileName);
         if (student.isPresent()) {
             accountAccessHelper.requireCanReadStudentResumeDetails(student.get().getId());
+            return;
+        }
+        java.util.Optional<java.util.UUID> draftOwner = profileVersions == null
+                ? java.util.Optional.empty()
+                : profileVersions.findStudentIdByImage(fileName);
+        if (draftOwner != null && draftOwner.isPresent()) {
+            if (!profileVersions.canReadDraftImage(draftOwner.get())) {
+                throw new NotFoundException("File not found");
+            }
             return;
         }
         if (!securityHelper.isCurrentUserAdmin()) {

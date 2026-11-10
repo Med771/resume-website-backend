@@ -36,6 +36,15 @@ public record AccountApprovalUserDTO(
         BusynessEnum busyness,
         String bio,
         Integer profileTextScore,
-        List<String> skills
+        List<String> skills,
+        @Schema(description = "Есть хотя бы одна запись портфолио")
+        boolean hasPortfolio,
+        @Schema(description = "Есть хотя бы одна запись опыта")
+        boolean hasExperience,
+        @Schema(description = "Есть хотя бы одна запись учёбы студента")
+        boolean hasEducation,
+
+        @Schema(description = "Отчество работодателя. У студента пусто")
+        String middleName
 ) {
 }

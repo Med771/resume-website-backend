@@ -10,6 +10,8 @@ import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.education.EducationEnt;
 import ru.ai.sin.models.enums.EducationType;
 import ru.ai.sin.logic.institution.dto.AddInstitutionReq;
@@ -53,6 +55,10 @@ class InstitutionServiceImplAccessTest {
     private AccountAccessHelper accountAccessHelper;
     @Mock
     private StudentReviewState studentReviewState;
+    @Mock
+    private StudentProfileChangeRecorder studentProfileChangeRecorder;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private InstitutionServiceImpl institutionService;

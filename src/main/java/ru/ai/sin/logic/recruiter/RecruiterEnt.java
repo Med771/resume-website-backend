@@ -12,6 +12,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import ru.ai.sin.models.embeddables.ContactInformation;
 import ru.ai.sin.models.embeddables.TimeStamped;
 import ru.ai.sin.models.embeddables.UserInformation;
+import ru.ai.sin.models.enums.CooperationFormat;
+import ru.ai.sin.models.enums.convertor.CooperationFormatConverter;
 
 import java.util.UUID;
 
@@ -31,6 +33,18 @@ public class RecruiterEnt {
 
     @Column(name = "city")
     private String city;
+
+    @Column(name = "middle_name")
+    private String middleName;
+
+    /** Формат сотрудничества. Пусто, пока рекрутер его не выбрал. */
+    @Column(name = "cooperation_format", length = 32)
+    @Convert(converter = CooperationFormatConverter.class)
+    private CooperationFormat cooperationFormat;
+
+    /** Готовы подать запрос на подбор студентов. Пусто, пока не ответили. */
+    @Column(name = "ready_to_request_students")
+    private Boolean readyToRequestStudents;
 
     @Embedded
     private UserInformation userInformation = new UserInformation();

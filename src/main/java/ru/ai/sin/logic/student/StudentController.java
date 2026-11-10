@@ -27,7 +27,9 @@ import org.springframework.web.multipart.MultipartFile;
 import ru.ai.sin.models.PageResponse;
 
 import ru.ai.sin.logic.student.dto.*;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -46,6 +48,7 @@ import java.util.UUID;
 public class StudentController {
 
     private final StudentService studentService;
+    private final StudentProfileVersionService profileVersions;
 
     @Operation(
             summary = "Текущий студент (ЛК)",
@@ -58,6 +61,37 @@ public class StudentController {
     public ResponseEntity<StudentDTO> getMe() {
         return ResponseEntity.ok(studentService.getLinkedForCurrentUser()
                 .orElseThrow(() -> new NotFoundException("К аккаунту не привязана карточка студента")));
+    }
+
+    @Operation(summary = "Одобренная анкета, которую видит каталог")
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping(path = "/me/published")
+    public ResponseEntity<StudentDTO> publishedMe() {
+        return ResponseEntity.ok(profileVersions.publishedForCurrent());
+    }
+
+    @Operation(summary = "Свои версии анкеты: номер, статус и время")
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping(path = "/me/versions")
+    public ResponseEntity<List<StudentProfileVersionItemDTO>> myVersions() {
+        return ResponseEntity.ok(profileVersions.listForCurrent());
+    }
+
+    @Operation(summary = "Одна своя версия анкеты")
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping(path = "/me/versions/{number}")
+    public ResponseEntity<StudentDTO> myVersion(@PathVariable int number) {
+        return ResponseEntity.ok(profileVersions.versionForCurrent(number));
+    }
+
+    @Operation(summary = "Вернуть прошлую анкету в течение пяти минут")
+    @PreAuthorize("hasRole('STUDENT')")
+    @PostMapping(path = "/me/revert-draft")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revertDraft() {
+        StudentDTO me = studentService.getLinkedForCurrentUser()
+                .orElseThrow(() -> new NotFoundException("К аккаунту не привязана карточка студента"));
+        profileVersions.revertDraft(me.id());
     }
 
     @Operation(
@@ -102,11 +136,8 @@ public class StudentController {
             description = """
                     Полная карточка `StudentDTO`.
 
-                    Студент без одобрения видит только свою карточку: чужой id — **404**.
-                    Одобренный студент и рекрутер видят чужую карточку, если у неё аккаунт **APPROVED** и `catalogVisible=true`. Иначе **404**.
-                    Свою карточку студент видит и когда она скрыта. Админ видит любую.
-
-                    Рекрутеру нужен статус **APPROVED**, иначе **403**. Админу одобрение не нужно.""")
+                    Студент и рекрутер с любым своим статусом видят чужую карточку, если у неё аккаунт **APPROVED** и `catalogVisible=true`. Иначе **404**.
+                    Свою карточку студент видит всегда, даже если она скрыта или ещё не одобрена. Админ видит любую.""")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<StudentDTO> getById(@PathVariable @NotNull UUID id) {
@@ -120,13 +151,11 @@ public class StudentController {
             description = """
                     Постраничная выдача `StudentCardDTO` по фильтрам из тела.
 
-                    Студент без одобрения получает только свою карточку (на первой странице).
-                    Одобренный студент и рекрутер видят студентов со статусом **APPROVED** и `catalogVisible=true`.
-                    Своя карточка студента остаётся в выдаче, даже если она скрыта. Админ видит всех.
+                    Студент и рекрутер с любым своим статусом видят студентов со статусом **APPROVED** и `catalogVisible=true`.
+                    Скрытый и не одобренный в список не попадают. Своя ещё не одобренная карточка в список не входит: она на `GET /student/me`.
+                    Одобренный студент видит свою карточку, даже если она скрыта. Админ видит всех.
 
-                    **Пагинация:** `page`, `size` в query. **Сортировка:** только из JSON (`sortBy`, `sortDirection`, `useDefaultRanking`), не из `sort=`.
-
-                    Рекрутеру нужен статус **APPROVED**, иначе **403**. Админу одобрение не нужно.""")
+                    **Пагинация:** `page`, `size` в query. **Сортировка:** только из JSON (`sortBy`, `sortDirection`, `useDefaultRanking`), не из `sort=`.""")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
     @PostMapping(path = "/cardsFilter")
     public ResponseEntity<PageResponse<StudentCardDTO>> getCardsAllByFilters(

@@ -1,6 +1,6 @@
 # Анкета студента
 
-Карточка студента — одна запись на аккаунт. Опыт, учёба и портфолио к ней не входят: их меняют отдельные запросы. Проверка и показ карточки описаны в [account-review.md](./account-review.md). Опыт — в [experience.md](./experience.md). Учёба — в [education.md](./education.md).
+Карточка студента — одна запись на аккаунт. Опыт, учёба и портфолио к ней не входят: их меняют отдельные запросы. Проверка и показ карточки описаны в [account-review.md](./account-review.md). После первого одобрения правка лежит отдельной версией: [profile-versions.md](./profile-versions.md). Опыт — в [experience.md](./experience.md). Учёба — в [education.md](./education.md).
 
 Саморегистрация `POST /auth/register-student` сразу создаёт пользователя и черновик. Статус `PENDING_APPROVAL`, `catalogVisible` выключен. На почту уходит код из 4 цифр. В форме: логин, пароль, почта, телефон, дата рождения с 14 лет. Имя, фамилия, отчество и город можно не передавать.
 
@@ -17,7 +17,7 @@
 
 Короткие списки: `POST /student/cardsFilter`. Полные: `POST /student/filter`. Пагинация — `page` и `size`. Порядок задают `sortBy`, `sortDirection` и `useDefaultRanking` в теле. Query-параметр `sort` игнорируется.
 
-`GET /public/students/{id}` и `POST /public/students/cards` требуют вход. Это укороченная карточка без контактов.
+`GET /public/students/{id}` и `POST /public/students/cards` устарели и пока отвечают по-старому. Каталог — `POST /student/cardsFilter` и `POST /student/filter`. Студент и рекрутер с любым своим статусом видят карточки с аккаунтом `APPROVED` и `catalogVisible=true`. Своя ещё не одобренная анкета в этот список не входит: она на `GET /student/me`. Фото `GET /main/photo/{image_path}` требует вход и открывается по тем же правилам, что `GET /student/{id}`.
 
 Менять свою карточку может студент: `PATCH /student/me` и фото `POST /student/photo/{id}`. Чужую — нет.
 

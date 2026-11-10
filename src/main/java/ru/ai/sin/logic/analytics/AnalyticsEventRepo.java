@@ -1,5 +1,7 @@
 package ru.ai.sin.logic.analytics;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,4 +16,15 @@ public interface AnalyticsEventRepo extends JpaRepository<AnalyticsEventEnt, Lon
 
     @Query("SELECT e.eventType, COUNT(e) FROM AnalyticsEventEnt e WHERE e.occurredAt >= :from AND e.occurredAt < :to GROUP BY e.eventType ORDER BY COUNT(e) DESC")
     List<Object[]> countByEventTypeBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    Page<AnalyticsEventEnt> findByOccurredAtGreaterThanEqualAndOccurredAtLessThan(
+            LocalDateTime from,
+            LocalDateTime to,
+            Pageable pageable);
+
+    Page<AnalyticsEventEnt> findByOccurredAtGreaterThanEqualAndOccurredAtLessThanAndEventType(
+            LocalDateTime from,
+            LocalDateTime to,
+            String eventType,
+            Pageable pageable);
 }

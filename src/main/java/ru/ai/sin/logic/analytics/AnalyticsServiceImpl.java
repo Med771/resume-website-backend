@@ -1,11 +1,18 @@
 package ru.ai.sin.logic.analytics;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ai.sin.exception.models.BadRequestException;
+import ru.ai.sin.logic.analytics.dto.AnalyticsEventDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsEventInReq;
+import ru.ai.sin.logic.analytics.dto.AnalyticsEventsReq;
 import ru.ai.sin.logic.analytics.dto.AnalyticsFunnelDTO;
 import ru.ai.sin.logic.analytics.dto.AnalyticsFunnelRow;
 import ru.ai.sin.logic.analytics.dto.AnalyticsPathCountRow;
@@ -17,6 +24,7 @@ import ru.ai.sin.logic.registration.ClientIpResolver;
 import ru.ai.sin.logic.recruiter.RecruiterRepo;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.user.UserRepo;
+import ru.ai.sin.models.PageResponse;
 import ru.ai.sin.tools.UserTools;
 import ru.ai.sin.models.enums.AnalyticsEventType;
 import ru.ai.sin.models.enums.RoleEnum;
@@ -40,6 +48,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final StudentRepo studentRepo;
     private final RecruiterRepo recruiterRepo;
     private final UserTools userTools;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -52,6 +61,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             type = AnalyticsEventType.fromCode(req.eventType());
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException(ex.getMessage());
+        }
+        if (!type.acceptedFromClient()) {
+            throw new BadRequestException("Unknown eventType: " + req.eventType());
         }
 
         String path = req.path().trim();
@@ -141,6 +153,50 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .map(r -> new AnalyticsFunnelRow((String) r[0], ((Number) r[1]).longValue()))
                 .toList();
         return new AnalyticsFunnelDTO(mapped);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AnalyticsEventDTO> listEvents(AnalyticsEventsReq req) {
+        if (!req.to().isAfter(req.from())) {
+            throw new BadRequestException("Parameter 'to' must be after 'from'");
+        }
+        int page = req.page() == null || req.page() < 0 ? 0 : req.page();
+        int size = req.size() == null || req.size() < 1 ? 20 : Math.min(req.size(), 100);
+        String eventType = req.eventType() == null || req.eventType().isBlank() ? null : req.eventType().trim();
+        PageRequest pr = PageRequest.of(page, size, Sort.by(Sort.Order.desc("occurredAt"), Sort.Order.desc("id")));
+        Page<AnalyticsEventEnt> result = eventType == null
+                ? analyticsEventRepo.findByOccurredAtGreaterThanEqualAndOccurredAtLessThan(req.from(), req.to(), pr)
+                : analyticsEventRepo.findByOccurredAtGreaterThanEqualAndOccurredAtLessThanAndEventType(
+                        req.from(), req.to(), eventType, pr);
+        return new PageResponse<>(
+                result.getContent().stream().map(this::toEventDto).toList(),
+                page,
+                size,
+                result.getTotalElements(),
+                result.getTotalPages());
+    }
+
+    private AnalyticsEventDTO toEventDto(AnalyticsEventEnt event) {
+        return new AnalyticsEventDTO(
+                event.getId(),
+                event.getOccurredAt(),
+                event.getEventType(),
+                event.getPath(),
+                event.getUserId(),
+                event.getSessionId(),
+                readPayload(event.getPayload()));
+    }
+
+    private Map<String, Object> readPayload(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private static String trimTo(String s, int max) {

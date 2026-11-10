@@ -22,6 +22,8 @@ import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.chat.ChatRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
@@ -81,6 +83,8 @@ public class StudentServiceImpl implements StudentService {
     private final ProfileCommunicationGateService profileCommunicationGateService;
     private final VerificationOtpMailer verificationOtpMailer;
     private final StudentReviewState studentReviewState;
+    private final StudentProfileChangeRecorder studentProfileChangeRecorder;
+    private final StudentProfileVersionService profileVersions;
 
     /**
      * Один read-only boundary на загрузку + маппинг: {@link StudentTools#getStudentOrThrow} завершает свой вложенный tx,
@@ -90,7 +94,13 @@ public class StudentServiceImpl implements StudentService {
     @Transactional(readOnly = true)
     public StudentDTO getById(UUID id) {
         accountAccessHelper.requireCanReadStudentResumeDetails(id);
-        return studentTools.mapToDTO(studentTools.getStudentOrThrow(id));
+        profileVersions.expireDueDrafts();
+        StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
+        Optional<StudentDTO> draft = profileVersions.draftCard(studentEnt);
+        if (draft != null && draft.isPresent()) {
+            return draft.get();
+        }
+        return studentTools.mapToDTO(studentEnt);
     }
 
     @Override
@@ -98,7 +108,14 @@ public class StudentServiceImpl implements StudentService {
     public Optional<StudentDTO> getLinkedForCurrentUser() {
         return userTools.findCurrentUserFetchingLinks()
                 .filter(u -> u.getRole() == RoleEnum.STUDENT && u.getStudent() != null)
-                .map(u -> studentTools.mapToDTO(u.getStudent()));
+                .map(u -> {
+                    profileVersions.expireDueDrafts();
+                    Optional<StudentDTO> draft = profileVersions.draftCard(u.getStudent());
+                    if (draft != null && draft.isPresent()) {
+                        return draft.get();
+                    }
+                    return studentTools.mapToDTO(u.getStudent());
+                });
     }
 
     @Override
@@ -115,9 +132,17 @@ public class StudentServiceImpl implements StudentService {
             throw new BadRequestException("Failed to save file");
         }
 
+        if (profileVersions.capturePhoto(studentEnt.getId(), filePath)) {
+            studentProfileChangeRecorder.record(
+                    studentEnt.getId(), "/student/photo", "photo", "update", null, List.of("imagePath"));
+            return;
+        }
+
         studentEnt.setImagePath(filePath);
         StudentProfileScoring.applyTo(studentEnt);
         studentReviewState.onStudentSelfEdit(studentEnt);
+        studentProfileChangeRecorder.record(
+                studentEnt.getId(), "/student/photo", "photo", "update", null, List.of("imagePath"));
     }
 
     @Override
@@ -125,6 +150,11 @@ public class StudentServiceImpl implements StudentService {
     public void deletePhoto(UUID id) {
         accountAccessHelper.requireStudentOwnsProfile(id);
         StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
+        if (profileVersions.capturePhotoDelete(id)) {
+            studentProfileChangeRecorder.record(
+                    id, "/student/photo", "photo", "delete", null, List.of());
+            return;
+        }
         String imagePath = studentEnt.getImagePath();
         if (imagePath == null || imagePath.isBlank()) {
             return;
@@ -137,6 +167,8 @@ public class StudentServiceImpl implements StudentService {
         studentEnt.setImagePath(null);
         StudentProfileScoring.applyTo(studentEnt);
         studentReviewState.onStudentSelfEdit(studentEnt);
+        studentProfileChangeRecorder.record(
+                studentEnt.getId(), "/student/photo", "photo", "delete", null, List.of());
     }
 
     @Override
@@ -146,22 +178,6 @@ public class StudentServiceImpl implements StudentService {
             FilterStudentReq filterStudentReq
     ) {
         UserEnt currentUser = accountAccessHelper.requireCurrentUser();
-        if (isUnapprovedStudent(currentUser)) {
-            StudentEnt own = currentUser.getStudent();
-            if (own == null || pageable.getPageNumber() > 0) {
-                return emptyPage(pageable, own == null ? 0 : 1);
-            }
-            return new PageResponse<>(
-                    List.of(studentTools.mapToCardDTO(own)),
-                    pageable.getPageNumber(),
-                    pageable.getPageSize(),
-                    1,
-                    1);
-        }
-        if (currentUser.getRole() != RoleEnum.STUDENT) {
-            accountAccessHelper.requireApprovedAccount();
-        }
-
         Page<StudentEnt> page = loadCatalogPage(pageable, filterStudentReq, currentUser);
 
         return new PageResponse<>(
@@ -183,22 +199,6 @@ public class StudentServiceImpl implements StudentService {
             FilterStudentReq filterStudentReq
     ) {
         UserEnt currentUser = accountAccessHelper.requireCurrentUser();
-        if (isUnapprovedStudent(currentUser)) {
-            StudentEnt own = currentUser.getStudent();
-            if (own == null || pageable.getPageNumber() > 0) {
-                return emptyPage(pageable, own == null ? 0 : 1);
-            }
-            return new PageResponse<>(
-                    List.of(studentTools.mapToDTO(own)),
-                    pageable.getPageNumber(),
-                    pageable.getPageSize(),
-                    1,
-                    1);
-        }
-        if (currentUser.getRole() != RoleEnum.STUDENT) {
-            accountAccessHelper.requireApprovedAccount();
-        }
-
         Page<StudentEnt> page = loadCatalogPage(pageable, filterStudentReq, currentUser);
 
         return new PageResponse<>(
@@ -216,7 +216,9 @@ public class StudentServiceImpl implements StudentService {
     ) {
         boolean admin = currentUser.getRole() == RoleEnum.ADMIN;
         UUID ownId = null;
-        if (!admin && currentUser.getRole() == RoleEnum.STUDENT && currentUser.getStudent() != null) {
+        if (!admin && currentUser.getRole() == RoleEnum.STUDENT
+                && currentUser.getAccountStatus() == AccountStatus.APPROVED
+                && currentUser.getStudent() != null) {
             ownId = currentUser.getStudent().getId();
         }
         Sort sort = StudentSortResolver.resolve(filterStudentReq);
@@ -224,20 +226,9 @@ public class StudentServiceImpl implements StudentService {
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
                 sort);
-        return studentRepo.findAll(
-                StudentSpecifications.byFilters(filterStudentReq, admin, false, !admin, ownId),
-                effectivePageable);
+        return StudentSpecifications.findPage(
+                studentRepo, effectivePageable, filterStudentReq, admin, false, !admin, ownId);
     }
-
-    private static boolean isUnapprovedStudent(UserEnt user) {
-        return user.getRole() == RoleEnum.STUDENT && user.getAccountStatus() != AccountStatus.APPROVED;
-    }
-
-    private static <T> PageResponse<T> emptyPage(Pageable pageable, long totalElements) {
-        int totalPages = totalElements == 0 ? 0 : 1;
-        return new PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), totalElements, totalPages);
-    }
-
 
     @Override
     @Transactional
@@ -306,6 +297,9 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional
     public StudentDTO patch(UUID id, PatchStudentReq patchStudentReq) {
+        if (profileVersions.captureAdminCard(id, patchStudentReq)) {
+            return profileVersions.draftCard(studentTools.getStudentOrThrow(id)).orElseThrow();
+        }
         StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
 
         applyOptionalResumeFields(
@@ -340,6 +334,7 @@ public class StudentServiceImpl implements StudentService {
 
         StudentProfileScoring.applyTo(studentEnt);
 
+        profileVersions.rememberLiveApproved(id);
         StudentDTO studentDTO = studentTools.mapToDTO(studentEnt);
         log.info("User: {}, patched student: {} with data: {}", securityHelper.getCurrentUsername(), id, studentDTO);
         return studentDTO;
@@ -359,6 +354,13 @@ public class StudentServiceImpl implements StudentService {
         if (req.hintsDisabled() != null) {
             user.setHintsDisabled(req.hintsDisabled());
             userRepo.save(user);
+        }
+
+        List<String> changedFields = StudentProfileChangeRecorder.cardFields(req);
+        if (!changedFields.isEmpty() && profileVersions.captureCardPatch(studentEnt.getId(), req)) {
+            studentProfileChangeRecorder.record(
+                    studentEnt.getId(), "/student/me", "card", "update", null, changedFields);
+            return profileVersions.draftCard(studentEnt).orElseGet(() -> studentTools.mapToDTO(studentEnt));
         }
 
         applyOptionalResumeFields(
@@ -384,6 +386,10 @@ public class StudentServiceImpl implements StudentService {
 
         StudentProfileScoring.applyTo(studentEnt);
         studentReviewState.onStudentSelfEdit(studentEnt);
+        if (!changedFields.isEmpty()) {
+            studentProfileChangeRecorder.record(
+                    studentEnt.getId(), "/student/me", "card", "update", null, changedFields);
+        }
         return studentTools.mapToDTO(studentEnt);
     }
 

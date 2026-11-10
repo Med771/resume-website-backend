@@ -6,6 +6,7 @@ import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.ForbiddenException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
@@ -23,6 +24,7 @@ public class AccountAccessHelper {
     private final UserRepo userRepo;
     private final UserTools userTools;
     private final StudentTools studentTools;
+    private final StudentProfileVersionService profileVersions;
 
     public UserEnt requireCurrentUser() {
         String username = securityHelper.getCurrentUsername();
@@ -147,18 +149,13 @@ public class AccountAccessHelper {
 
     /**
      * Своя карточка студента видна всегда. Админ видит любую.
-     * Чужую карточку видят одобренный студент и рекрутер, если она открыта в каталоге
-     * и аккаунт владельца {@code APPROVED}. Иначе 404.
-     * Студент без одобрения чужие карточки не видит.
+     * Чужую карточку видят студент и рекрутер с любым своим статусом,
+     * если она открыта в каталоге и аккаунт владельца {@code APPROVED}. Иначе 404.
      */
     public void requireCanReadStudentResumeDetails(UUID studentId) {
         if (studentId == null) {
             UserEnt user = requireCurrentUser();
-            if (user.getRole() == RoleEnum.ADMIN) {
-                return;
-            }
-            if (user.getRole() == RoleEnum.RECRUITER) {
-                requireApprovedAccount();
+            if (user.getRole() == RoleEnum.ADMIN || user.getRole() == RoleEnum.RECRUITER) {
                 return;
             }
             throw new ForbiddenException("Нет доступа к данным резюме");
@@ -174,15 +171,11 @@ public class AccountAccessHelper {
             return;
         }
 
-        if (viewer != null
-                && viewer.getRole() == RoleEnum.STUDENT
-                && viewer.getAccountStatus() != AccountStatus.APPROVED) {
+        StudentEnt studentEnt = studentTools.getStudentOrThrow(studentId);
+        if (!studentEnt.isCatalogVisible()) {
             throw new NotFoundException("Failed to find student by id " + studentId);
         }
-        requireApprovedAccount();
-
-        StudentEnt studentEnt = studentTools.getStudentOrThrow(studentId);
-        if (!studentEnt.isCatalogVisible() || !isStudentAccountApproved(studentId)) {
+        if (!isStudentAccountApproved(studentId) && !profileVersions.hasPublishedVersion(studentId)) {
             throw new NotFoundException("Failed to find student by id " + studentId);
         }
     }

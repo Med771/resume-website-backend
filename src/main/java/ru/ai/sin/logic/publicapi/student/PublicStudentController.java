@@ -20,15 +20,16 @@ import ru.ai.sin.models.PageResponse;
 
 import java.util.UUID;
 
+@Deprecated
 @RestController
 @RequestMapping("/public/students")
 @RequiredArgsConstructor
 @Tag(
         name = "PublicStudents",
         description = """
-                Публичная витрина карточек **без JWT и без cookie** (`permitAll`).
-                В выдачу попадают только студенты с `publicProfileConsent=true`, `catalogVisible=true` и прочими правилами каталога.
-                Контакты и прочие PII в `StudentCardDTO` не расширяются специально для анонимов — см. описание полей DTO.""")
+                Устарело. Каталог для вошедших — `POST /student/cardsFilter`.
+                Эти методы пока отвечают как раньше: короткая карточка при `publicProfileConsent=true` и `catalogVisible=true`.
+                Вход нужен, несмотря на старое описание «без cookie».""")
 public class PublicStudentController {
 
     private final PublicCatalogStudentService publicCatalogStudentService;

@@ -7,10 +7,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -34,4 +36,7 @@ public interface ExperienceRepo extends JpaRepository<ExperienceEnt, Long>, JpaS
     List<ExperienceEnt> findAllByStudent_Id(UUID studentId);
 
     boolean existsByStudent_Id(UUID studentId);
+
+    @Query("select distinct e.student.id from ExperienceEnt e where e.student.id in :ids")
+    Set<UUID> findStudentIdsByStudentIdIn(@Param("ids") Collection<UUID> ids);
 }

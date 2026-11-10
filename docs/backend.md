@@ -29,7 +29,7 @@ ru.ai.sin
 
 `/admin/**` — только **ADMIN**. Всё остальное требует вход, точные роли стоят на методах через `@PreAuthorize`.
 
-`/public/students/**` и `/public/vacancies/**` вход требуют.
+`/public/students/**` устарел, вход всё ещё нужен. `/public/vacancies/**` вход требует. Каталог студентов — `POST /student/cardsFilter`: студент и рекрутер с любым своим статусом видят одобренных с `catalogVisible=true`.
 
 Роли: **STUDENT**, **RECRUITER**, **ADMIN**. В токене authority вида `ROLE_STUDENT`. Админ входит через `/auth/admin/login`, студент и рекрутер — через `/auth/login`.
 
@@ -45,7 +45,7 @@ ru.ai.sin
 
 **Вакансия.** Рекрутер создаёт черновик, отправляет на модерацию, админ публикует или отклоняет. Студент откликается. Принятый отклик тоже открывает переписку в общем чате пары.
 
-**Регистрация.** Студент: `POST /auth/register-student`, сразу cookie и черновик карточки (`catalog_visible = false`), код из 4 цифр на почту. Рекрутер: `POST /auth/register-recruiter` сразу создаёт профиль и пользователя со статусом `PENDING_APPROVAL` и выдаёт cookie. Телефон в анкете — контакт, без отдельной проверки. Оба аккаунта одобряет админ в `/admin/account-approvals`. Одобрение студента включает показ карточки в каталоге. Студента без подтверждённой почты одобрить нельзя.
+**Регистрация.** Студент: `POST /auth/register-student`, сразу cookie и черновик карточки (`catalog_visible = false`), код из 4 цифр на почту. Рекрутер: `POST /auth/register-recruiter` сразу создаёт профиль и пользователя со статусом `PENDING_APPROVAL` и выдаёт cookie. Обязательны логин, пароль, почта, фамилия, имя и компания. Город, отчество и телефон можно не передавать. На почту уходит код из 4 цифр, его подтверждают `POST /auth/confirm-email`. Оба аккаунта одобряет админ через `POST /admin/account-approvals/{userId}/approve`. Список студентов — `GET /admin/account-approvals/students`. Одобрение студента включает показ карточки в каталоге. Студента без подтверждённой почты одобрить нельзя.
 
 Таблица `recruiter_registration_requests` и `/admin/recruiter-registration-requests` в коде есть. Текущая саморегистрация новые строки туда не пишет.
 
@@ -53,7 +53,7 @@ ru.ai.sin
 
 **Аналитика.** `POST /public/analytics/events` без входа, лимит по IP. Сводки — `/admin/analytics/**`.
 
-**Файлы.** Аватары и вложения лежат на диске (`app.file.path`). Картинки отдаёт `GET /main/photo/{image_path}`. Админ управляет файлами через `/admin/storage/files`.
+**Файлы.** Аватары и вложения лежат на диске (`app.file.path`). Картинки отдаёт `GET /main/photo/{image_path}`, нужен вход. Аватар студента открывается по тем же правилам, что карточка. Админ управляет файлами через `/admin/storage/files`.
 
 **Уведомления.** Отдельной таблицы нет. Событие уходит в WebSocket `/topic/users/{userId}/inbox`.
 

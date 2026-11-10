@@ -19,10 +19,14 @@ import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 
 import ru.ai.sin.tools.PortfolioTools;
 import ru.ai.sin.tools.StudentTools;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -40,6 +44,8 @@ public class PortfolioServiceImpl implements PortfolioService {
     private final SecurityHelper securityHelper;
     private final AccountAccessHelper accountAccessHelper;
     private final StudentReviewState studentReviewState;
+    private final StudentProfileChangeRecorder studentProfileChangeRecorder;
+    private final StudentProfileVersionService profileVersions;
 
     @Override
     @Transactional(readOnly = true)
@@ -52,6 +58,10 @@ public class PortfolioServiceImpl implements PortfolioService {
     @Override
     public PageResponse<PortfolioDTO> getAllByFilter(Pageable pageable, FilterPortfolioReq filterPortfolioReq) {
         FilterPortfolioReq effective = scopeResumeReadFilter(filterPortfolioReq);
+        Optional<PageResponse<PortfolioDTO>> drafted = profileVersions.draftPortfolio(effective, pageable);
+        if (drafted.isPresent()) {
+            return drafted.get();
+        }
 
         Page<PortfolioEnt> page = portfolioRepo.findAll(
                 PortfolioSpecifications.byFilters(effective),
@@ -70,6 +80,13 @@ public class PortfolioServiceImpl implements PortfolioService {
     public PortfolioDTO create(AddPortfolioReq addPortfolioReq) {
         UUID studentId = accountAccessHelper.resolveStudentIdForResumeMutation(addPortfolioReq.studentId());
         accountAccessHelper.requireStudentCanMutateResume(studentId);
+        Optional<PortfolioDTO> drafted = profileVersions.capturePortfolioCreate(studentId, addPortfolioReq);
+        if (drafted.isPresent()) {
+            studentProfileChangeRecorder.record(
+                    studentId, "/portfolio", "portfolio", "create", drafted.get().id(),
+                    StudentProfileChangeRecorder.portfolioFields(addPortfolioReq));
+            return drafted.get();
+        }
         StudentEnt studentEnt = studentTools.getStudentOrThrow(studentId);
 
         PortfolioEnt portfolioEnt = portfolioMapper.toEntity(addPortfolioReq, studentEnt);
@@ -77,6 +94,13 @@ public class PortfolioServiceImpl implements PortfolioService {
         portfolioEnt = portfolioRepo.save(portfolioEnt);
 
         studentReviewState.onStudentSelfEdit(studentEnt);
+        studentProfileChangeRecorder.record(
+                studentEnt.getId(),
+                "/portfolio",
+                "portfolio",
+                "create",
+                portfolioEnt.getId(),
+                StudentProfileChangeRecorder.portfolioFields(addPortfolioReq));
         PortfolioDTO portfolioDTO = portfolioMapper.toDTO(portfolioEnt);
 
         log.info("User: {}, created a new portfolio: {}", securityHelper.getCurrentUsername(), portfolioDTO);
@@ -92,6 +116,14 @@ public class PortfolioServiceImpl implements PortfolioService {
     ) {
         PortfolioEnt portfolioEnt = portfolioTools.getPortfolioOrThrow(id);
         accountAccessHelper.requireStudentCanMutateResume(portfolioEnt.getStudent().getId());
+        Optional<PortfolioDTO> drafted = profileVersions.capturePortfolioUpdate(
+                portfolioEnt.getStudent().getId(), id, addPortfolioReq);
+        if (drafted.isPresent()) {
+            studentProfileChangeRecorder.record(
+                    portfolioEnt.getStudent().getId(), "/portfolio", "portfolio", "update", id,
+                    StudentProfileChangeRecorder.portfolioFields(addPortfolioReq));
+            return drafted.get();
+        }
         UUID targetStudentId = accountAccessHelper.resolveStudentIdForResumeMutation(
                 addPortfolioReq.studentId() != null
                         ? addPortfolioReq.studentId()
@@ -103,6 +135,13 @@ public class PortfolioServiceImpl implements PortfolioService {
         portfolioEnt.setStudent(studentEnt);
 
         studentReviewState.onStudentSelfEdit(studentEnt);
+        studentProfileChangeRecorder.record(
+                studentEnt.getId(),
+                "/portfolio",
+                "portfolio",
+                "update",
+                portfolioEnt.getId(),
+                StudentProfileChangeRecorder.portfolioFields(addPortfolioReq));
         PortfolioDTO portfolioDTO = portfolioMapper.toDTO(portfolioEnt);
 
         log.info("User: {}, updated a portfolio: {} with data: {}", securityHelper.getCurrentUsername(), id, portfolioDTO);
@@ -115,10 +154,24 @@ public class PortfolioServiceImpl implements PortfolioService {
     public void deleteById(long id) {
         PortfolioEnt portfolioEnt = portfolioTools.getPortfolioOrThrow(id);
         accountAccessHelper.requireStudentCanMutateResume(portfolioEnt.getStudent().getId());
+        if (profileVersions.capturePortfolioDelete(portfolioEnt.getStudent().getId(), id)) {
+            studentProfileChangeRecorder.record(
+                    portfolioEnt.getStudent().getId(), "/portfolio", "portfolio", "delete", id, List.of());
+            return;
+        }
 
         portfolioRepo.delete(portfolioEnt);
 
         studentReviewState.onStudentSelfEdit(portfolioEnt.getStudent());
+        if (portfolioEnt.getStudent() != null) {
+            studentProfileChangeRecorder.record(
+                    portfolioEnt.getStudent().getId(),
+                    "/portfolio",
+                    "portfolio",
+                    "delete",
+                    portfolioEnt.getId(),
+                    List.of());
+        }
         log.info("User: {}, deleted a portfolio: {} with data: {}", securityHelper.getCurrentUsername(), id, portfolioEnt);
     }
 
@@ -127,7 +180,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         UUID studentId = accountAccessHelper.resolveStudentIdForResumeRead(requested);
         accountAccessHelper.requireCanReadStudentResumeDetails(studentId);
         if (studentId != null && (filter == null || !studentId.equals(filter.studentId()))) {
-            return new FilterPortfolioReq(studentId);
+            return new FilterPortfolioReq(studentId, filter == null ? null : filter.published());
         }
         return filter;
     }

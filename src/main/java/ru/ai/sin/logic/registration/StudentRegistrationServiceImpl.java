@@ -113,7 +113,7 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
     @Override
     @Transactional
     public void confirmEmail(String code) {
-        UserEnt user = requireCurrentStudentUser();
+        UserEnt user = requireCurrentConfirmableUser();
         if (user.isEmailVerified()) {
             return;
         }
@@ -137,7 +137,7 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
     @Override
     @Transactional
     public void resendEmailConfirmation() {
-        UserEnt user = requireCurrentStudentUser();
+        UserEnt user = requireCurrentConfirmableUser();
         if (user.isEmailVerified()) {
             throw new BadRequestException("Почта уже подтверждена");
         }
@@ -161,12 +161,12 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
         }
     }
 
-    private UserEnt requireCurrentStudentUser() {
+    private UserEnt requireCurrentConfirmableUser() {
         String username = securityHelper.getCurrentUsername();
         UserEnt user = userRepo.findByUsernameFetchingLinks(username)
                 .orElseThrow(() -> new ForbiddenException("Пользователь не найден"));
-        if (user.getRole() != RoleEnum.STUDENT) {
-            throw new ForbiddenException("Подтверждение почты доступно только студенту");
+        if (user.getRole() != RoleEnum.STUDENT && user.getRole() != RoleEnum.RECRUITER) {
+            throw new ForbiddenException("Подтверждение почты доступно только студенту и работодателю");
         }
         return user;
     }
@@ -180,6 +180,12 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
                 && user.getStudent().getUserInformation().getEmail() != null
                 && !user.getStudent().getUserInformation().getEmail().isBlank()) {
             return user.getStudent().getUserInformation().getEmail().trim();
+        }
+        if (user.getRecruiter() != null
+                && user.getRecruiter().getUserInformation() != null
+                && user.getRecruiter().getUserInformation().getEmail() != null
+                && !user.getRecruiter().getUserInformation().getEmail().isBlank()) {
+            return user.getRecruiter().getUserInformation().getEmail().trim();
         }
         return null;
     }

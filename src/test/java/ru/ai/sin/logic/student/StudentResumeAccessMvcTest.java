@@ -36,6 +36,7 @@ import ru.ai.sin.logic.skill.SkillController;
 import ru.ai.sin.logic.skill.SkillService;
 import ru.ai.sin.logic.skill.dto.SkillDTO;
 import ru.ai.sin.logic.student.dto.StudentDTO;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.models.PageResponse;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
@@ -88,6 +89,8 @@ class StudentResumeAccessMvcTest {
     private EducationService educationService;
     @MockitoBean
     private StudentService studentService;
+    @MockitoBean
+    private StudentProfileVersionService profileVersions;
     @MockitoBean
     private SecurityHelper securityHelper;
     @MockitoBean
