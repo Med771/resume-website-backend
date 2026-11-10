@@ -2,6 +2,8 @@ package ru.ai.sin.logic.recruiter.dto;
 
 import jakarta.validation.constraints.*;
 
+import ru.ai.sin.models.enums.CooperationFormat;
+
 import java.util.UUID;
 
 public record RecruiterDTO(
@@ -37,5 +39,9 @@ public record RecruiterDTO(
         String telegramUserId,
 
         @Size(max = 255, message = "Middle name must be less than 255 characters")
-        String middleName) {
+        String middleName,
+
+        CooperationFormat cooperationFormat,
+
+        Boolean readyToRequestStudents) {
 }

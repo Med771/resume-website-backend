@@ -96,6 +96,8 @@ erDiagram
 | phone_number | VARCHAR(16) | |
 | telegram_username | VARCHAR(32) | |
 | telegram_user_id | VARCHAR(16) | |
+| cooperation_format | VARCHAR(32) | формат сотрудничества, пусто пока не выбрали |
+| ready_to_request_students | BOOLEAN | готовы подать запрос на подбор, пусто пока не ответили |
 | created_at, updated_at | TIMESTAMP | |
 
 Логин рекрутера лежит в `users`, не в этой таблице.
