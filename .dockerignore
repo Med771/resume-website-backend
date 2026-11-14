@@ -39,3 +39,7 @@ Thumbs.db
 # Docker
 docker-compose.override.yml
 .env
+
+# Локальный запуск
+src/main/resources/application-dev.yaml
+src/main/resources/application-test.yaml
