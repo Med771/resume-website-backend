@@ -70,6 +70,22 @@ class StudentReviewStateTest {
     }
 
     @Test
+    void selfEdit_approvedWithPublishedVersion_doesNotChangeStatus() {
+        StudentEnt student = student();
+        student.setCatalogVisible(true);
+        UserEnt user = user(AccountStatus.APPROVED);
+        when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of("STUDENT"));
+        when(userRepo.findByStudent_Id(STUDENT_ID)).thenReturn(Optional.of(user));
+        when(profileVersions.hasPublishedVersion(STUDENT_ID)).thenReturn(true);
+
+        reviewState.onStudentSelfEdit(student);
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        assertThat(student.isCatalogVisible()).isTrue();
+        verify(userRepo, never()).save(user);
+    }
+
+    @Test
     void selfEdit_pending_doesNotChangeStatus() {
         StudentEnt student = student();
         UserEnt user = user(AccountStatus.PENDING_APPROVAL);

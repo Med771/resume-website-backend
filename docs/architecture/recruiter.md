@@ -32,6 +32,10 @@
 - `phoneNumber` — телефон
 - `telegramUsername` — Telegram
 - `telegramUserId` — старый идентификатор Telegram, регистрация его не заполняет
+- `cooperationFormat` — формат сотрудничества. Необязательный. Коды: `SEMESTER_PROJECT`, `SUMMER_PRACTICE`, `INTERNSHIP`, `VACANCY`, `OTHER`. Пусто, пока не выбрали
+- `readyToRequestStudents` — готовы подать запрос на подбор студентов. Необязательный. Пусто, пока не ответили
+
+Регистрация эти поля не принимает. Их пишут через `PATCH /recruiter/{id}`. Если поля нет в теле PATCH, уже записанное значение не затирается.
 
 Статус аккаунта и подтверждение почты читаются из `GET /auth/me`: `accountStatus` и `emailVerified`. Причина отказа и срок черновика анкеты к работодателю не относятся, эти поля у него пустые.
 

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import ru.ai.sin.models.enums.CooperationFormat;
 
 @Schema(
         name = "PatchRecruiterReq",
@@ -39,6 +40,12 @@ public record PatchRecruiterReq(
 
         @Schema(description = "Отчество. null — не менять")
         @Size(max = 255, message = "Middle name must be less than 255 characters")
-        String middleName
+        String middleName,
+
+        @Schema(description = "Формат сотрудничества. null — не менять")
+        CooperationFormat cooperationFormat,
+
+        @Schema(description = "Готовы подать запрос на подбор студентов. null — не менять")
+        Boolean readyToRequestStudents
 ) {
 }
