@@ -2,10 +2,7 @@ package ru.ai.sin.logic.vacancy;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,9 +12,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import ru.ai.sin.logic.vacancy.dto.FilterVacancyModerationReq;
 import ru.ai.sin.logic.vacancy.dto.VacancyDTO;
 import ru.ai.sin.logic.vacancy.dto.VacancyModerationRejectReq;
 import ru.ai.sin.models.PageResponse;
@@ -28,19 +25,21 @@ import java.util.UUID;
 @RequestMapping("/admin/vacancies")
 @RequiredArgsConstructor
 @Validated
-@Tag(name = "VacancyModerationAdmin", description = "Модерация вакансий перед публикацией")
+@Tag(name = "VacancyModerationAdmin", description = "Список вакансий для админа")
 @PreAuthorize("hasRole('ADMIN')")
 public class VacancyAdminController {
 
     private final VacancyModerationAdminService vacancyModerationAdminService;
 
-    @Operation(summary = "Очередь модерации вакансий")
-    @PostMapping("/filter")
-    public ResponseEntity<PageResponse<VacancyDTO>> filter(
-            @PageableDefault Pageable pageable,
-            @Valid @RequestBody(required = false) FilterVacancyModerationReq filter
+    @Operation(
+            summary = "Все вакансии",
+            description = "Страница вакансий всех статусов: DRAFT, PENDING_REVIEW, PUBLISHED, REJECTED, CLOSED. Пагинация: page, size.")
+    @GetMapping
+    public ResponseEntity<PageResponse<VacancyDTO>> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
-        return ResponseEntity.ok(vacancyModerationAdminService.filter(pageable, filter));
+        return ResponseEntity.ok(vacancyModerationAdminService.list(page, size));
     }
 
     @Operation(summary = "Карточка вакансии для модерации")

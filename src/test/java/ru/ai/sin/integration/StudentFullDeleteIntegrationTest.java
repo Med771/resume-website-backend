@@ -30,58 +30,17 @@ class StudentFullDeleteIntegrationTest extends AbstractPostgresIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void deleteStudent_withAcceptedVacancyApplication_freesLoginAndEmail() throws Exception {
+    void deleteStudent_freesLoginAndEmail() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         String email = "dstu_" + suffix + "@integration.test";
         String username = "dstu_" + suffix;
         String password = "DelStuPass12";
 
         Cookie[] adminCookies = login("admin", "admin");
-        Cookie[] guestCookies = login("guest", "guest");
 
         long specialityId = createSpeciality(adminCookies, "DelSpec-" + suffix);
         long skillId = createSkill(adminCookies, "DelSkill-" + suffix);
         UUID studentId = createStudent(adminCookies, email, username, password, specialityId, skillId);
-        Cookie[] studentCookies = login(username, password);
-
-        String vacancyBody = """
-                {
-                  "title": "Java Intern",
-                  "description": "We are looking for a motivated intern with basic Java skills and teamwork.",
-                  "city": "Moscow",
-                  "workFormat": "REMOTE",
-                  "employmentType": "INTERNSHIP",
-                  "specialityId": %d,
-                  "skillIds": [%d]
-                }
-                """.formatted(specialityId, skillId);
-
-        MvcResult createResult = mockMvc.perform(post("/vacancies")
-                        .cookie(guestCookies)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(vacancyBody))
-                .andExpect(status().isCreated())
-                .andReturn();
-        UUID vacancyId = UUID.fromString(
-                objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
-
-        mockMvc.perform(post("/vacancies/" + vacancyId + "/submit-for-review").cookie(guestCookies))
-                .andExpect(status().isOk());
-        mockMvc.perform(post("/admin/vacancies/" + vacancyId + "/approve").cookie(adminCookies))
-                .andExpect(status().isOk());
-
-        MvcResult applyResult = mockMvc.perform(post("/vacancies/" + vacancyId + "/applications")
-                        .cookie(studentCookies)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"coverLetter\":\"Interested\"}"))
-                .andExpect(status().isCreated())
-                .andReturn();
-        UUID applicationId = UUID.fromString(
-                objectMapper.readTree(applyResult.getResponse().getContentAsString()).get("id").asText());
-
-        mockMvc.perform(post("/vacancies/" + vacancyId + "/applications/" + applicationId + "/accept")
-                        .cookie(guestCookies))
-                .andExpect(status().isOk());
 
         mockMvc.perform(delete("/student/" + studentId).cookie(adminCookies))
                 .andExpect(status().isNoContent());

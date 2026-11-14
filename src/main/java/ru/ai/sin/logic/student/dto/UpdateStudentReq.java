@@ -90,7 +90,7 @@ public record UpdateStudentReq(
 
         @Schema(
                 description = """
-                        Разрешение показывать укороченную карточку на `/public/students/...` без авторизации.
+                        Устаревшее поле согласия на публичный показ. Каталог для вошедших его не читает.
                         `null` — оставить в БД прежнее значение; `true` / `false` — явно установить.""")
         Boolean publicProfileConsent,
 

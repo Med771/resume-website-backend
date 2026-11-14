@@ -10,6 +10,6 @@
 
 **С PostgreSQL.** `AbstractPostgresIntegrationTest` поднимает контейнер `postgres:16-alpine`, гоняет Flyway и ходит в API с cookie. Класс помечен `disabledWithoutDocker = true`: нет Docker — тест пропускается, `mvn test` не краснеет.
 
-Интеграционные сценарии: путь ролей (`FullRoleJourneysIntegrationTest`), вакансии и отклик, проекты и студенты, порядок навыков, публичная главная и закрытый каталог без cookie (`PublicCatalogSecurityMvcTest`).
+Интеграционные сценарии: путь ролей (`FullRoleJourneysIntegrationTest`), проекты и студенты, порядок навыков, закрытые ручки без cookie (`PublicCatalogSecurityMvcTest`).
 
 Первый прогон с Docker скачивает образ Postgres.

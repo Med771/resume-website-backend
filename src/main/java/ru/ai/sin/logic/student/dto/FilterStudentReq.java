@@ -13,7 +13,7 @@ import java.util.Set;
 @Schema(
         name = "FilterStudentReq",
         description = """
-                Фильтры списка студентов для `POST /student/cardsFilter`, `POST /student/filter` и `POST /public/students/cards`.
+                Фильтры списка студентов для `POST /student/cardsFilter` и `POST /student/filter`.
 
                 **Сортировка:** только поля ниже; query-параметр `sort` у `Pageable` на сервере **не используется** (белый список полей).
 

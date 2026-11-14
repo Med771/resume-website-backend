@@ -45,20 +45,6 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
     private StudentRepo studentRepo;
 
     @Test
-    void publicVacancies_requiresAuth() throws Exception {
-        mockMvc.perform(get("/public/vacancies?page=0&size=10"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void publicStudents_requiresAuth() throws Exception {
-        mockMvc.perform(post("/public/students/cards?page=0&size=10")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
     void accountApproval_pendingStudentBlockedFromApply() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         Cookie[] adminCookies = login("admin", "admin");
@@ -132,21 +118,14 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
         long skillId = createSkill(adminCookies, "SkillD-" + suffix);
         UUID studentId = createStudent(adminCookies, "del_stu_" + suffix + "@test.local", specialityId, skillId);
 
-        MvcResult recruiterResult = mockMvc.perform(post("/recruiter")
-                        .cookie(adminCookies)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"companyName\":\"DelCorp\",\"firstName\":\"Del\",\"lastName\":\"Rec\",\"email\":\"delrec_" + suffix + "@test.local\",\"phoneNumber\":\"+79990001122\"}"))
-                .andExpect(status().isCreated())
-                .andReturn();
-        UUID recruiterId = UUID.fromString(objectMapper.readTree(recruiterResult.getResponse().getContentAsString()).get("id").asText());
-
-        mockMvc.perform(post("/user")
-                        .cookie(adminCookies)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Del Rec\",\"username\":\"delrec_" + suffix + "\",\"password\":\"pass-del-1\",\"role\":\"RECRUITER\",\"recruiterId\":\"" + recruiterId + "\"}"))
-                .andExpect(status().isCreated());
-
-        Cookie[] recruiterCookies = login("delrec_" + suffix, "pass-del-1");
+        UUID recruiterId = registerApprovedRecruiter(
+                "delrec_" + suffix,
+                "DelCorp",
+                "Del",
+                "Rec",
+                "delrec_" + suffix + "@test.local",
+                "+79990001122");
+        Cookie[] recruiterCookies = login("delrec_" + suffix, "RecruiterPass1");
 
         MvcResult requestResult = mockMvc.perform(post("/request")
                         .cookie(recruiterCookies)
@@ -169,20 +148,14 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
         UUID studentId = createStudent(adminCookies, "tu_stu_" + suffix + "@test.local", specialityId, skillId);
         Cookie[] studentCookies = login("tu_stu_" + suffix, "StudentPass1");
 
-        MvcResult recruiterResult = mockMvc.perform(post("/recruiter")
-                        .cookie(adminCookies)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"companyName\":\"TuCorp\",\"firstName\":\"Tu\",\"lastName\":\"Rec\",\"email\":\"turec_" + suffix + "@test.local\",\"phoneNumber\":\"+79990003344\"}"))
-                .andExpect(status().isCreated())
-                .andReturn();
-        UUID recruiterId = UUID.fromString(objectMapper.readTree(recruiterResult.getResponse().getContentAsString()).get("id").asText());
-
-        mockMvc.perform(post("/user")
-                        .cookie(adminCookies)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Tu Rec\",\"username\":\"turec_" + suffix + "\",\"password\":\"pass-tu-r\",\"role\":\"RECRUITER\",\"recruiterId\":\"" + recruiterId + "\"}"))
-                .andExpect(status().isCreated());
-        Cookie[] recruiterCookies = login("turec_" + suffix, "pass-tu-r");
+        registerApprovedRecruiter(
+                "turec_" + suffix,
+                "TuCorp",
+                "Tu",
+                "Rec",
+                "turec_" + suffix + "@test.local",
+                "+79990003344");
+        Cookie[] recruiterCookies = login("turec_" + suffix, "RecruiterPass1");
 
         MvcResult requestResult = mockMvc.perform(post("/request")
                         .cookie(recruiterCookies)
@@ -231,21 +204,14 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
         long skillId = createSkill(adminCookies, "SkillC-" + suffix);
         UUID studentId = createStudent(adminCookies, "chatdel_" + suffix + "@test.local", specialityId, skillId);
 
-        MvcResult recruiterResult = mockMvc.perform(post("/recruiter")
-                        .cookie(adminCookies)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"companyName\":\"DelChatCorp\",\"firstName\":\"Chat\",\"lastName\":\"Del\",\"email\":\"chatdelrec_" + suffix + "@test.local\",\"phoneNumber\":\"+79990005566\"}"))
-                .andExpect(status().isCreated())
-                .andReturn();
-        UUID recruiterId = UUID.fromString(objectMapper.readTree(recruiterResult.getResponse().getContentAsString()).get("id").asText());
-
-        mockMvc.perform(post("/user")
-                        .cookie(adminCookies)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Chat Del\",\"username\":\"chatdelrec_" + suffix + "\",\"password\":\"pass-chatdel\",\"role\":\"RECRUITER\",\"recruiterId\":\"" + recruiterId + "\"}"))
-                .andExpect(status().isCreated());
-
-        Cookie[] recruiterCookies = login("chatdelrec_" + suffix, "pass-chatdel");
+        registerApprovedRecruiter(
+                "chatdelrec_" + suffix,
+                "DelChatCorp",
+                "Chat",
+                "Del",
+                "chatdelrec_" + suffix + "@test.local",
+                "+79990005566");
+        Cookie[] recruiterCookies = login("chatdelrec_" + suffix, "RecruiterPass1");
 
         MvcResult requestResult = mockMvc.perform(post("/request")
                         .cookie(recruiterCookies)
@@ -268,6 +234,40 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
 
         mockMvc.perform(get("/chat/" + chatId + "/messages").cookie(adminCookies))
                 .andExpect(status().isNotFound());
+    }
+
+    private UUID registerApprovedRecruiter(
+            String username,
+            String companyName,
+            String firstName,
+            String lastName,
+            String email,
+            String phoneNumber
+    ) throws Exception {
+        String body = """
+                {
+                  "username": "%s",
+                  "password": "RecruiterPass1",
+                  "passwordConfirm": "RecruiterPass1",
+                  "companyName": "%s",
+                  "firstName": "%s",
+                  "lastName": "%s",
+                  "email": "%s",
+                  "phoneNumber": "%s"
+                }
+                """.formatted(username, companyName, firstName, lastName, email, phoneNumber);
+        mockMvc.perform(post("/auth/register-recruiter")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNoContent());
+        UserEnt user = userRepo.findByUsername(username).orElseThrow();
+        user.setAccountStatus(AccountStatus.APPROVED);
+        userRepo.save(user);
+        Cookie[] cookies = login(username, "RecruiterPass1");
+        MvcResult me = mockMvc.perform(get("/recruiter/me").cookie(cookies))
+                .andExpect(status().isOk())
+                .andReturn();
+        return UUID.fromString(objectMapper.readTree(me.getResponse().getContentAsString()).get("id").asText());
     }
 
     private Cookie[] login(String username, String password) throws Exception {

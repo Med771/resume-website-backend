@@ -15,7 +15,7 @@ import java.util.UUID;
         name = "StudentDTO",
         description = """
                 Полная карточка студента для каталога и админки после входа (`GET /student/{id}`, фильтры, ответы PUT/PATCH).
-                Для анонимной витрины используется `StudentCardDTO` и отдельные эндпоинты `/public/students/...`.""")
+                Короткая карточка каталога — `StudentCardDTO`.""")
 public record StudentDTO(
         @Schema(description = "ID студента")
         @NotNull

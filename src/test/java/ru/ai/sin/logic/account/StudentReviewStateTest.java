@@ -7,6 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.student.StudentEnt;
+import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
@@ -29,6 +30,8 @@ class StudentReviewStateTest {
     private UserRepo userRepo;
     @Mock
     private SecurityHelper securityHelper;
+    @Mock
+    private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private StudentReviewState reviewState;

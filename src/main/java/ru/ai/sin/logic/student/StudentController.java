@@ -44,7 +44,8 @@ import java.util.UUID;
                 **Сортировка списков** (`POST /student/cardsFilter`, `POST /student/filter`): порядок задаётся полями `FilterStudentReq.sortBy`, `sortDirection`, `useDefaultRanking`;
                 параметр query `sort` **игнорируется**.
 
-                **Согласие на показ анонимам** (`publicProfileConsent`) и **ручной номер** (`manualSortOrder`): при **`POST /student`** можно задать сразу в теле; дальше — `PUT`/`PATCH` (сброс номера — `clearManualSortOrder: true`).""")
+                Поле `publicProfileConsent` сохраняется в карточке. Каталог для вошедших его не читает.
+                **Ручной номер** (`manualSortOrder`): при **`POST /student`** можно задать сразу в теле; дальше — `PUT`/`PATCH` (сброс номера — `clearManualSortOrder: true`).""")
 public class StudentController {
 
     private final StudentService studentService;
@@ -241,8 +242,8 @@ public class StudentController {
             description = """
                     Только **ADMIN**. Перезаписывает поля согласно `UpdateStudentReq`.
 
-                    Поле `publicProfileConsent`: если передано **null** — текущее значение в БД **не меняется**; если `true`/`false` — устанавливается явно
-                    (влияет на попадание карточки в `/public/students/...` при прочих условиях).
+                    Поле `publicProfileConsent`: если передано **null** — текущее значение в БД **не меняется**; если `true`/`false` — устанавливается явно.
+                    Каталог для вошедших это поле не читает.
 
                     После сохранения пересчитывается `profileTextScore`.
 

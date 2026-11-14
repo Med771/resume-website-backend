@@ -10,7 +10,7 @@
 - `GET /main/status`
 - регистрация, логин, refresh, logout
 
-`/public/students/**` устарел. Каталог после входа: `POST /student/cardsFilter`. `/public/vacancies/**` без cookie отвечает **401**. Вакансии после входа: `GET /vacancies`.
+Каталог после входа: `POST /student/cardsFilter`. Вакансии для сайта и рекрутёра сняты. Админ смотрит список: `GET /admin/vacancies`.
 
 ## Сессия
 

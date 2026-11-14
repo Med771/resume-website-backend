@@ -16,7 +16,7 @@ import java.util.List;
         description = """
                 Базовое создание карточки (`POST /student`), только **ADMIN**.
 
-                **Публичная витрина** (`publicProfileConsent`): если поле **не** передать или `false` — в БД будет **false**; если **`true`** — сразу разрешён показ на `/public/students/...` (при `catalogVisible=true` и прочих правилах каталога).
+                **`publicProfileConsent`**: если поле **не** передать или `false` — в БД будет **false**; если **`true`** — значение сохраняется. Каталог для вошедших на это поле не смотрит.
 
                 **Ручной порядок** (`manualSortOrder`): опционально; `null` — не задавать (колонка `NULL` в БД).""")
 public record AddStudentReq(
