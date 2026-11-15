@@ -105,5 +105,9 @@ public record UpdateStudentReq(
                 `null` — не менять текущее значение в БД (если `clearManualSortOrder` не `true`).""")
         @Min(0)
         @Max(2_147_483_646)
-        Integer manualSortOrder) {
+        Integer manualSortOrder,
+
+        @Schema(description = "Город из справочника. Если задан, текст city не используется. Пусто — не менять")
+        @Positive
+        Long cityId) {
 }

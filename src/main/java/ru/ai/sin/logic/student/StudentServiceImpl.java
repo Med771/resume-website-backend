@@ -22,6 +22,7 @@ import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.logic.city.CityCatalog;
 import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
 import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.chat.ChatRepo;
@@ -85,6 +86,7 @@ public class StudentServiceImpl implements StudentService {
     private final StudentReviewState studentReviewState;
     private final StudentProfileChangeRecorder studentProfileChangeRecorder;
     private final StudentProfileVersionService profileVersions;
+    private final CityCatalog cityCatalog;
 
     /**
      * Один read-only boundary на загрузку + маппинг: {@link StudentTools#getStudentOrThrow} завершает свой вложенный tx,
@@ -232,6 +234,7 @@ public class StudentServiceImpl implements StudentService {
         SpecialityEnt specialityEnt = specialityTools.getSpecialityOrThrow(addStudentReq.specialityId());
 
         studentEnt.setSpeciality(specialityEnt);
+        cityCatalog.assignIfPresent(studentEnt, addStudentReq.cityId(), addStudentReq.city());
         studentSkillsMutator.replaceSkills(studentEnt, addStudentReq.skillsIds());
         applyCreateCatalogFlags(addStudentReq, studentEnt);
         studentEnt = saveNewStudent(studentEnt, addStudentReq.email(), addStudentReq.telegramUsername());
@@ -269,6 +272,7 @@ public class StudentServiceImpl implements StudentService {
         studentEnt.setMiddleName(updateStudentReq.middleName());
         studentEnt.setGender(updateStudentReq.gender());
         studentEnt.setSpeciality(specialityEnt);
+        cityCatalog.assignIfPresent(studentEnt, updateStudentReq.cityId(), updateStudentReq.city());
         studentSkillsMutator.replaceSkills(studentEnt, updateStudentReq.skillsIds());
 
         if (updateStudentReq.publicProfileConsent() != null) {
@@ -296,9 +300,9 @@ public class StudentServiceImpl implements StudentService {
         }
         StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
 
+        cityCatalog.assignIfPresent(studentEnt, patchStudentReq.cityId(), patchStudentReq.city());
         applyOptionalResumeFields(
                 studentEnt,
-                patchStudentReq.city(),
                 patchStudentReq.hhLink(),
                 patchStudentReq.birthDate(),
                 patchStudentReq.bio(),
@@ -357,9 +361,9 @@ public class StudentServiceImpl implements StudentService {
             return profileVersions.draftCard(studentEnt).orElseGet(() -> studentTools.mapToDTO(studentEnt));
         }
 
+        cityCatalog.assignIfPresent(studentEnt, req.cityId(), req.city());
         applyOptionalResumeFields(
                 studentEnt,
-                req.city(),
                 req.hhLink(),
                 req.birthDate(),
                 req.bio(),
@@ -507,7 +511,6 @@ public class StudentServiceImpl implements StudentService {
 
     private void applyOptionalResumeFields(
             StudentEnt studentEnt,
-            String city,
             String hhLink,
             LocalDate birthDate,
             String bio,
@@ -526,9 +529,6 @@ public class StudentServiceImpl implements StudentService {
             List<Long> skillsIds,
             Boolean publicProfileConsent
     ) {
-        if (city != null) {
-            studentEnt.setCity(city);
-        }
         if (hhLink != null) {
             studentEnt.setHhLink(hhLink);
         }

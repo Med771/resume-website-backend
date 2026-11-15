@@ -18,6 +18,7 @@ import ru.ai.sin.logic.account.dto.AccountRejectReq;
 import ru.ai.sin.logic.account.dto.RecruiterApprovalSortField;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
+import ru.ai.sin.logic.city.CityEnt;
 import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.experience.ExperienceEnt;
 import ru.ai.sin.logic.experience.ExperienceRepo;
@@ -537,6 +538,9 @@ class AccountApprovalServiceImplTest {
         StudentEnt student = new StudentEnt();
         student.setImagePath("photo.jpg");
         student.setBio("Описание анкеты длиннее тридцати символов");
+        CityEnt city = new CityEnt();
+        city.setName("Москва");
+        student.setCityCatalog(city);
         student.setCity("Москва");
         student.setCourse(CourseEnum.FIRST);
         student.setBusyness(BusynessEnum.FREE);

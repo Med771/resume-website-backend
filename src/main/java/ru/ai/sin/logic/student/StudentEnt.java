@@ -13,6 +13,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import ru.ai.sin.models.enums.convertor.BusynessEnumConverter;
 import ru.ai.sin.models.enums.convertor.CourseEnumConverter;
 
+import ru.ai.sin.logic.city.CityEnt;
 import ru.ai.sin.logic.experience.ExperienceEnt;
 import ru.ai.sin.logic.institution.InstitutionEnt;
 import ru.ai.sin.logic.portfolio.PortfolioEnt;
@@ -45,6 +46,10 @@ public class StudentEnt {
     private UUID id;
 
     private String city;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "city_id")
+    private CityEnt cityCatalog;
 
     private String hhLink;
 

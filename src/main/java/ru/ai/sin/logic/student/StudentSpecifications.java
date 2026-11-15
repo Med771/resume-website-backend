@@ -299,7 +299,7 @@ public final class StudentSpecifications {
     ) {
         List<Predicate> complete = new ArrayList<>();
         complete.add(notBlank(cb, root.get("imagePath")));
-        complete.add(notBlank(cb, root.get("city")));
+        complete.add(cb.isNotNull(root.get("cityCatalog")));
         complete.add(notBlank(cb, root.get("userInformation").get("firstName")));
         complete.add(notBlank(cb, root.get("userInformation").get("lastName")));
         complete.add(cb.greaterThanOrEqualTo(cb.length(cb.trim(cb.coalesce(root.get("bio"), ""))), 30));

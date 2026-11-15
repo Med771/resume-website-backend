@@ -18,6 +18,7 @@ import ru.ai.sin.helper.JwtHelper;
 import ru.ai.sin.helper.ParticipantDisplayNames;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.auth.dto.TokenPair;
+import ru.ai.sin.logic.city.CityCatalog;
 import ru.ai.sin.logic.registration.dto.StudentAccountRegistrationReq;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
@@ -47,6 +48,7 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
 
     private final UserRepo userRepo;
     private final StudentRepo studentRepo;
+    private final CityCatalog cityCatalog;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtHelper jwtHelper;
@@ -190,9 +192,9 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
         return null;
     }
 
-    private static StudentEnt createDraftStudent(StudentAccountRegistrationReq req, String phone, String email) {
+    private StudentEnt createDraftStudent(StudentAccountRegistrationReq req, String phone, String email) {
         StudentEnt student = new StudentEnt();
-        student.setCity(emptyToNull(req.city()));
+        cityCatalog.assignIfPresent(student, req.cityId(), req.city());
         student.setBirthDate(req.birthDate());
         student.setMiddleName(emptyToNull(req.middleName()));
         student.setCatalogVisible(false);

@@ -101,5 +101,8 @@ public record StudentDTO(
         @Schema(deprecated = true, description = """
                 Устарело. Каталог по этому номеру больше не сортирует.
                 Поле остаётся в ответе. `null` — номер не задан.""")
-        Integer manualSortOrder) {
+        Integer manualSortOrder,
+
+        @Schema(description = "Город из справочника. Пусто, если в снимке имя, которого в справочнике уже нет")
+        Long cityId) {
 }

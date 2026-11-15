@@ -22,7 +22,7 @@ import java.util.List;
                 `null` у поля — не менять. `skillsIds: null` — не трогать навыки.
                 Нельзя менять `catalogVisible` и ручной порядок — это делает администратор.""")
 public record PatchStudentMeReq(
-        @Schema(description = "Город проживания")
+        @Schema(description = "Название города из справочника. null — не менять. Неизвестное имя город не создаёт")
         @Size(min = 1, max = 255, message = "City must be less than 255 characters")
         String city,
 
@@ -90,6 +90,10 @@ public record PatchStudentMeReq(
         Boolean publicProfileConsent,
 
         @Schema(description = "Отключить guided hints")
-        Boolean hintsDisabled
+        Boolean hintsDisabled,
+
+        @Schema(description = "Город из справочника. Если задан, текст city не используется. null — не менять")
+        @Positive
+        Long cityId
 ) {
 }

@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.city.CityCatalog;
 import ru.ai.sin.logic.company.CompanyRepo;
 import ru.ai.sin.logic.experience.ExperienceEnt;
 import ru.ai.sin.logic.portfolio.PortfolioEnt;
@@ -42,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -73,6 +75,8 @@ class StudentProfileVersionServiceTest {
     private EducationRepo educationRepo;
     @Mock
     private SecurityHelper securityHelper;
+    @Mock
+    private CityCatalog cityCatalog;
 
     private final List<StudentProfileVersionEnt> rows = new ArrayList<>();
     private Clock clock;
@@ -83,10 +87,15 @@ class StudentProfileVersionServiceTest {
     @BeforeEach
     void setUp() {
         clock = Clock.fixed(Instant.parse("2026-11-08T12:00:00Z"), ZONE);
+        lenient().doAnswer(invocation -> {
+            StudentEnt target = invocation.getArgument(0);
+            target.setCity(invocation.getArgument(1));
+            return null;
+        }).when(cityCatalog).restoreFromSnapshot(any(), nullable(String.class));
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
         service = new StudentProfileVersionService(
                 versionRepo, studentRepo, userRepo, experienceRepo, institutionRepo, portfolioRepo,
-                skillRepo, specialityRepo, companyRepo, educationRepo, securityHelper, mapper, clock);
+                skillRepo, specialityRepo, companyRepo, educationRepo, securityHelper, mapper, cityCatalog, clock);
         student = new StudentEnt();
         student.setId(STUDENT_ID);
         student.setBio("old bio");
@@ -324,7 +333,7 @@ class StudentProfileVersionServiceTest {
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
         return new StudentProfileVersionService(
                 versionRepo, studentRepo, userRepo, experienceRepo, institutionRepo, portfolioRepo,
-                skillRepo, specialityRepo, companyRepo, educationRepo, securityHelper, mapper, clock);
+                skillRepo, specialityRepo, companyRepo, educationRepo, securityHelper, mapper, cityCatalog, clock);
     }
 
     private Optional<StudentProfileVersionEnt> latest(UUID studentId) {
@@ -337,6 +346,6 @@ class StudentProfileVersionServiceTest {
         return new PatchStudentMeReq(
                 null, null, null, bio, null, null, null, null,
                 null, null, null, null, null, null, null, null,
-                null, null, null);
+                null, null, null, null);
     }
 }

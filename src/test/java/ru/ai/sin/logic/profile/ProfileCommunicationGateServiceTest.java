@@ -5,6 +5,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.ai.sin.logic.city.CityEnt;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
 import ru.ai.sin.logic.portfolio.PortfolioRepo;
@@ -154,6 +155,9 @@ class ProfileCommunicationGateServiceTest {
     private static StudentEnt completeStudent(UUID id) {
         StudentEnt student = new StudentEnt();
         student.setId(id);
+        CityEnt city = new CityEnt();
+        city.setName("Москва");
+        student.setCityCatalog(city);
         student.setCity("Москва");
         student.setBio("Достаточно длинное описание профиля студента");
         student.setImagePath("photo.jpg");

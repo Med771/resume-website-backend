@@ -22,6 +22,9 @@ import ru.ai.sin.exception.models.ForbiddenException;
 import ru.ai.sin.exception.models.TooManyRequestsException;
 import ru.ai.sin.helper.JwtHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.city.CityCatalog;
+import ru.ai.sin.logic.city.CityEnt;
+import ru.ai.sin.logic.city.CityRepo;
 import ru.ai.sin.logic.registration.dto.StudentAccountRegistrationReq;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
@@ -72,6 +75,8 @@ class StudentRegistrationServiceImplTest {
     @Mock
     private StudentRepo studentRepo;
     @Mock
+    private CityRepo cityRepo;
+    @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
     private AuthenticationManager authenticationManager;
@@ -102,6 +107,11 @@ class StudentRegistrationServiceImplTest {
         lenient().when(passwordEncoder.encode(anyString())).thenReturn("hash");
         lenient().when(studentRepo.existsByNormalizedEmail(anyString())).thenReturn(false);
         lenient().when(userRepo.existsByUsername(anyString())).thenReturn(false);
+        CityEnt moscow = new CityEnt();
+        moscow.setId(3L);
+        moscow.setName("Москва");
+        lenient().when(cityRepo.findFirstByNameIgnoreCase(anyString())).thenReturn(Optional.empty());
+        lenient().when(cityRepo.findFirstByNameIgnoreCase("Москва")).thenReturn(Optional.of(moscow));
 
         service = new StudentRegistrationServiceImpl(
                 registrationIpRateLimiter,
@@ -113,6 +123,7 @@ class StudentRegistrationServiceImplTest {
                 verificationOtpMailer,
                 userRepo,
                 studentRepo,
+                new CityCatalog(cityRepo),
                 passwordEncoder,
                 authenticationManager,
                 jwtHelper,
@@ -124,7 +135,7 @@ class StudentRegistrationServiceImplTest {
     void register_passwordMismatch_throwsBadRequest() {
         StudentAccountRegistrationReq req = new StudentAccountRegistrationReq(
                 "user1", "SecurePass123", "other", null, null, null, "a@b.c", null, "+79990001122",
-                LocalDate.of(2000, 1, 1));
+                LocalDate.of(2000, 1, 1), null);
 
         assertThatThrownBy(() -> service.registerAndIssueTokens(req, httpRequest))
                 .isInstanceOf(BadRequestException.class)
@@ -136,7 +147,7 @@ class StudentRegistrationServiceImplTest {
         when(registrationProperties.isReservedUsername(eq("root"), any())).thenReturn(true);
         StudentAccountRegistrationReq req = new StudentAccountRegistrationReq(
                 "root", "SecurePass123", "SecurePass123", null, null, null, "a@b.c", null, "+79990001122",
-                LocalDate.of(2000, 1, 1));
+                LocalDate.of(2000, 1, 1), null);
 
         assertThatThrownBy(() -> service.registerAndIssueTokens(req, httpRequest))
                 .isInstanceOf(BadRequestException.class)
@@ -200,6 +211,27 @@ class StudentRegistrationServiceImplTest {
         verify(verificationOtpMailer).trySendStudentEmailOtp(eq("ivan@test.local"), otpCode.capture(), eq(15));
         assertThat(otpCode.getValue()).matches("\\d{4}");
         verify(verificationOtpMailer, never()).trySendRegistrationSuccess(anyString(), anyString());
+    }
+
+    @Test
+    void register_unknownCity_doesNotCreateStudent() {
+        StudentAccountRegistrationReq req = new StudentAccountRegistrationReq(
+                "newuser_x",
+                "SecurePass123",
+                "SecurePass123",
+                "Иван",
+                "Иванов",
+                null,
+                "ivan@test.local",
+                "Нет такого",
+                "+79990001122",
+                LocalDate.of(2000, 5, 5),
+                null);
+
+        assertThatThrownBy(() -> service.registerAndIssueTokens(req, httpRequest))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("справочник");
+        verify(studentRepo, never()).save(any());
     }
 
     @Test
@@ -357,7 +389,8 @@ class StudentRegistrationServiceImplTest {
                 "ivan@test.local",
                 "Москва",
                 "+79990001122",
-                LocalDate.of(2000, 5, 5)
+                LocalDate.of(2000, 5, 5),
+                null
         );
     }
 }

@@ -51,7 +51,7 @@ final class StudentApprovalCompleteness {
         if (student.getBusyness() == null) {
             problems.add("нет типа занятости");
         }
-        if (blank(student.getCity())) {
+        if (student.getCityCatalog() == null) {
             problems.add("нет города");
         }
         return problems;

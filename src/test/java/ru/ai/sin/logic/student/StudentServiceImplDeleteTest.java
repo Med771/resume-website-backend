@@ -112,6 +112,7 @@ class StudentServiceImplDeleteTest {
                 false,
                 true,
                 0,
+                null,
                 null
         );
 

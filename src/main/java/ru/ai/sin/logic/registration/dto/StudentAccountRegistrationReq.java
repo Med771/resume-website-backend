@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import ru.ai.sin.validation.MinAge;
@@ -51,7 +52,7 @@ public record StudentAccountRegistrationReq(
         @Size(max = 255)
         String email,
 
-        @Schema(description = "Город / кампус (необязательно)")
+        @Schema(description = "Название города из справочника. Неизвестное имя город не создаёт")
         @Size(max = 255)
         String city,
 
@@ -65,6 +66,10 @@ public record StudentAccountRegistrationReq(
         @JsonFormat(pattern = "yyyy-MM-dd")
         @Past(message = "Birth date must be in the past")
         @MinAge(14)
-        LocalDate birthDate
+        LocalDate birthDate,
+
+        @Schema(description = "Город из справочника. Если задан, текст city не используется")
+        @Positive
+        Long cityId
 ) {
 }

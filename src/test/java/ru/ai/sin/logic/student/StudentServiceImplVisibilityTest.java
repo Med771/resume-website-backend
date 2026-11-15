@@ -206,6 +206,7 @@ class StudentServiceImplVisibilityTest {
                 false,
                 false,
                 0,
+                null,
                 null
         );
     }

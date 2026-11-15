@@ -304,6 +304,7 @@ class PlatformUpdateIntegrationTest extends AbstractPostgresIntegrationTest {
 
     private UUID createStudent(Cookie[] cookies, String email, long specialityId, long skillId) throws Exception {
         Map<String, Object> body = new LinkedHashMap<>();
+        ensureCity("Moscow");
         body.put("city", "Moscow");
         body.put("hhLink", "https://hh.ru/member");
         body.put("birthDate", "2000-05-05");

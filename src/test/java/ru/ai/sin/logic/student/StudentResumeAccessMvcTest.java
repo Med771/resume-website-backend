@@ -309,7 +309,7 @@ class StudentResumeAccessMvcTest {
                 STUDENT_ID, "City", null, null, "bio", null,
                 CourseEnum.FIRST, BusynessEnum.FREE, null, null, "A", "B", null, null, null, null, null, 1L, "S",
                 List.of(new SkillDTO(1L, "Java", null, null)),
-                false, false, 0, null));
+                false, false, 0, null, null));
 
         mockMvc.perform(patch("/student/me")
                         .contentType(MediaType.APPLICATION_JSON)

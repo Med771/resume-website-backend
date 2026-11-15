@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.city.CityCatalog;
 import ru.ai.sin.logic.company.CompanyEnt;
 import ru.ai.sin.logic.company.CompanyRepo;
 import ru.ai.sin.logic.education.EducationRepo;
@@ -83,6 +84,7 @@ public class StudentProfileVersionService {
     private final EducationRepo educationRepo;
     private final SecurityHelper securityHelper;
     private final ObjectMapper objectMapper;
+    private final CityCatalog cityCatalog;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -717,7 +719,7 @@ public class StudentProfileVersionService {
 
     @SuppressWarnings("deprecation")
     private void copyOnto(StudentEnt student, ProfileSnapshot snap) {
-        student.setCity(snap.getCity());
+        cityCatalog.restoreFromSnapshot(student, snap.getCity());
         student.setHhLink(snap.getHhLink());
         student.setBirthDate(snap.getBirthDate());
         student.setBio(snap.getBio());
@@ -783,7 +785,9 @@ public class StudentProfileVersionService {
     }
 
     private void applyCard(ProfileSnapshot snap, PatchStudentMeReq req) {
-        if (req.city() != null) snap.setCity(req.city());
+        if (req.cityId() != null || (req.city() != null && !req.city().isBlank())) {
+            snap.setCity(cityCatalog.require(req.cityId(), req.city()).getName());
+        }
         if (req.hhLink() != null) snap.setHhLink(req.hhLink());
         if (req.birthDate() != null) snap.setBirthDate(req.birthDate());
         if (req.bio() != null) snap.setBio(req.bio());
@@ -810,7 +814,9 @@ public class StudentProfileVersionService {
 
     @SuppressWarnings("deprecation")
     private void applyAdminCard(ProfileSnapshot snap, PatchStudentReq req) {
-        if (req.city() != null) snap.setCity(req.city());
+        if (req.cityId() != null || (req.city() != null && !req.city().isBlank())) {
+            snap.setCity(cityCatalog.require(req.cityId(), req.city()).getName());
+        }
         if (req.hhLink() != null) snap.setHhLink(req.hhLink());
         if (req.birthDate() != null) snap.setBirthDate(req.birthDate());
         if (req.bio() != null) snap.setBio(req.bio());
@@ -870,7 +876,8 @@ public class StudentProfileVersionService {
                 snap.isPublicProfileConsent(),
                 live.isCatalogVisible(),
                 live.getProfileTextScore(),
-                live.getManualSortOrder());
+                live.getManualSortOrder(),
+                cityCatalog.idOfName(snap.getCity()));
     }
 
     private List<String> problems(ProfileSnapshot snap) {

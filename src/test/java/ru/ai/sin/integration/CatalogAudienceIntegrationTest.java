@@ -147,6 +147,7 @@ class CatalogAudienceIntegrationTest extends AbstractPostgresIntegrationTest {
         student.setBirthDate(LocalDate.of(2002, 3, 4));
         student.setCourse(CourseEnum.FIRST);
         student.setBusyness(BusynessEnum.FREE);
+        student.setCityCatalog(ensureCity("Moscow"));
         student.setCity("Moscow");
         student.setImagePath("photo-" + token + ".jpg");
         student.setBio(bio);
