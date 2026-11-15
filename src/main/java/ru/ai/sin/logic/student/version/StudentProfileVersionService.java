@@ -34,6 +34,7 @@ import ru.ai.sin.logic.portfolio.dto.PortfolioDTO;
 import ru.ai.sin.logic.skill.SkillEnt;
 import ru.ai.sin.logic.skill.SkillRepo;
 import ru.ai.sin.logic.skill.dto.SkillDTO;
+import ru.ai.sin.logic.speciality.SpecialityEnt;
 import ru.ai.sin.logic.speciality.SpecialityRepo;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentProfileScoring;
@@ -619,7 +620,7 @@ public class StudentProfileVersionService {
 
     private boolean isOwnStudent(UUID studentId) {
         return securityHelper.getCurrentRoleOptional()
-                .filter(role -> RoleEnum.STUDENT.getRole().equals(role))
+                .filter(RoleEnum.STUDENT.getRole()::equals)
                 .isPresent()
                 && userRepo.findByUsernameFetchingLinks(currentUsername())
                 .filter(user -> user.getStudent() != null && studentId.equals(user.getStudent().getId()))
@@ -631,7 +632,7 @@ public class StudentProfileVersionService {
     }
 
     private boolean isStudent() {
-        return securityHelper.getCurrentRoleOptional().filter(role -> RoleEnum.STUDENT.getRole().equals(role)).isPresent();
+        return securityHelper.getCurrentRoleOptional().filter(RoleEnum.STUDENT.getRole()::equals).isPresent();
     }
 
     private boolean isAdmin() {
@@ -639,7 +640,7 @@ public class StudentProfileVersionService {
     }
 
     private boolean isRecruiter() {
-        return securityHelper.getCurrentRoleOptional().filter(role -> RoleEnum.RECRUITER.getRole().equals(role)).isPresent();
+        return securityHelper.getCurrentRoleOptional().filter(RoleEnum.RECRUITER.getRole()::equals).isPresent();
     }
 
     @SuppressWarnings("deprecation")
@@ -672,12 +673,7 @@ public class StudentProfileVersionService {
             snap.setSpeciality(student.getSpeciality().getName());
         }
         if (student.getSkills() != null) {
-            snap.setSkills(new ArrayList<>(student.getSkills().stream().map(skill -> {
-                ProfileSnapshot.SkillSnap row = new ProfileSnapshot.SkillSnap();
-                row.setId(skill.getId());
-                row.setName(skill.getName());
-                return row;
-            }).toList()));
+            snap.setSkills(new ArrayList<>(student.getSkills().stream().map(this::skillSnap).toList()));
         }
         snap.setExperience(new ArrayList<>(experienceRepo.findAllByStudent_Id(student.getId()).stream().map(this::experienceSnap).toList()));
         snap.setEducation(new ArrayList<>(institutionRepo.findAllByStudent_Id(student.getId()).stream().map(this::educationSnap).toList()));
@@ -804,7 +800,7 @@ public class StudentProfileVersionService {
         if (req.telegramUsername() != null) snap.setTelegramUsername(req.telegramUsername());
         if (req.specialityId() != null) {
             snap.setSpecialityId(req.specialityId());
-            specialityRepo.findById(req.specialityId()).ifPresent(item -> snap.setSpeciality(item.getName()));
+            specialityRepo.findById(req.specialityId()).map(SpecialityEnt::getName).ifPresent(snap::setSpeciality);
         }
         if (req.skillsIds() != null) {
             snap.setSkills(skillRepo.findAllById(req.skillsIds()).stream().map(this::skillSnap).toList());
@@ -831,7 +827,7 @@ public class StudentProfileVersionService {
         if (req.telegramUsername() != null) snap.setTelegramUsername(req.telegramUsername());
         if (req.specialityId() != null) {
             snap.setSpecialityId(req.specialityId());
-            specialityRepo.findById(req.specialityId()).ifPresent(item -> snap.setSpeciality(item.getName()));
+            specialityRepo.findById(req.specialityId()).map(SpecialityEnt::getName).ifPresent(snap::setSpeciality);
         }
         if (req.skillsIds() != null) {
             snap.setSkills(skillRepo.findAllById(req.skillsIds()).stream().map(this::skillSnap).toList());
@@ -849,7 +845,7 @@ public class StudentProfileVersionService {
     @SuppressWarnings("deprecation")
     private StudentDTO toCard(ProfileSnapshot snap, StudentEnt live) {
         List<SkillDTO> skills = snap.getSkills() == null ? List.of() : snap.getSkills().stream()
-                .map(skill -> new SkillDTO(skill.getId(), skill.getName())).toList();
+                .map(skill -> new SkillDTO(skill.getId(), skill.getName(), null, null)).toList();
         return new StudentDTO(
                 live.getId(),
                 snap.getCity(),
