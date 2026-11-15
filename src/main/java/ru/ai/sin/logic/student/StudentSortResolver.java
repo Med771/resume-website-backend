@@ -14,6 +14,21 @@ public final class StudentSortResolver {
      * Собирает {@link Sort} только из белого списка; произвольный {@code sort} из query string не используется.
      */
     public static Sort resolve(FilterStudentReq filter) {
+        return resolve(filter, false);
+    }
+
+    /**
+     * Для каталога студента и работодателя обычная выдача без строки поиска сортируется спецификацией.
+     * Пустой {@link Sort} нужен, чтобы Spring Data не затёр этот порядок.
+     */
+    public static Sort resolve(FilterStudentReq filter, boolean catalogAudience) {
+        if (catalogAudience && isCatalogRank(filter)) {
+            return Sort.unsorted();
+        }
+        return resolveExplicit(filter);
+    }
+
+    private static Sort resolveExplicit(FilterStudentReq filter) {
         boolean useRanking = filter.useDefaultRanking() == null || filter.useDefaultRanking();
         StudentSortField field = filter.sortBy();
         if (useRanking && (field == null || field == StudentSortField.RELEVANCE)) {
@@ -48,6 +63,18 @@ public final class StudentSortResolver {
                 Sort.Order.desc("profileTextScore"),
                 Sort.Order.asc("imagePath"),
                 Sort.Order.desc("timestamps.createdAt"));
+    }
+
+    private static boolean isCatalogRank(FilterStudentReq filter) {
+        if (filter == null) {
+            return false;
+        }
+        if (filter.findString() != null && !filter.findString().isBlank()) {
+            return false;
+        }
+        boolean useRanking = filter.useDefaultRanking() == null || filter.useDefaultRanking();
+        StudentSortField field = filter.sortBy();
+        return useRanking && (field == null || field == StudentSortField.RELEVANCE);
     }
 
     private static Sort.Direction toSpringDirection(StudentSortDirection d) {

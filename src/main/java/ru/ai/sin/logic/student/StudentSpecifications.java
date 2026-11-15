@@ -20,7 +20,12 @@ import ru.ai.sin.logic.student.dto.StudentSortField;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.models.enums.AccountStatus;
 
+import ru.ai.sin.logic.experience.ExperienceEnt;
+import ru.ai.sin.logic.institution.InstitutionEnt;
+import ru.ai.sin.logic.portfolio.PortfolioEnt;
 import ru.ai.sin.logic.skill.SkillEnt;
+import ru.ai.sin.models.enums.BusynessEnum;
+import ru.ai.sin.models.enums.JobSearchStatus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +57,7 @@ public final class StudentSpecifications {
                 byFilters(filterStudentReq, includeHiddenFromCatalog, requirePublicConsent,
                         requireApprovedAccount, alwaysIncludeStudentId, FindText.NAME),
                 pageable);
-        if (!hasFindString(filterStudentReq) || byName.getTotalElements() > 0) {
+        if (requireApprovedAccount || !hasFindString(filterStudentReq) || byName.getTotalElements() > 0) {
             return byName;
         }
         return studentRepo.findAll(
@@ -123,7 +128,11 @@ public final class StudentSpecifications {
 
             if (hasFindString(filterStudentReq)) {
                 String filter = "%" + filterStudentReq.findString().trim().toLowerCase() + "%";
-                if (findText == FindText.BIO) {
+                if (requireApprovedAccount) {
+                    Expression<String> lastName = cb.lower(cb.coalesce(root.get("userInformation").get("lastName"), ""));
+                    Expression<String> firstName = cb.lower(cb.coalesce(root.get("userInformation").get("firstName"), ""));
+                    predicates.add(cb.or(cb.like(lastName, filter), cb.like(firstName, filter)));
+                } else if (findText == FindText.BIO) {
                     predicates.add(cb.like(cb.lower(cb.coalesce(root.get("bio"), "")), filter));
                 } else {
                     Expression<String> fullName = cb.lower(cb.concat(
@@ -156,8 +165,9 @@ public final class StudentSpecifications {
                 predicates.add(root.get("speciality").get("id").in(filterStudentReq.specialitiesIds()));
             }
 
+            boolean catalogRank = catalogRank(filterStudentReq, requireApprovedAccount);
             if (filterStudentReq.skillsIds() != null && !filterStudentReq.skillsIds().isEmpty()) {
-                if (filterStudentReq.sortBy() == StudentSortField.ACCOUNT_STATUS) {
+                if (filterStudentReq.sortBy() == StudentSortField.ACCOUNT_STATUS || catalogRank) {
                     predicates.add(hasAnySkill(root, query, cb, filterStudentReq.skillsIds()));
                 } else {
                     Join<StudentEnt, SkillEnt> skillsJoin = root.join("skills", JoinType.INNER);
@@ -174,6 +184,7 @@ public final class StudentSpecifications {
             }
 
             orderByAccountStatus(root, query, cb, filterStudentReq);
+            orderByCatalogRank(root, query, cb, filterStudentReq, requireApprovedAccount);
 
             if (predicates.isEmpty()) {
                 return cb.conjunction();
@@ -197,12 +208,13 @@ public final class StudentSpecifications {
         }
         if (requireApprovedAccount) {
             audience.add(approvedAccount(root, query, cb));
+            audience.addAll(completeProfile(root, query, cb));
         }
         if (audience.isEmpty()) {
             return;
         }
         Predicate visible = cb.and(audience.toArray(new Predicate[0]));
-        if (alwaysIncludeStudentId == null) {
+        if (alwaysIncludeStudentId == null || requireApprovedAccount) {
             predicates.add(visible);
             return;
         }
@@ -275,15 +287,97 @@ public final class StudentSpecifications {
         approved.select(cb.literal(1));
         approved.where(
                 cb.equal(user.get("student"), root),
-                cb.equal(user.get("accountStatus"), AccountStatus.APPROVED));
-        Subquery<Integer> published = query.subquery(Integer.class);
-        Root<ru.ai.sin.logic.student.version.StudentProfileVersionEnt> version = published.from(
-                ru.ai.sin.logic.student.version.StudentProfileVersionEnt.class);
-        published.select(cb.literal(1));
-        published.where(
-                cb.equal(version.get("studentId"), root.get("id")),
-                cb.equal(version.get("status"), ru.ai.sin.logic.student.version.StudentProfileVersionStatus.APPROVED));
-        return cb.or(cb.exists(approved), cb.exists(published));
+                cb.equal(user.get("accountStatus"), AccountStatus.APPROVED),
+                cb.isTrue(user.get("emailVerified")));
+        return cb.exists(approved);
+    }
+
+    private static List<Predicate> completeProfile(
+            Root<StudentEnt> root,
+            CriteriaQuery<?> query,
+            CriteriaBuilder cb
+    ) {
+        List<Predicate> complete = new ArrayList<>();
+        complete.add(notBlank(cb, root.get("imagePath")));
+        complete.add(notBlank(cb, root.get("city")));
+        complete.add(notBlank(cb, root.get("userInformation").get("firstName")));
+        complete.add(notBlank(cb, root.get("userInformation").get("lastName")));
+        complete.add(cb.greaterThanOrEqualTo(cb.length(cb.trim(cb.coalesce(root.get("bio"), ""))), 30));
+        complete.add(cb.isNotNull(root.get("speciality")));
+        complete.add(cb.isNotNull(root.get("course")));
+        complete.add(cb.isNotNull(root.get("busyness")));
+        complete.add(hasChild(query, cb, root, PortfolioEnt.class));
+        complete.add(hasChild(query, cb, root, ExperienceEnt.class));
+        complete.add(hasChild(query, cb, root, InstitutionEnt.class));
+        complete.add(atLeastSkills(root, query, cb, 5));
+        return complete;
+    }
+
+    private static Predicate notBlank(CriteriaBuilder cb, Expression<String> value) {
+        return cb.greaterThan(cb.length(cb.trim(cb.coalesce(value, ""))), 0);
+    }
+
+    private static Predicate hasChild(
+            CriteriaQuery<?> query,
+            CriteriaBuilder cb,
+            Root<StudentEnt> root,
+            Class<?> childType
+    ) {
+        Subquery<Integer> child = query.subquery(Integer.class);
+        Root<?> item = child.from(childType);
+        child.select(cb.literal(1));
+        child.where(cb.equal(item.get("student"), root));
+        return cb.exists(child);
+    }
+
+    private static Predicate atLeastSkills(
+            Root<StudentEnt> root,
+            CriteriaQuery<?> query,
+            CriteriaBuilder cb,
+            int minimum
+    ) {
+        Subquery<Long> count = query.subquery(Long.class);
+        Root<StudentEnt> student = count.from(StudentEnt.class);
+        Join<StudentEnt, SkillEnt> skill = student.join("skills");
+        count.select(cb.count(skill));
+        count.where(cb.equal(student.get("id"), root.get("id")));
+        return cb.greaterThanOrEqualTo(count, (long) minimum);
+    }
+
+    private static boolean catalogRank(FilterStudentReq filter, boolean requireApprovedAccount) {
+        return requireApprovedAccount && !hasFindString(filter) && isDefaultRanking(filter);
+    }
+
+    private static boolean isDefaultRanking(FilterStudentReq filter) {
+        if (filter == null) {
+            return false;
+        }
+        boolean useRanking = filter.useDefaultRanking() == null || filter.useDefaultRanking();
+        StudentSortField field = filter.sortBy();
+        return useRanking && (field == null || field == StudentSortField.RELEVANCE);
+    }
+
+    private static void orderByCatalogRank(
+            Root<StudentEnt> root,
+            CriteriaQuery<?> query,
+            CriteriaBuilder cb,
+            FilterStudentReq filter,
+            boolean requireApprovedAccount
+    ) {
+        if (!catalogRank(filter, requireApprovedAccount) || isCountQuery(query)) {
+            return;
+        }
+        query.distinct(false);
+        Expression<Integer> searchRank = cb.<Integer>selectCase()
+                .when(cb.equal(root.get("jobSearchStatus"), JobSearchStatus.LOOKING), 0)
+                .when(cb.equal(root.get("jobSearchStatus"), JobSearchStatus.CONSIDERING), 1)
+                .otherwise(2);
+        Expression<Integer> busynessRank = cb.<Integer>selectCase()
+                .when(cb.equal(root.get("desiredBusyness"), BusynessEnum.EMPLOYED), 0)
+                .when(cb.equal(root.get("desiredBusyness"), BusynessEnum.FREELANCE), 1)
+                .when(cb.equal(root.get("desiredBusyness"), BusynessEnum.PROJECT_WORK), 2)
+                .otherwise(3);
+        query.orderBy(cb.asc(searchRank), cb.asc(busynessRank), cb.asc(root.get("id")));
     }
 
 

@@ -82,6 +82,19 @@ class StudentSortResolverTest {
     }
 
     @Test
+    void catalogAudience_defaultListing_leavesSortToSpecification() {
+        assertThat(StudentSortResolver.resolve(emptyFilter(), true).isSorted()).isFalse();
+    }
+
+    @Test
+    void catalogAudience_withFindString_keepsRelevanceSort() {
+        FilterStudentReq f = new FilterStudentReq(
+                "Иван", null, null, null, null, null, null, null, null, null, null, null);
+        assertThat(StudentSortResolver.resolve(f, true).toList().getFirst().getProperty())
+                .isEqualTo("manualSortOrder");
+    }
+
+    @Test
     void explicitManualSortOrderDesc() {
         FilterStudentReq f = new FilterStudentReq(
                 null, null, null, null, null, null, null,

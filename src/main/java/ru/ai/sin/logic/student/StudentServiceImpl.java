@@ -215,19 +215,13 @@ public class StudentServiceImpl implements StudentService {
             UserEnt currentUser
     ) {
         boolean admin = currentUser.getRole() == RoleEnum.ADMIN;
-        UUID ownId = null;
-        if (!admin && currentUser.getRole() == RoleEnum.STUDENT
-                && currentUser.getAccountStatus() == AccountStatus.APPROVED
-                && currentUser.getStudent() != null) {
-            ownId = currentUser.getStudent().getId();
-        }
-        Sort sort = StudentSortResolver.resolve(filterStudentReq);
+        Sort sort = StudentSortResolver.resolve(filterStudentReq, !admin);
         Pageable effectivePageable = org.springframework.data.domain.PageRequest.of(
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
                 sort);
         return StudentSpecifications.findPage(
-                studentRepo, effectivePageable, filterStudentReq, admin, false, !admin, ownId);
+                studentRepo, effectivePageable, filterStudentReq, admin, false, !admin, null);
     }
 
     @Override

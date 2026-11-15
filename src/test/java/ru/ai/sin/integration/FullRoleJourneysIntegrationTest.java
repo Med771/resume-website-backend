@@ -57,6 +57,7 @@ class FullRoleJourneysIntegrationTest extends AbstractPostgresIntegrationTest {
         UUID studentId = createStudent(adminCookies, studentEmail, specialityId, skillId);
         markStudentReadyForChat(studentId);
         addResumeSections(adminCookies, studentId, suffix);
+        giveFiveSkills(adminCookies, studentId, skillId, suffix);
 
         Cookie[] studentCookies = login("flow_student_" + suffix, "StudentPass1");
         mockMvc.perform(post("/request")
@@ -308,6 +309,19 @@ class FullRoleJourneysIntegrationTest extends AbstractPostgresIntegrationTest {
                                 "link", "https://example.com",
                                 "studentId", studentId))))
                 .andExpect(status().isCreated());
+    }
+
+    private void giveFiveSkills(Cookie[] cookies, UUID studentId, long firstSkillId, String suffix) throws Exception {
+        List<Long> skillIds = new java.util.ArrayList<>();
+        skillIds.add(firstSkillId);
+        for (int i = 1; i < 5; i++) {
+            skillIds.add(createSkill(cookies, "Skill" + i + "-" + suffix));
+        }
+        mockMvc.perform(patch("/student/" + studentId)
+                        .cookie(cookies)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("skillsIds", skillIds))))
+                .andExpect(status().isOk());
     }
 
     private void fillRecruiterCity(Cookie[] cookies) throws Exception {
