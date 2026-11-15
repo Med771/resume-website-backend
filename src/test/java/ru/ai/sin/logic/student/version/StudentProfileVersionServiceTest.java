@@ -7,10 +7,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.company.CompanyRepo;
+import ru.ai.sin.logic.experience.ExperienceEnt;
+import ru.ai.sin.logic.portfolio.PortfolioEnt;
+import ru.ai.sin.logic.portfolio.dto.PortfolioDTO;
+import ru.ai.sin.logic.student.dto.StudentProfileVersionItemDTO;
 import ru.ai.sin.logic.education.EducationRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
@@ -215,7 +218,7 @@ class StudentProfileVersionServiceTest {
 
         assertThat(service.ownVersion(student, 2).bio()).isEqualTo("new bio");
         assertThat(service.ownVersion(student, 3).bio()).isEqualTo("newer bio");
-        assertThat(service.listOwn(STUDENT_ID)).extracting(item -> item.status())
+        assertThat(service.listOwn(STUDENT_ID)).extracting(StudentProfileVersionItemDTO::status)
                 .contains("APPROVED", "DRAFT");
         assertThatThrownBy(() -> service.ownVersion(student, 99)).isInstanceOf(NotFoundException.class);
     }
@@ -232,7 +235,7 @@ class StudentProfileVersionServiceTest {
         assertThat(service.publishedCard(student).bio()).isEqualTo("old bio");
         assertThat(service.draftCard(student).orElseThrow().bio()).isEqualTo("new bio");
         assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
-        assertThat(service.listOwn(STUDENT_ID)).extracting(item -> item.status())
+        assertThat(service.listOwn(STUDENT_ID)).extracting(StudentProfileVersionItemDTO::status)
                 .contains("APPROVED", "REJECTED");
     }
 
@@ -245,7 +248,7 @@ class StudentProfileVersionServiceTest {
         service.captureCardPatch(STUDENT_ID, patch("another bio"));
 
         assertThat(service.activeGraceEndsAt(STUDENT_ID)).isEqualTo(LocalDateTime.now(clock).plusMinutes(5));
-        assertThat(service.listOwn(STUDENT_ID)).extracting(item -> item.status())
+        assertThat(service.listOwn(STUDENT_ID)).extracting(StudentProfileVersionItemDTO::status)
                 .contains("REJECTED", "DRAFT");
     }
 
@@ -260,6 +263,48 @@ class StudentProfileVersionServiceTest {
         assertThat(student.getBio()).isEqualTo("new bio that is definitely long enough");
         assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
         assertThat(service.hasPublishedVersion(STUDENT_ID)).isTrue();
+    }
+
+    @Test
+    void publishedSnapshot_missingStudent_notFound() {
+        when(studentRepo.findById(STUDENT_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.publishedSnapshotForAdmin(STUDENT_ID))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("Студент не найден");
+    }
+
+    @Test
+    void publishedSnapshot_withoutApprovedVersion_notFound() {
+        when(studentRepo.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+
+        assertThatThrownBy(() -> service.publishedSnapshotForAdmin(STUDENT_ID))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("Одобренной анкеты ещё нет");
+    }
+
+    @Test
+    void publishedSnapshot_returnsLatestApprovedLists() {
+        ExperienceEnt experience = new ExperienceEnt();
+        experience.setId(7L);
+        experience.setPosition("Dev");
+        PortfolioEnt portfolio = new PortfolioEnt();
+        portfolio.setId(3L);
+        portfolio.setName("Site");
+        portfolio.setLink("https://example.com");
+        when(experienceRepo.findAllByStudent_Id(STUDENT_ID)).thenReturn(List.of(experience));
+        when(portfolioRepo.findAllByStudent_Id(STUDENT_ID)).thenReturn(List.of(portfolio));
+        student.setBio("published bio");
+        service.publishOnApprove(student);
+        student.setBio("draft bio");
+        when(studentRepo.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+
+        var snapshot = service.publishedSnapshotForAdmin(STUDENT_ID);
+
+        assertThat(snapshot.card().bio()).isEqualTo("published bio");
+        assertThat(snapshot.experience()).extracting(row -> row.experience().position()).containsExactly("Dev");
+        assertThat(snapshot.portfolio()).extracting(PortfolioDTO::name).containsExactly("Site");
+        assertThat(snapshot.education()).isEmpty();
     }
 
     @Test

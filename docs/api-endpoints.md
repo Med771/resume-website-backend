@@ -45,6 +45,8 @@
 | PUT | `/student/{id}` | A |
 | PATCH | `/student/{id}` | A |
 | DELETE | `/student/{id}` | A |
+| GET | `/admin/students/{id}/profile-versions` | A, номера версий |
+| GET | `/admin/students/{id}/published-snapshot` | A, последняя одобренная анкета; нет версии — 404 |
 | POST | `/admin/students/reorder` | A |
 | POST | `/admin/students/bulk-visibility` | A |
 

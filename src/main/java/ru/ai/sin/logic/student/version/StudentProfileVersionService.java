@@ -11,7 +11,6 @@ import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.company.CompanyEnt;
 import ru.ai.sin.logic.company.CompanyRepo;
-import ru.ai.sin.logic.education.EducationEnt;
 import ru.ai.sin.logic.education.EducationRepo;
 import ru.ai.sin.logic.experience.ExperienceEnt;
 import ru.ai.sin.logic.experience.ExperienceRepo;
@@ -35,13 +34,13 @@ import ru.ai.sin.logic.portfolio.dto.PortfolioDTO;
 import ru.ai.sin.logic.skill.SkillEnt;
 import ru.ai.sin.logic.skill.SkillRepo;
 import ru.ai.sin.logic.skill.dto.SkillDTO;
-import ru.ai.sin.logic.speciality.SpecialityEnt;
 import ru.ai.sin.logic.speciality.SpecialityRepo;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentProfileScoring;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.student.dto.PatchStudentMeReq;
 import ru.ai.sin.logic.student.dto.PatchStudentReq;
+import ru.ai.sin.logic.student.dto.PublishedStudentSnapshotDTO;
 import ru.ai.sin.logic.student.dto.StudentDTO;
 import ru.ai.sin.logic.student.dto.StudentProfileVersionItemDTO;
 import ru.ai.sin.logic.user.UserEnt;
@@ -87,6 +86,10 @@ public class StudentProfileVersionService {
 
     @Transactional(readOnly = true)
     public boolean hasPublishedVersion(UUID studentId) {
+        return publishedVersionExists(studentId);
+    }
+
+    private boolean publishedVersionExists(UUID studentId) {
         return studentId != null && versionRepo.existsByStudentIdAndStatus(studentId, StudentProfileVersionStatus.APPROVED);
     }
 
@@ -106,7 +109,7 @@ public class StudentProfileVersionService {
         return versionRepo.findFirstByStudentIdOrderByVersionNumberDesc(studentId)
                 .filter(row -> row.getStatus() == StudentProfileVersionStatus.DRAFT)
                 .map(StudentProfileVersionEnt::getGraceEndsAt)
-                .filter(ends -> ends != null && ends.isAfter(now()))
+                .filter(ends -> ends.isAfter(now()))
                 .orElse(null);
     }
 
@@ -120,15 +123,45 @@ public class StudentProfileVersionService {
 
     @Transactional(readOnly = true)
     public StudentDTO publishedCard(StudentEnt live) {
-        if (live == null || !hasPublishedVersion(live.getId())) {
-            throw new NotFoundException("Одобренной анкеты ещё нет");
-        }
-        return toCard(read(latestApproved(live.getId())), live);
+        return cardOfLatestApproved(live);
     }
 
     @Transactional(readOnly = true)
     public List<StudentProfileVersionItemDTO> listOwn(UUID studentId) {
         requireOwn(studentId);
+        return versionItems(studentId);
+    }
+
+    @Transactional(readOnly = true)
+    public StudentDTO ownVersion(StudentEnt live, int number) {
+        return cardOfVersion(live, number);
+    }
+
+    @Transactional(readOnly = true)
+    public StudentDTO publishedForCurrent() {
+        return cardOfLatestApproved(currentLive());
+    }
+
+    @Transactional(readOnly = true)
+    public List<StudentProfileVersionItemDTO> listForCurrent() {
+        StudentEnt live = currentLive();
+        requireOwn(live.getId());
+        return versionItems(live.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public StudentDTO versionForCurrent(int number) {
+        return cardOfVersion(currentLive(), number);
+    }
+
+    private StudentDTO cardOfLatestApproved(StudentEnt live) {
+        if (live == null || !publishedVersionExists(live.getId())) {
+            throw new NotFoundException("Одобренной анкеты ещё нет");
+        }
+        return toCard(read(latestApproved(live.getId())), live);
+    }
+
+    private List<StudentProfileVersionItemDTO> versionItems(UUID studentId) {
         return versionRepo.findByStudentIdOrderByVersionNumberAsc(studentId).stream()
                 .map(row -> new StudentProfileVersionItemDTO(
                         row.getVersionNumber(),
@@ -137,8 +170,7 @@ public class StudentProfileVersionService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public StudentDTO ownVersion(StudentEnt live, int number) {
+    private StudentDTO cardOfVersion(StudentEnt live, int number) {
         requireOwn(live.getId());
         StudentProfileVersionEnt row = versionRepo.findByStudentIdAndVersionNumber(live.getId(), number)
                 .orElseThrow(() -> new NotFoundException("Версия не найдена"));
@@ -146,20 +178,18 @@ public class StudentProfileVersionService {
     }
 
     @Transactional(readOnly = true)
-    public StudentDTO publishedForCurrent() {
-        return publishedCard(currentLive());
-    }
-
-    @Transactional(readOnly = true)
-    public List<StudentProfileVersionItemDTO> listForCurrent() {
-        StudentEnt live = currentLive();
-        requireOwn(live.getId());
-        return listOwn(live.getId());
-    }
-
-    @Transactional(readOnly = true)
-    public StudentDTO versionForCurrent(int number) {
-        return ownVersion(currentLive(), number);
+    public PublishedStudentSnapshotDTO publishedSnapshotForAdmin(UUID studentId) {
+        StudentEnt live = studentRepo.findById(studentId)
+                .orElseThrow(() -> new NotFoundException("Студент не найден"));
+        ProfileSnapshot snap = read(latestApproved(studentId));
+        return new PublishedStudentSnapshotDTO(
+                toCard(snap, live),
+                snap.getExperience().stream().map(item -> experienceDto(studentId, item)).toList(),
+                snap.getEducation().stream().map(item -> educationDto(studentId, item)).toList(),
+                snap.getPortfolio().stream()
+                        .map(item -> new PortfolioDTO(
+                                item.getId(), item.getName(), item.getLink(), item.getAdditionalInfo(), studentId))
+                        .toList());
     }
 
     @Transactional(readOnly = true)
@@ -187,7 +217,7 @@ public class StudentProfileVersionService {
 
     @Transactional
     public boolean captureCardPatch(UUID studentId, PatchStudentMeReq req) {
-        if (!isStudent() || !hasPublishedVersion(studentId)) {
+        if (!isStudent() || !publishedVersionExists(studentId)) {
             return false;
         }
         edit(studentId, snap -> applyCard(snap, req), true);
@@ -205,35 +235,25 @@ public class StudentProfileVersionService {
 
     @Transactional
     public boolean capturePhoto(UUID studentId, String path) {
-        if (!isStudent() || !hasPublishedVersion(studentId)) {
+        if (!isStudent() || !publishedVersionExists(studentId)) {
             return false;
         }
-        String published = publishedImage(studentId);
-        edit(studentId, snap -> {
-            String previous = snap.getImagePath();
-            snap.setImagePath(path);
-            deleteDraftFile(previous, published, path);
-        }, true);
+        edit(studentId, snap -> snap.setImagePath(path), true);
         return true;
     }
 
     @Transactional
     public boolean capturePhotoDelete(UUID studentId) {
-        if (!isStudent() || !hasPublishedVersion(studentId)) {
+        if (!isStudent() || !publishedVersionExists(studentId)) {
             return false;
         }
-        String published = publishedImage(studentId);
-        edit(studentId, snap -> {
-            String previous = snap.getImagePath();
-            snap.setImagePath(null);
-            deleteDraftFile(previous, published, null);
-        }, true);
+        edit(studentId, snap -> snap.setImagePath(null), true);
         return true;
     }
 
     @Transactional
     public void rememberLiveApproved(UUID studentId) {
-        if (!hasPublishedVersion(studentId) || latestIsDraft(studentId)) {
+        if (!publishedVersionExists(studentId) || latestIsDraft(studentId)) {
             return;
         }
         StudentEnt live = studentRepo.findById(studentId).orElse(null);
@@ -291,7 +311,7 @@ public class StudentProfileVersionService {
 
     @Transactional(readOnly = true)
     public Optional<PageResponse<ExperienceDTO>> draftExperiences(FilterExperienceReq filter, Pageable pageable) {
-        if (filter == null || Boolean.TRUE.equals(filter.published()) || !seesDraftLists(filter.studentId())) {
+        if (filter == null || Boolean.TRUE.equals(filter.published()) || readsLiveLists(filter.studentId())) {
             return Optional.empty();
         }
         List<ExperienceDTO> rows = unpublished(filter.studentId()).orElseThrow().getExperience().stream()
@@ -309,7 +329,7 @@ public class StudentProfileVersionService {
 
     @Transactional(readOnly = true)
     public Optional<PageResponse<InstitutionDTO>> draftEducation(FilterInstitutionReq filter, Pageable pageable) {
-        if (filter == null || Boolean.TRUE.equals(filter.published()) || !seesDraftLists(filter.studentId())) {
+        if (filter == null || Boolean.TRUE.equals(filter.published()) || readsLiveLists(filter.studentId())) {
             return Optional.empty();
         }
         List<InstitutionDTO> rows = unpublished(filter.studentId()).orElseThrow().getEducation().stream()
@@ -326,7 +346,7 @@ public class StudentProfileVersionService {
 
     @Transactional(readOnly = true)
     public Optional<PageResponse<PortfolioDTO>> draftPortfolio(FilterPortfolioReq filter, Pageable pageable) {
-        if (filter == null || Boolean.TRUE.equals(filter.published()) || !seesDraftLists(filter.studentId())) {
+        if (filter == null || Boolean.TRUE.equals(filter.published()) || readsLiveLists(filter.studentId())) {
             return Optional.empty();
         }
         List<PortfolioDTO> rows = unpublished(filter.studentId()).orElseThrow().getPortfolio().stream()
@@ -337,7 +357,7 @@ public class StudentProfileVersionService {
 
     @Transactional
     public Optional<ExperienceDTO> captureExperienceCreate(UUID studentId, AddExperienceReq req) {
-        if (!capturesSection(studentId)) {
+        if (sectionStaysOnLiveRow(studentId)) {
             return Optional.empty();
         }
         ProfileSnapshot.ExperienceSnap[] created = new ProfileSnapshot.ExperienceSnap[1];
@@ -359,7 +379,7 @@ public class StudentProfileVersionService {
 
     @Transactional
     public Optional<ExperienceDTO> captureExperienceUpdate(UUID studentId, long id, UpdateExperienceReq req) {
-        if (!capturesSection(studentId)) {
+        if (sectionStaysOnLiveRow(studentId)) {
             return Optional.empty();
         }
         edit(studentId, snap -> {
@@ -383,7 +403,7 @@ public class StudentProfileVersionService {
 
     @Transactional
     public boolean captureExperienceDelete(UUID studentId, long id) {
-        if (!capturesSection(studentId)) {
+        if (sectionStaysOnLiveRow(studentId)) {
             return false;
         }
         edit(studentId, snap -> snap.getExperience().removeIf(row -> row.getId() == id), isStudent());
@@ -392,7 +412,7 @@ public class StudentProfileVersionService {
 
     @Transactional
     public Optional<InstitutionDTO> captureEducationCreate(UUID studentId, AddInstitutionReq req) {
-        if (!capturesSection(studentId)) {
+        if (sectionStaysOnLiveRow(studentId)) {
             return Optional.empty();
         }
         ProfileSnapshot.EducationSnap[] created = new ProfileSnapshot.EducationSnap[1];
@@ -413,7 +433,7 @@ public class StudentProfileVersionService {
 
     @Transactional
     public Optional<InstitutionDTO> captureEducationUpdate(UUID studentId, long id, UpdateInstitutionReq req) {
-        if (!capturesSection(studentId)) {
+        if (sectionStaysOnLiveRow(studentId)) {
             return Optional.empty();
         }
         edit(studentId, snap -> {
@@ -435,7 +455,7 @@ public class StudentProfileVersionService {
 
     @Transactional
     public boolean captureEducationDelete(UUID studentId, long id) {
-        if (!capturesSection(studentId)) {
+        if (sectionStaysOnLiveRow(studentId)) {
             return false;
         }
         edit(studentId, snap -> snap.getEducation().removeIf(row -> row.getId() == id), isStudent());
@@ -444,7 +464,7 @@ public class StudentProfileVersionService {
 
     @Transactional
     public Optional<PortfolioDTO> capturePortfolioCreate(UUID studentId, AddPortfolioReq req) {
-        if (!capturesSection(studentId)) {
+        if (sectionStaysOnLiveRow(studentId)) {
             return Optional.empty();
         }
         ProfileSnapshot.PortfolioSnap[] created = new ProfileSnapshot.PortfolioSnap[1];
@@ -462,7 +482,7 @@ public class StudentProfileVersionService {
 
     @Transactional
     public Optional<PortfolioDTO> capturePortfolioUpdate(UUID studentId, long id, AddPortfolioReq req) {
-        if (!capturesSection(studentId)) {
+        if (sectionStaysOnLiveRow(studentId)) {
             return Optional.empty();
         }
         edit(studentId, snap -> {
@@ -480,7 +500,7 @@ public class StudentProfileVersionService {
 
     @Transactional
     public boolean capturePortfolioDelete(UUID studentId, long id) {
-        if (!capturesSection(studentId)) {
+        if (sectionStaysOnLiveRow(studentId)) {
             return false;
         }
         edit(studentId, snap -> snap.getPortfolio().removeIf(row -> row.getId() == id), isStudent());
@@ -495,11 +515,11 @@ public class StudentProfileVersionService {
         return Optional.ofNullable(versionRepo.findStudentIdBySnapshotImagePath(path));
     }
 
-    private boolean capturesSection(UUID studentId) {
+    private boolean sectionStaysOnLiveRow(UUID studentId) {
         if (isStudent()) {
-            return hasPublishedVersion(studentId);
+            return !publishedVersionExists(studentId);
         }
-        return isAdmin() && latestIsDraft(studentId);
+        return !isAdmin() || !latestIsDraft(studentId);
     }
 
     private void edit(UUID studentId, Consumer<ProfileSnapshot> change, boolean studentEdit) {
@@ -558,11 +578,11 @@ public class StudentProfileVersionService {
                 .isPresent();
     }
 
-    private boolean seesDraftLists(UUID studentId) {
+    private boolean readsLiveLists(UUID studentId) {
         if (studentId == null || isRecruiter() || unpublished(studentId).isEmpty()) {
-            return false;
+            return true;
         }
-        return isAdmin() || isOwnStudent(studentId);
+        return !(isAdmin() || isOwnStudent(studentId));
     }
 
     private boolean viewerSeesDraft(UUID studentId) {
@@ -622,6 +642,7 @@ public class StudentProfileVersionService {
         return securityHelper.getCurrentRoleOptional().filter(role -> RoleEnum.RECRUITER.getRole().equals(role)).isPresent();
     }
 
+    @SuppressWarnings("deprecation")
     private ProfileSnapshot capture(StudentEnt student) {
         ProfileSnapshot snap = new ProfileSnapshot();
         snap.setStudentId(student.getId());
@@ -698,6 +719,7 @@ public class StudentProfileVersionService {
         return row;
     }
 
+    @SuppressWarnings("deprecation")
     private void copyOnto(StudentEnt student, ProfileSnapshot snap) {
         student.setCity(snap.getCity());
         student.setHhLink(snap.getHhLink());
@@ -790,6 +812,7 @@ public class StudentProfileVersionService {
         if (req.publicProfileConsent() != null) snap.setPublicProfileConsent(req.publicProfileConsent());
     }
 
+    @SuppressWarnings("deprecation")
     private void applyAdminCard(ProfileSnapshot snap, PatchStudentReq req) {
         if (req.city() != null) snap.setCity(req.city());
         if (req.hhLink() != null) snap.setHhLink(req.hhLink());
@@ -823,6 +846,7 @@ public class StudentProfileVersionService {
         return row;
     }
 
+    @SuppressWarnings("deprecation")
     private StudentDTO toCard(ProfileSnapshot snap, StudentEnt live) {
         List<SkillDTO> skills = snap.getSkills() == null ? List.of() : snap.getSkills().stream()
                 .map(skill -> new SkillDTO(skill.getId(), skill.getName())).toList();
@@ -868,19 +892,6 @@ public class StudentProfileVersionService {
         if (snap.getBusyness() == null) problems.add("нет типа занятости");
         if (blank(snap.getCity())) problems.add("нет города");
         return problems;
-    }
-
-    private String publishedImage(UUID studentId) {
-        if (!hasPublishedVersion(studentId)) {
-            return null;
-        }
-        return read(latestApproved(studentId)).getImagePath();
-    }
-
-    private void deleteDraftFile(String previous, String published, String next) {
-        if (previous == null || previous.isBlank() || previous.equals(published) || previous.equals(next)) {
-            return;
-        }
     }
 
     private String website(long companyId) {

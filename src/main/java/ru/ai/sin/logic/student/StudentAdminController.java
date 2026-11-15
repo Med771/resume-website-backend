@@ -21,6 +21,7 @@ import ru.ai.sin.logic.student.dto.AdminStudentMailReq;
 import ru.ai.sin.logic.student.dto.AdminStudentMailResult;
 import ru.ai.sin.logic.student.dto.BulkStudentVisibilityReq;
 import ru.ai.sin.logic.student.dto.BulkStudentVisibilityResult;
+import ru.ai.sin.logic.student.dto.PublishedStudentSnapshotDTO;
 import ru.ai.sin.logic.student.dto.ReorderStudentsReq;
 import ru.ai.sin.logic.student.dto.StudentProfileVersionItemDTO;
 import ru.ai.sin.logic.student.version.StudentProfileVersionService;
@@ -41,6 +42,12 @@ public class StudentAdminController {
     @GetMapping("/{id}/profile-versions")
     public List<StudentProfileVersionItemDTO> versions(@PathVariable UUID id) {
         return profileVersions.listForAdmin(id);
+    }
+
+    @Operation(summary = "Последняя одобренная анкета: карточка, опыт, учёба и портфолио")
+    @GetMapping("/{id}/published-snapshot")
+    public PublishedStudentSnapshotDTO publishedSnapshot(@PathVariable UUID id) {
+        return profileVersions.publishedSnapshotForAdmin(id);
     }
 
     @Deprecated
