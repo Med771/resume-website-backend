@@ -20,7 +20,8 @@ import java.util.Set;
                 **useDefaultRanking:** если `null` или `true`, и `sortBy` не задан или равен `RELEVANCE`.
                 Студент и работодатель без строки поиска видят порядок: статус поиска (`looking`, `considering`, затем `not_looking` и пусто),
                 внутри него желаемый формат (`employed`, `freelance`, `project_work`, затем `free` и пусто).
-                Админ и поиск по строке: `manualSortOrder` ASC, затем `profileTextScore` DESC, затем `imagePath` ASC, затем дата создания DESC.
+                Админ и поиск по строке: `profileTextScore` DESC, затем `imagePath` ASC, затем дата создания DESC.
+                Ручной номер админа устарел и в этот порядок не входит.
 
                 Если `useDefaultRanking=false`, используется `sortBy` (по умолчанию `CREATED_AT`, если null) и `sortDirection` (по умолчанию DESC).""")
 public record FilterStudentReq(

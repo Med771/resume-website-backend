@@ -94,12 +94,14 @@ public record UpdateStudentReq(
                         `null` — оставить в БД прежнее значение; `true` / `false` — явно установить.""")
         Boolean publicProfileConsent,
 
-        @Schema(description = """
-                Если `true` — сбросить ручной номер сортировки в БД (`NULL`); поле `manualSortOrder` в этом случае игнорируется.""")
+        @Deprecated
+        @Schema(deprecated = true, description = """
+                Устарело. Если `true` — сбросить ручной номер в БД (`NULL`); поле `manualSortOrder` в этом случае игнорируется.""")
         Boolean clearManualSortOrder,
 
-        @Schema(description = """
-                Ручной номер для сортировки в каталоге (меньше — выше при ASC вместе с релевантностью).
+        @Deprecated
+        @Schema(deprecated = true, description = """
+                Устарело. Каталог номер не читает.
                 `null` — не менять текущее значение в БД (если `clearManualSortOrder` не `true`).""")
         @Min(0)
         @Max(2_147_483_646)

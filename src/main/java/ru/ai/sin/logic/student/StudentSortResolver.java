@@ -53,13 +53,13 @@ public final class StudentSortResolver {
     }
 
     /**
-     * Релевантность: ручной порядок, объём профиля, затем аватар, дата создания.
+     * Релевантность: объём профиля, затем аватар, дата создания.
+     * Ручной номер админа в этот порядок не входит.
      * Нельзя использовать .nullsLast() / .nullsFirst() с Specification — см. {@link #resolve(FilterStudentReq)}.
      * На PostgreSQL для ASC NULL по умолчанию в конце.
      */
     private static Sort defaultRelevanceSort() {
         return Sort.by(
-                Sort.Order.asc("manualSortOrder"),
                 Sort.Order.desc("profileTextScore"),
                 Sort.Order.asc("imagePath"),
                 Sort.Order.desc("timestamps.createdAt"));

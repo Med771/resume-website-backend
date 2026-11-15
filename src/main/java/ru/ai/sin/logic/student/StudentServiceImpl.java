@@ -646,6 +646,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @Deprecated
     @Transactional
     public void reorder(ReorderStudentsReq req) {
         List<UUID> ids = req.orderedIds();

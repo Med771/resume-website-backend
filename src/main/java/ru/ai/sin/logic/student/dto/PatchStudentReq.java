@@ -98,11 +98,13 @@ public record PatchStudentReq(
         @Schema(description = "Видимость в каталоге рекрутёров; `null` — не менять")
         Boolean catalogVisible,
 
-        @Schema(description = """
-                Если `true` — сбросить ручной номер сортировки (`NULL` в БД); иначе при непустом `manualSortOrder` — записать число.""")
+        @Deprecated
+        @Schema(deprecated = true, description = """
+                Устарело. Если `true` — сбросить ручной номер (`NULL` в БД); иначе при непустом `manualSortOrder` — записать число.""")
         Boolean clearManualSortOrder,
 
-        @Schema(description = "Ручной номер для порядка в каталоге; `null` — не менять (если не задан `clearManualSortOrder`).")
+        @Deprecated
+        @Schema(deprecated = true, description = "Устарело. Каталог номер не читает. `null` — не менять (если не задан `clearManualSortOrder`).")
         @Min(0)
         @Max(2_147_483_646)
         Integer manualSortOrder

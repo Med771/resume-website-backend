@@ -18,7 +18,7 @@ import java.util.List;
 
                 **`publicProfileConsent`**: если поле **не** передать или `false` — в БД будет **false**; если **`true`** — значение сохраняется. Каталог для вошедших на это поле не смотрит.
 
-                **Ручной порядок** (`manualSortOrder`): опционально; `null` — не задавать (колонка `NULL` в БД).""")
+                **`manualSortOrder`** устарел. Каталог его не читает. `null` — не задавать.""")
 public record AddStudentReq(
         @Schema(description = "Город проживания")
         @Size(min = 1, max = 255, message = "City must be less than 255 characters")
@@ -103,7 +103,8 @@ public record AddStudentReq(
                 `null` или `false` — **false** в БД; `true` — включить.""")
         Boolean publicProfileConsent,
 
-        @Schema(description = "Ручной номер для порядка в каталоге; `null` — не задавать.")
+        @Deprecated
+        @Schema(deprecated = true, description = "Устарело. Каталог номер не читает. `null` — не задавать.")
         @Min(0)
         @Max(2_147_483_646)
         Integer manualSortOrder) {

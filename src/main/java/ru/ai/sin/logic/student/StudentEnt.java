@@ -134,8 +134,9 @@ public class StudentEnt {
     private int profileTextScore;
 
     /**
-     * Ручной приоритет в каталоге: при сортировке меньшие значения выше (ASC). {@code null} — не задано.
+     * Устаревший ручной номер. Каталог по нему больше не сортирует. Колонка остаётся.
      */
+    @Deprecated
     @Column(name = "manual_sort_order")
     private Integer manualSortOrder;
 

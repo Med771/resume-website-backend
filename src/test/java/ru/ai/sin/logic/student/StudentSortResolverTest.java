@@ -13,18 +13,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StudentSortResolverTest {
 
     @Test
-    void defaultRanking_usesManualOrderAvatarThenScoreThenCreated() {
+    void defaultRanking_usesScoreThenAvatarThenCreated() {
         Sort sort = StudentSortResolver.resolve(emptyFilter());
         List<Sort.Order> orders = sort.toList();
-        assertThat(orders.get(0).getProperty()).isEqualTo("manualSortOrder");
-        assertThat(orders.get(0).getDirection()).isEqualTo(Sort.Direction.ASC);
-        assertThat(orders.get(0).getNullHandling()).isEqualTo(Sort.NullHandling.NATIVE);
-        assertThat(orders.get(1).getProperty()).isEqualTo("profileTextScore");
-        assertThat(orders.get(1).getDirection()).isEqualTo(Sort.Direction.DESC);
-        assertThat(orders.get(2).getProperty()).isEqualTo("imagePath");
-        assertThat(orders.get(2).getDirection()).isEqualTo(Sort.Direction.ASC);
-        assertThat(orders.get(2).getNullHandling()).isEqualTo(Sort.NullHandling.NATIVE);
-        assertThat(orders.get(3).getProperty()).isEqualTo("timestamps.createdAt");
+        assertThat(orders.get(0).getProperty()).isEqualTo("profileTextScore");
+        assertThat(orders.get(0).getDirection()).isEqualTo(Sort.Direction.DESC);
+        assertThat(orders.get(1).getProperty()).isEqualTo("imagePath");
+        assertThat(orders.get(1).getDirection()).isEqualTo(Sort.Direction.ASC);
+        assertThat(orders.get(1).getNullHandling()).isEqualTo(Sort.NullHandling.NATIVE);
+        assertThat(orders.get(2).getProperty()).isEqualTo("timestamps.createdAt");
     }
 
     @Test
@@ -91,7 +88,7 @@ class StudentSortResolverTest {
         FilterStudentReq f = new FilterStudentReq(
                 "Иван", null, null, null, null, null, null, null, null, null, null, null);
         assertThat(StudentSortResolver.resolve(f, true).toList().getFirst().getProperty())
-                .isEqualTo("manualSortOrder");
+                .isEqualTo("profileTextScore");
     }
 
     @Test

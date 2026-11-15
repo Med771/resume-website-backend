@@ -78,7 +78,7 @@
 - `catalogVisible` — показ в каталоге. Правила в [account-review.md](./account-review.md).
 - `publicProfileConsent` устарел и остаётся в карточке. Каталог для вошедших его не читает.
 - `profileTextScore` считает сервер при сохранении карточки. Поле участвует в сортировке.
-- `manualSortOrder` задаёт только админ. Меньше число — выше в каталоге. `null` — номер не задан. Сброс: `clearManualSortOrder: true`.
+- `manualSortOrder` устарел. Каталог по нему больше не сортирует. Колонка и `POST /admin/students/reorder` остаются: старый запрос по-прежнему записывает номер.
 
 ## Что нужно для одобрения
 

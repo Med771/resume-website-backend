@@ -46,6 +46,7 @@ public interface StudentService {
 
     void submitForReview();
 
+    @Deprecated
     void reorder(ReorderStudentsReq req);
 
     BulkStudentVisibilityResult bulkUpdateVisibility(BulkStudentVisibilityReq req);

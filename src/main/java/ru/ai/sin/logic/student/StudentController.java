@@ -45,7 +45,7 @@ import java.util.UUID;
                 параметр query `sort` **игнорируется**.
 
                 Поле `publicProfileConsent` сохраняется в карточке. Каталог для вошедших его не читает.
-                **Ручной номер** (`manualSortOrder`): при **`POST /student`** можно задать сразу в теле; дальше — `PUT`/`PATCH` (сброс номера — `clearManualSortOrder: true`).""")
+                Ручной номер `manualSortOrder` устарел: каталог по нему больше не сортирует.""")
 public class StudentController {
 
     private final StudentService studentService;
@@ -225,7 +225,7 @@ public class StudentController {
             description = """
                     Только **ADMIN**. Создаёт карточку и связи по DTO.
 
-                    Опционально в теле: **`publicProfileConsent`** (по умолчанию как `false`, если не передано или `false`) и **`manualSortOrder`** (ручной порядок в каталоге; `null` — не задавать).
+                    Опционально в теле: **`publicProfileConsent`** (по умолчанию как `false`, если не передано или `false`). **`manualSortOrder`** устарел, каталог его не читает.
 
                     **201** + `StudentDTO`.""")
     @PreAuthorize("hasRole('ADMIN')")
