@@ -12,7 +12,7 @@
 | `APPROVED` | Админ одобрил. Анкета соответствует требованиям. |
 | `REJECTED` | Админ отправил на доработку. Студент ещё ничего не менял. |
 
-Правка своей анкеты — карточка (`PATCH /student/me`), фото, опыт, учёба, портфолио. Из `REGISTRATION`, `APPROVED` или `REJECTED` статус становится `IN_REVISION`, карточка скрывается, причина отказа очищается. Уже `IN_REVISION` или `PENDING_APPROVAL` правка не меняет. На проверку переводит только `POST /student/me/submit-for-review`. Правка админом статус не меняет.
+Правка своей анкеты — карточка (`PATCH /student/me`), фото, опыт, учёба, портфолио. Из `REGISTRATION`, `APPROVED`, `REJECTED` или `PENDING_APPROVAL` статус становится `IN_REVISION`, карточка скрывается, причина отказа очищается. Уже `IN_REVISION` правка не меняет. На проверку переводит только `POST /student/me/submit-for-review`. Правка админом статус не меняет.
 
 Список студентов `GET /admin/account-approvals/students` отдаёт `hasPortfolio`, `hasExperience` и `hasEducation`: есть ли хотя бы одна запись портфолио, опыта и учёбы.
 

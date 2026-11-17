@@ -93,16 +93,18 @@ class StudentReviewStateTest {
     }
 
     @Test
-    void selfEdit_pending_doesNotChangeStatus() {
+    void selfEdit_pending_movesToRevision() {
         StudentEnt student = student();
+        student.setCatalogVisible(true);
         UserEnt user = user(AccountStatus.PENDING_APPROVAL);
         when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of("STUDENT"));
         when(userRepo.findByStudent_Id(STUDENT_ID)).thenReturn(Optional.of(user));
 
         reviewState.onStudentSelfEdit(student);
 
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
-        verify(userRepo, never()).save(user);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
+        assertThat(student.isCatalogVisible()).isFalse();
+        verify(userRepo).save(user);
     }
 
     @Test

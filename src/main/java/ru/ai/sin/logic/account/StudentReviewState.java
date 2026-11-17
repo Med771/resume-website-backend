@@ -18,9 +18,8 @@ public class StudentReviewState {
     private final SecurityHelper securityHelper;
 
     /**
-     * Своя правка переводит регистрацию, одобрение или отказ в доработку и скрывает карточку.
-     * Проверка ({@link AccountStatus#PENDING_APPROVAL}) и уже начатая доработка не меняются.
-     * Правка администратора статус не трогает.
+     * Своя правка переводит регистрацию, одобрение, отказ или проверку в доработку и скрывает карточку.
+     * Уже начатая доработка не меняется. Правка администратора статус не трогает.
      */
     @Transactional
     public void onStudentSelfEdit(StudentEnt student) {
@@ -34,7 +33,8 @@ public class StudentReviewState {
         AccountStatus status = user.getAccountStatus();
         if (status != AccountStatus.REGISTRATION
                 && status != AccountStatus.APPROVED
-                && status != AccountStatus.REJECTED) {
+                && status != AccountStatus.REJECTED
+                && status != AccountStatus.PENDING_APPROVAL) {
             return;
         }
         user.setAccountStatus(AccountStatus.IN_REVISION);

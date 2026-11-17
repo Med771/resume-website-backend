@@ -356,7 +356,7 @@ class StudentServiceImplPatchMeTest {
     }
 
     @Test
-    void patchMe_pendingWithPublishedVersion_staysPending() {
+    void patchMe_pendingWithPublishedVersion_movesToRevision() {
         UserEnt user = pendingEditor();
         when(profileVersions.captureCardPatch(eq(ID), any())).thenReturn(true);
         when(profileVersions.draftCard(user.getStudent())).thenReturn(Optional.of(sampleDto()));
@@ -364,18 +364,18 @@ class StudentServiceImplPatchMeTest {
 
         studentService.patchMe(bioPatch());
 
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
     }
 
     @Test
-    void patchMe_pendingWithoutPublishedVersion_staysPending() {
+    void patchMe_pendingWithoutPublishedVersion_movesToRevision() {
         UserEnt user = pendingEditor();
         when(studentTools.mapToDTO(user.getStudent())).thenReturn(sampleDto());
         useRealReviewState();
 
         studentService.patchMe(bioPatch());
 
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
         assertThat(user.getStudent().getBio()).isEqualTo("new bio");
     }
 
@@ -395,7 +395,7 @@ class StudentServiceImplPatchMeTest {
     }
 
     @Test
-    void setPhoto_pendingWithDraft_staysPending() {
+    void setPhoto_pendingWithDraft_movesToRevision() {
         UserEnt user = pendingEditor();
         when(studentTools.getStudentOrThrow(ID)).thenReturn(user.getStudent());
         MultipartFile file = mock(MultipartFile.class);
@@ -405,7 +405,7 @@ class StudentServiceImplPatchMeTest {
 
         studentService.setPhoto(ID, file);
 
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
     }
 
     private UserEnt pendingEditor() {
