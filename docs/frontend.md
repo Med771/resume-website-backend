@@ -16,7 +16,7 @@
 
 `GET /auth/me` возвращает `id`, `username`, `role`, `accountStatus`, `emailVerified`, `hintsDisabled`.
 
-Роль: `STUDENT`, `RECRUITER`, `ADMIN`. Статус аккаунта: `PENDING_APPROVAL`, `APPROVED`, `REJECTED`.
+Роль: `STUDENT`, `RECRUITER`, `ADMIN`. Статус аккаунта: `REGISTRATION`, `IN_REVISION`, `PENDING_APPROVAL`, `APPROVED`, `REJECTED`.
 
 Access кончается — `POST /auth/refresh` (нужна refresh-cookie). Выход — `POST /auth/logout`.
 

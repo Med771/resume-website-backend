@@ -109,8 +109,8 @@ public class StudentController {
     @Operation(
             summary = "Завершить регистрацию",
             description = """
-                    Только **STUDENT** с подтверждённой почтой и статусом `PENDING_APPROVAL`.
-                    Тела нет. Отправляет письмо о завершении регистрации.
+                    Только **STUDENT** с подтверждённой почтой и статусом `REGISTRATION`, `IN_REVISION` или `PENDING_APPROVAL`.
+                    Тела нет. Отправляет письмо о завершении регистрации. Статус не меняет.
                     Дата рождения, курс и город этим вызовом не меняются.""")
     @PreAuthorize("hasRole('STUDENT')")
     @PostMapping(path = "/me/complete-registration")
@@ -122,9 +122,10 @@ public class StudentController {
     @Operation(
             summary = "Отправить полную анкету на одобрение",
             description = """
-                    Только **STUDENT** с подтверждённой почтой и статусом `PENDING_APPROVAL`.
-                    Нужны хотя бы один опыт (`experience`), одно место учёбы (`education`) и одно портфолио (`portfolio`).
-                    Если анкета неполная — 403 `PROFILE_INCOMPLETE`. Иначе письмо с просьбой дождаться одобрения.""")
+                    Только **STUDENT** с подтверждённой почтой.
+                    Из `REGISTRATION` и `IN_REVISION` переводит в `PENDING_APPROVAL` и шлёт письмо.
+                    Если статус уже `PENDING_APPROVAL`, только шлёт письмо.
+                    Неполная анкета — 403 `PROFILE_INCOMPLETE`.""")
     @PreAuthorize("hasRole('STUDENT')")
     @PostMapping(path = "/me/submit-for-review")
     @ResponseStatus(HttpStatus.NO_CONTENT)

@@ -7,7 +7,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.student.StudentEnt;
-import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
@@ -30,8 +29,6 @@ class StudentReviewStateTest {
     private UserRepo userRepo;
     @Mock
     private SecurityHelper securityHelper;
-    @Mock
-    private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private StudentReviewState reviewState;
@@ -46,9 +43,22 @@ class StudentReviewStateTest {
 
         reviewState.onStudentSelfEdit(student);
 
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
         assertThat(student.isCatalogVisible()).isFalse();
         verify(userRepo).save(user);
+    }
+
+    @Test
+    void selfEdit_registration_movesToRevision() {
+        StudentEnt student = student();
+        UserEnt user = user(AccountStatus.REGISTRATION);
+        when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of("STUDENT"));
+        when(userRepo.findByStudent_Id(STUDENT_ID)).thenReturn(Optional.of(user));
+
+        reviewState.onStudentSelfEdit(student);
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
+        assertThat(student.isCatalogVisible()).isFalse();
     }
 
     @Test
@@ -63,25 +73,22 @@ class StudentReviewStateTest {
 
         reviewState.onStudentSelfEdit(student);
 
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
         assertThat(student.isCatalogVisible()).isFalse();
         assertThat(student.getRejectionReason()).isNull();
         assertThat(student.getRejectionComment()).isNull();
     }
 
     @Test
-    void selfEdit_approvedWithPublishedVersion_doesNotChangeStatus() {
+    void selfEdit_inRevision_doesNotChangeStatus() {
         StudentEnt student = student();
-        student.setCatalogVisible(true);
-        UserEnt user = user(AccountStatus.APPROVED);
+        UserEnt user = user(AccountStatus.IN_REVISION);
         when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of("STUDENT"));
         when(userRepo.findByStudent_Id(STUDENT_ID)).thenReturn(Optional.of(user));
-        when(profileVersions.hasPublishedVersion(STUDENT_ID)).thenReturn(true);
 
         reviewState.onStudentSelfEdit(student);
 
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
-        assertThat(student.isCatalogVisible()).isTrue();
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
         verify(userRepo, never()).save(user);
     }
 

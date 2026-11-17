@@ -253,6 +253,40 @@ class StudentServiceImplPatchMeTest {
         studentService.submitForReview();
 
         verify(verificationOtpMailer).trySendProfileSubmitted("student@test.local");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+    }
+
+    @Test
+    void submitForReview_registration_movesToPending() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = pendingStudent(studentEnt);
+        user.setAccountStatus(AccountStatus.REGISTRATION);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        when(profileCommunicationGateService.evaluateForCurrentUser())
+                .thenReturn(new CommunicationReadinessRes(true, List.of()));
+
+        studentService.submitForReview();
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        verify(verificationOtpMailer).trySendProfileSubmitted("student@test.local");
+    }
+
+    @Test
+    void submitForReview_approvedWithoutDraft_isBadRequest() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = pendingStudent(studentEnt);
+        user.setAccountStatus(AccountStatus.APPROVED);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> studentService.submitForReview())
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("обработан");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        verify(verificationOtpMailer, never()).trySendProfileSubmitted(any());
     }
 
     @Test

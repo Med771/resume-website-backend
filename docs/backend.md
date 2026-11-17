@@ -33,7 +33,7 @@ ru.ai.sin
 
 Роли: **STUDENT**, **RECRUITER**, **ADMIN**. В токене authority вида `ROLE_STUDENT`. Админ входит через `/auth/admin/login`, студент и рекрутер — через `/auth/login`.
 
-Статус аккаунта (`users.account_status`): `PENDING_APPROVAL`, `APPROVED`, `REJECTED`.
+Статус аккаунта (`users.account_status`): `REGISTRATION`, `IN_REVISION`, `PENDING_APPROVAL`, `APPROVED`, `REJECTED`.
 
 ## Домены
 

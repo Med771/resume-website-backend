@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.city.CityCatalog;
@@ -31,7 +32,6 @@ import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -125,11 +125,6 @@ class StudentProfileVersionServiceTest {
         lenient().when(versionRepo.existsByStudentIdAndStatus(any(), any())).thenAnswer(invocation -> rows.stream()
                 .anyMatch(row -> row.getStudentId().equals(invocation.getArgument(0))
                         && row.getStatus() == invocation.getArgument(1)));
-        lenient().when(versionRepo.findByStatusAndGraceEndsAtBefore(any(), any())).thenAnswer(invocation -> rows.stream()
-                .filter(row -> row.getStatus() == invocation.getArgument(0)
-                        && row.getGraceEndsAt() != null
-                        && row.getGraceEndsAt().isBefore(invocation.getArgument(1)))
-                .toList());
         lenient().doAnswer(invocation -> {
             UUID studentId = invocation.getArgument(0);
             StudentProfileVersionStatus status = invocation.getArgument(1);
@@ -147,14 +142,13 @@ class StudentProfileVersionServiceTest {
     }
 
     @Test
-    void beforeFirstApproval_publishedIsMissingAndGraceIsEmpty() {
+    void beforeFirstApproval_publishedIsMissing() {
         assertThat(service.hasPublishedVersion(STUDENT_ID)).isFalse();
         assertThatThrownBy(() -> service.publishedCard(student)).isInstanceOf(NotFoundException.class);
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
     }
 
     @Test
-    void firstEditKeepsApprovedTextInCatalogAndOpensGrace() {
+    void firstEditKeepsApprovedTextInCatalog() {
         service.publishOnApprove(student);
 
         boolean captured = service.captureCardPatch(STUDENT_ID, patch("new bio"));
@@ -162,61 +156,44 @@ class StudentProfileVersionServiceTest {
         assertThat(captured).isTrue();
         assertThat(student.getBio()).isEqualTo("old bio");
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isEqualTo(LocalDateTime.now(clock).plusMinutes(5));
         assertThat(service.draftCard(student).orElseThrow().bio()).isEqualTo("new bio");
         assertThat(service.publishedCard(student).bio()).isEqualTo("old bio");
     }
 
     @Test
-    void secondEditDoesNotMoveGrace() {
+    void secondEditKeepsTheDraft() {
         service.publishOnApprove(student);
         service.captureCardPatch(STUDENT_ID, patch("new bio"));
-        LocalDateTime grace = service.activeGraceEndsAt(STUDENT_ID);
 
         service.captureCardPatch(STUDENT_ID, patch("newer bio"));
 
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isEqualTo(grace);
         assertThat(service.draftCard(student).orElseThrow().bio()).isEqualTo("newer bio");
     }
 
     @Test
-    void revertInsideGraceDeletesDraftAndKeepsApproval() {
+    void revertWhileRevisingDeletesDraftAndRestoresApproval() {
         service.publishOnApprove(student);
         service.captureCardPatch(STUDENT_ID, patch("new bio"));
+        user.setAccountStatus(AccountStatus.IN_REVISION);
+        student.setCatalogVisible(false);
 
         service.revertDraft(STUDENT_ID);
 
         assertThat(service.draftCard(student)).isEmpty();
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        assertThat(student.isCatalogVisible()).isTrue();
         assertThat(service.publishedCard(student).bio()).isEqualTo("old bio");
     }
 
     @Test
-    void revertAfterGraceDoesNotRestoreApproved() {
+    void revertWithoutRevision_isBadRequest() {
         service.publishOnApprove(student);
         service.captureCardPatch(STUDENT_ID, patch("new bio"));
-        clock = Clock.fixed(Instant.parse("2026-11-08T12:06:00Z"), ZONE);
-        service = rebuild();
 
-        service.revertDraft(STUDENT_ID);
-
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
-        assertThat(service.draftCard(student).orElseThrow().bio()).isEqualTo("new bio");
-    }
-
-    @Test
-    void expiredGraceOnReadMarksPendingButPublishedStays() {
-        service.publishOnApprove(student);
-        service.captureCardPatch(STUDENT_ID, patch("new bio"));
-        clock = Clock.fixed(Instant.parse("2026-11-08T12:06:00Z"), ZONE);
-        service = rebuild();
-
-        service.expireDueDrafts();
-
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
-        assertThat(service.publishedCard(student).bio()).isEqualTo("old bio");
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
+        assertThatThrownBy(() -> service.revertDraft(STUDENT_ID))
+                .isInstanceOf(BadRequestException.class);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        assertThat(service.draftCard(student)).isPresent();
     }
 
     @Test
@@ -243,20 +220,18 @@ class StudentProfileVersionServiceTest {
         assertThat(student.getBio()).isEqualTo("old bio");
         assertThat(service.publishedCard(student).bio()).isEqualTo("old bio");
         assertThat(service.draftCard(student).orElseThrow().bio()).isEqualTo("new bio");
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
         assertThat(service.listOwn(STUDENT_ID)).extracting(StudentProfileVersionItemDTO::status)
                 .contains("APPROVED", "REJECTED");
     }
 
     @Test
-    void editAfterRejectStartsNewGraceAndKeepsRejectedSnapshot() {
+    void editAfterRejectKeepsRejectedSnapshot() {
         service.publishOnApprove(student);
         service.captureCardPatch(STUDENT_ID, patch("rejected bio"));
         service.markLatestDraftRejected(STUDENT_ID);
 
         service.captureCardPatch(STUDENT_ID, patch("another bio"));
 
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isEqualTo(LocalDateTime.now(clock).plusMinutes(5));
         assertThat(service.listOwn(STUDENT_ID)).extracting(StudentProfileVersionItemDTO::status)
                 .contains("REJECTED", "DRAFT");
     }
@@ -270,7 +245,6 @@ class StudentProfileVersionServiceTest {
         service.publishOnApprove(student);
 
         assertThat(student.getBio()).isEqualTo("new bio that is definitely long enough");
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
         assertThat(service.hasPublishedVersion(STUDENT_ID)).isTrue();
     }
 

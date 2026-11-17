@@ -30,7 +30,7 @@ public class AccountApprovalAdminController {
     @Operation(
             summary = "Все студенты со статусом аккаунта",
             description = """
-                    Страница пользователей с ролью STUDENT: `PENDING_APPROVAL`, `APPROVED` и `REJECTED`.
+                    Страница пользователей с ролью STUDENT: `REGISTRATION`, `IN_REVISION`, `PENDING_APPROVAL`, `APPROVED` и `REJECTED`.
                     В строке `id` пользователя и `studentId` карточки.
                     `hasPortfolio`, `hasExperience`, `hasEducation` — есть ли хотя бы одна запись.
                     Пагинация: `page`, `size`.""")
@@ -67,9 +67,10 @@ public class AccountApprovalAdminController {
     @Operation(
             summary = "Одобрить аккаунт",
             description = """
+                    Только из `PENDING_APPROVAL`. `REGISTRATION` и `IN_REVISION` отвечают 400.
                     Студенту — 400, если почта ещё не подтверждена (`emailVerified=false`)
                     или анкета неполная. В `message` перечислены все недостающие или некорректные поля.
-                    `PENDING_APPROVAL` при этом не меняется.""")
+                    Статус при отказе проверки не меняется.""")
     @PostMapping("/{userId}/approve")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void approve(@PathVariable UUID userId) {

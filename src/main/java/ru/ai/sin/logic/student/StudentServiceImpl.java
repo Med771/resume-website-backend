@@ -96,7 +96,6 @@ public class StudentServiceImpl implements StudentService {
     @Transactional(readOnly = true)
     public StudentDTO getById(UUID id) {
         accountAccessHelper.requireCanReadStudentResumeDetails(id);
-        profileVersions.expireDueDrafts();
         StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
         Optional<StudentDTO> draft = profileVersions.draftCard(studentEnt);
         if (draft != null && draft.isPresent()) {
@@ -111,7 +110,6 @@ public class StudentServiceImpl implements StudentService {
         return userTools.findCurrentUserFetchingLinks()
                 .filter(u -> u.getRole() == RoleEnum.STUDENT && u.getStudent() != null)
                 .map(u -> {
-                    profileVersions.expireDueDrafts();
                     Optional<StudentDTO> draft = profileVersions.draftCard(u.getStudent());
                     if (draft != null && draft.isPresent()) {
                         return draft.get();
@@ -394,22 +392,47 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(readOnly = true)
     public void completeRegistration() {
-        UserEnt user = currentStudentPendingEmailVerified();
+        UserEnt user = currentStudentEmailVerified();
+        AccountStatus status = user.getAccountStatus();
+        if (status != AccountStatus.REGISTRATION
+                && status != AccountStatus.IN_REVISION
+                && status != AccountStatus.PENDING_APPROVAL) {
+            throw new BadRequestException("Аккаунт уже обработан");
+        }
         verificationOtpMailer.trySendRegistrationSuccess(studentEmail(user), user.getUsername());
     }
 
     @Override
     @Transactional
     public void submitForReview() {
-        UserEnt user = currentStudentPendingEmailVerified();
-        CommunicationReadinessRes readiness = profileCommunicationGateService.evaluateForCurrentUser();
-        if (!readiness.ready()) {
-            throw new ProfileIncompleteException(readiness.missingFields());
+        UserEnt user = currentStudentEmailVerified();
+        AccountStatus status = user.getAccountStatus();
+        boolean draft = profileVersions.hasUnpublished(user.getStudent().getId());
+        if (status != AccountStatus.REGISTRATION
+                && status != AccountStatus.IN_REVISION
+                && status != AccountStatus.PENDING_APPROVAL
+                && !(status == AccountStatus.APPROVED && draft)) {
+            throw new BadRequestException("Аккаунт уже обработан");
+        }
+        if (draft) {
+            profileVersions.assertUnpublishedComplete(user.getStudent());
+        } else {
+            CommunicationReadinessRes readiness = profileCommunicationGateService.evaluateForCurrentUser();
+            if (!readiness.ready()) {
+                throw new ProfileIncompleteException(readiness.missingFields());
+            }
+        }
+        if (status != AccountStatus.PENDING_APPROVAL) {
+            user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+            userRepo.save(user);
+            user.getStudent().setCatalogVisible(false);
+            user.getStudent().setRejectionReason(null);
+            user.getStudent().setRejectionComment(null);
         }
         verificationOtpMailer.trySendProfileSubmitted(studentEmail(user));
     }
 
-    private UserEnt currentStudentPendingEmailVerified() {
+    private UserEnt currentStudentEmailVerified() {
         UserEnt user = userRepo.findByUsernameFetchingLinks(securityHelper.getCurrentUsername())
                 .orElseThrow(() -> new NotFoundException("User not found"));
         if (user.getRole() != RoleEnum.STUDENT || user.getStudent() == null) {
@@ -417,9 +440,6 @@ public class StudentServiceImpl implements StudentService {
         }
         if (!user.isEmailVerified()) {
             throw new BadRequestException("Сначала подтвердите почту");
-        }
-        if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL) {
-            throw new BadRequestException("Аккаунт уже обработан");
         }
         return user;
     }

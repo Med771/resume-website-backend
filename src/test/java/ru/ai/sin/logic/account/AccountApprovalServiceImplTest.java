@@ -52,6 +52,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -271,6 +272,38 @@ class AccountApprovalServiceImplTest {
 
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
         verify(verificationOtpMailer, never()).trySendAccountApproved(anyString(), anyString());
+    }
+
+    @Test
+    void approve_registration_isRejected() {
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.REGISTRATION);
+        user.setEmailVerified(true);
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("не отправлен");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.REGISTRATION);
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void approve_revisionWithDraft_isRejected() {
+        StudentEnt student = completeStudent();
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.IN_REVISION);
+        user.setEmailVerified(true);
+        user.setStudent(student);
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        lenient().when(profileVersions.hasUnpublished(any())).thenReturn(true);
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("не отправлен");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
     }
 
     @Test

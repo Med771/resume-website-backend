@@ -91,7 +91,7 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
         );
         user.setPhoneVerified(false);
         user.setEmailVerified(false);
-        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setAccountStatus(AccountStatus.REGISTRATION);
         user.setRegistrationPhone(phone);
         user.setRegistrationEmail(email);
         user.setStudent(student);

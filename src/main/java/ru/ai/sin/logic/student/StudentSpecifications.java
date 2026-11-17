@@ -257,6 +257,8 @@ public final class StudentSpecifications {
         Root<UserEnt> user = rank.from(UserEnt.class);
         Expression<Integer> statusRank = cb.<Integer>selectCase()
                 .when(cb.equal(user.get("accountStatus"), AccountStatus.PENDING_APPROVAL), 0)
+                .when(cb.equal(user.get("accountStatus"), AccountStatus.REGISTRATION), 0)
+                .when(cb.equal(user.get("accountStatus"), AccountStatus.IN_REVISION), 0)
                 .when(cb.equal(user.get("accountStatus"), AccountStatus.APPROVED), 1)
                 .when(cb.equal(user.get("accountStatus"), AccountStatus.REJECTED), 2)
                 .otherwise(3);

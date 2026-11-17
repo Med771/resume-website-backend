@@ -65,7 +65,6 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     @Transactional(readOnly = true)
     public PageResponse<AccountApprovalUserDTO> listStudents(int page, int size) {
         PageRequest pr = PageRequest.of(page, size);
-        profileVersions.expireDueDrafts();
         Page<UserEnt> result = userRepo.findByRole(RoleEnum.STUDENT, pr);
         Set<UUID> studentIds = result.getContent().stream()
                 .map(UserEnt::getStudent)
@@ -125,6 +124,10 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     public void approve(UUID userId) {
         UserEnt user = userRepo.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь не найден: " + userId));
+        if (user.getAccountStatus() == AccountStatus.REGISTRATION
+                || user.getAccountStatus() == AccountStatus.IN_REVISION) {
+            throw new BadRequestException("Аккаунт ещё не отправлен на проверку");
+        }
         boolean republish = user.getStudent() != null && profileVersions.hasUnpublished(user.getStudent().getId());
         if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL && !republish) {
             throw new BadRequestException("Аккаунт уже обработан");

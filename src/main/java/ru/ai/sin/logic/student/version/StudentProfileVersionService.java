@@ -56,7 +56,6 @@ import ru.ai.sin.models.enums.ExperienceType;
 import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -69,8 +68,6 @@ import java.util.function.Consumer;
 @Service
 @RequiredArgsConstructor
 public class StudentProfileVersionService {
-
-    static final Duration GRACE = Duration.ofMinutes(5);
 
     private final StudentProfileVersionRepo versionRepo;
     private final StudentRepo studentRepo;
@@ -94,26 +91,6 @@ public class StudentProfileVersionService {
 
     private boolean publishedVersionExists(UUID studentId) {
         return studentId != null && versionRepo.existsByStudentIdAndStatus(studentId, StudentProfileVersionStatus.APPROVED);
-    }
-
-    @Transactional
-    public void expireDueDrafts() {
-        LocalDateTime now = now();
-        for (StudentProfileVersionEnt row : versionRepo.findByStatusAndGraceEndsAtBefore(StudentProfileVersionStatus.DRAFT, now)) {
-            markPendingIfApproved(row.getStudentId());
-        }
-    }
-
-    @Transactional(readOnly = true)
-    public LocalDateTime activeGraceEndsAt(UUID studentId) {
-        if (studentId == null) {
-            return null;
-        }
-        return versionRepo.findFirstByStudentIdOrderByVersionNumberDesc(studentId)
-                .filter(row -> row.getStatus() == StudentProfileVersionStatus.DRAFT)
-                .map(StudentProfileVersionEnt::getGraceEndsAt)
-                .filter(ends -> ends.isAfter(now()))
-                .orElse(null);
     }
 
     @Transactional
@@ -211,11 +188,17 @@ public class StudentProfileVersionService {
         if (latest.getStatus() != StudentProfileVersionStatus.DRAFT) {
             throw new BadRequestException("Черновика нет");
         }
-        if (latest.getGraceEndsAt() == null || !latest.getGraceEndsAt().isAfter(now())) {
-            markPendingIfApproved(studentId);
-            return;
+        UserEnt user = userRepo.findByStudent_Id(studentId)
+                .orElseThrow(() -> new BadRequestException("Черновик уже нельзя отменить"));
+        if (user.getAccountStatus() != AccountStatus.IN_REVISION || !publishedVersionExists(studentId)) {
+            throw new BadRequestException("Черновик уже нельзя отменить");
         }
         versionRepo.deleteByStudentIdAndStatus(studentId, StudentProfileVersionStatus.DRAFT);
+        user.setAccountStatus(AccountStatus.APPROVED);
+        userRepo.save(user);
+        if (user.getStudent() != null) {
+            user.getStudent().setCatalogVisible(true);
+        }
     }
 
     @Transactional
@@ -223,7 +206,7 @@ public class StudentProfileVersionService {
         if (!isStudent() || !publishedVersionExists(studentId)) {
             return false;
         }
-        edit(studentId, snap -> applyCard(snap, req), true);
+        edit(studentId, snap -> applyCard(snap, req));
         return true;
     }
 
@@ -232,7 +215,7 @@ public class StudentProfileVersionService {
         if (!isAdmin() || !latestIsDraft(studentId)) {
             return false;
         }
-        edit(studentId, snap -> applyAdminCard(snap, req), false);
+        edit(studentId, snap -> applyAdminCard(snap, req));
         return true;
     }
 
@@ -241,7 +224,7 @@ public class StudentProfileVersionService {
         if (!isStudent() || !publishedVersionExists(studentId)) {
             return false;
         }
-        edit(studentId, snap -> snap.setImagePath(path), true);
+        edit(studentId, snap -> snap.setImagePath(path));
         return true;
     }
 
@@ -250,7 +233,7 @@ public class StudentProfileVersionService {
         if (!isStudent() || !publishedVersionExists(studentId)) {
             return false;
         }
-        edit(studentId, snap -> snap.setImagePath(null), true);
+        edit(studentId, snap -> snap.setImagePath(null));
         return true;
     }
 
@@ -263,7 +246,7 @@ public class StudentProfileVersionService {
         if (live == null) {
             return;
         }
-        saveNext(studentId, capture(live), null, StudentProfileVersionStatus.APPROVED);
+        saveNext(studentId, capture(live), StudentProfileVersionStatus.APPROVED);
     }
 
     @Transactional
@@ -273,12 +256,11 @@ public class StudentProfileVersionService {
         }
         Optional<StudentProfileVersionEnt> latest = versionRepo.findFirstByStudentIdOrderByVersionNumberDesc(student.getId());
         if (latest.isEmpty() || latest.get().getStatus() == StudentProfileVersionStatus.APPROVED) {
-            saveNext(student.getId(), capture(student), null, StudentProfileVersionStatus.APPROVED);
+            saveNext(student.getId(), capture(student), StudentProfileVersionStatus.APPROVED);
             return;
         }
         copyOnto(student, read(latest.get()));
         latest.get().setStatus(StudentProfileVersionStatus.APPROVED);
-        latest.get().setGraceEndsAt(null);
         versionRepo.save(latest.get());
     }
 
@@ -307,7 +289,6 @@ public class StudentProfileVersionService {
                 .filter(row -> row.getStatus() == StudentProfileVersionStatus.DRAFT)
                 .ifPresent(row -> {
                     row.setStatus(StudentProfileVersionStatus.REJECTED);
-                    row.setGraceEndsAt(null);
                     versionRepo.save(row);
                 });
     }
@@ -376,7 +357,7 @@ public class StudentProfileVersionService {
             item.setExperienceType(req.experienceType() == null ? ExperienceType.WORK : req.experienceType());
             snap.getExperience().add(item);
             created[0] = item;
-        }, isStudent());
+        });
         return Optional.of(experienceDto(studentId, created[0]));
     }
 
@@ -399,7 +380,7 @@ public class StudentProfileVersionService {
             if (req.experienceType() != null) {
                 item.setExperienceType(req.experienceType());
             }
-        }, isStudent());
+        });
         return unpublished(studentId).flatMap(snap -> snap.getExperience().stream()
                 .filter(row -> row.getId() == id).findFirst()).map(item -> experienceDto(studentId, item));
     }
@@ -409,7 +390,7 @@ public class StudentProfileVersionService {
         if (sectionStaysOnLiveRow(studentId)) {
             return false;
         }
-        edit(studentId, snap -> snap.getExperience().removeIf(row -> row.getId() == id), isStudent());
+        edit(studentId, snap -> snap.getExperience().removeIf(row -> row.getId() == id));
         return true;
     }
 
@@ -430,7 +411,7 @@ public class StudentProfileVersionService {
             item.setEducationLevel(req.educationLevel());
             snap.getEducation().add(item);
             created[0] = item;
-        }, isStudent());
+        });
         return Optional.of(educationDto(studentId, created[0]));
     }
 
@@ -451,7 +432,7 @@ public class StudentProfileVersionService {
             }
             item.setDirection(req.direction());
             item.setEducationLevel(req.educationLevel());
-        }, isStudent());
+        });
         return unpublished(studentId).flatMap(snap -> snap.getEducation().stream()
                 .filter(row -> row.getId() == id).findFirst()).map(item -> educationDto(studentId, item));
     }
@@ -461,7 +442,7 @@ public class StudentProfileVersionService {
         if (sectionStaysOnLiveRow(studentId)) {
             return false;
         }
-        edit(studentId, snap -> snap.getEducation().removeIf(row -> row.getId() == id), isStudent());
+        edit(studentId, snap -> snap.getEducation().removeIf(row -> row.getId() == id));
         return true;
     }
 
@@ -479,7 +460,7 @@ public class StudentProfileVersionService {
             item.setAdditionalInfo(req.additionalInfo());
             snap.getPortfolio().add(item);
             created[0] = item;
-        }, isStudent());
+        });
         return Optional.of(new PortfolioDTO(created[0].getId(), created[0].getName(), created[0].getLink(), created[0].getAdditionalInfo(), studentId));
     }
 
@@ -495,7 +476,7 @@ public class StudentProfileVersionService {
             item.setName(req.name());
             item.setLink(req.link());
             item.setAdditionalInfo(req.additionalInfo());
-        }, isStudent());
+        });
         return unpublished(studentId).flatMap(snap -> snap.getPortfolio().stream()
                 .filter(row -> row.getId() == id).findFirst())
                 .map(item -> new PortfolioDTO(item.getId(), item.getName(), item.getLink(), item.getAdditionalInfo(), studentId));
@@ -506,7 +487,7 @@ public class StudentProfileVersionService {
         if (sectionStaysOnLiveRow(studentId)) {
             return false;
         }
-        edit(studentId, snap -> snap.getPortfolio().removeIf(row -> row.getId() == id), isStudent());
+        edit(studentId, snap -> snap.getPortfolio().removeIf(row -> row.getId() == id));
         return true;
     }
 
@@ -525,30 +506,15 @@ public class StudentProfileVersionService {
         return !isAdmin() || !latestIsDraft(studentId);
     }
 
-    private void edit(UUID studentId, Consumer<ProfileSnapshot> change, boolean studentEdit) {
+    private void edit(UUID studentId, Consumer<ProfileSnapshot> change) {
         StudentProfileVersionEnt latest = versionRepo.findFirstByStudentIdOrderByVersionNumberDesc(studentId).orElse(null);
         ProfileSnapshot snap = latest == null ? new ProfileSnapshot() : read(latest);
         change.accept(snap);
         snap.setStudentId(studentId);
-        LocalDateTime grace = graceFor(latest, studentEdit);
-        saveNext(studentId, snap, grace, StudentProfileVersionStatus.DRAFT);
-        if (studentEdit && latest != null && latest.getStatus() == StudentProfileVersionStatus.DRAFT
-                && latest.getGraceEndsAt() != null && !latest.getGraceEndsAt().isAfter(now())) {
-            markPendingIfApproved(studentId);
-        }
+        saveNext(studentId, snap, StudentProfileVersionStatus.DRAFT);
     }
 
-    private LocalDateTime graceFor(StudentProfileVersionEnt latest, boolean studentEdit) {
-        if (!studentEdit) {
-            return latest == null ? null : latest.getGraceEndsAt();
-        }
-        if (latest == null || latest.getStatus() != StudentProfileVersionStatus.DRAFT) {
-            return now().plus(GRACE);
-        }
-        return latest.getGraceEndsAt();
-    }
-
-    private void saveNext(UUID studentId, ProfileSnapshot snap, LocalDateTime grace, StudentProfileVersionStatus status) {
+    private void saveNext(UUID studentId, ProfileSnapshot snap, StudentProfileVersionStatus status) {
         int number = versionRepo.findFirstByStudentIdOrderByVersionNumberDesc(studentId)
                 .map(row -> row.getVersionNumber() + 1)
                 .orElse(1);
@@ -558,7 +524,6 @@ public class StudentProfileVersionService {
         row.setStatus(status);
         row.setSnapshot(write(snap));
         row.setCreatedAt(now());
-        row.setGraceEndsAt(grace);
         versionRepo.save(row);
     }
 
@@ -590,15 +555,6 @@ public class StudentProfileVersionService {
 
     private boolean viewerSeesDraft(UUID studentId) {
         return (isAdmin() || isOwnStudent(studentId)) && unpublished(studentId).isPresent();
-    }
-
-    private void markPendingIfApproved(UUID studentId) {
-        userRepo.findByStudent_Id(studentId).ifPresent(user -> {
-            if (user.getAccountStatus() == AccountStatus.APPROVED) {
-                user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
-                userRepo.save(user);
-            }
-        });
     }
 
     private StudentEnt currentLive() {

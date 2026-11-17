@@ -199,7 +199,7 @@ class StudentRegistrationServiceImplTest {
 
         UserEnt savedUser = userCaptor.getValue();
         assertThat(savedUser.getRole()).isEqualTo(RoleEnum.STUDENT);
-        assertThat(savedUser.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        assertThat(savedUser.getAccountStatus()).isEqualTo(AccountStatus.REGISTRATION);
         assertThat(savedUser.getName()).isEqualTo("Иванов Иван Петрович");
         assertThat(savedUser.isPhoneVerified()).isFalse();
         assertThat(savedUser.isEmailVerified()).isFalse();
