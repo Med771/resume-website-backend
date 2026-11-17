@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.ai.sin.config.property.MailProperties;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.SecurityHelper;
@@ -58,6 +59,7 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     private final InstitutionRepo institutionRepo;
     private final SecurityHelper securityHelper;
     private final VerificationOtpMailer verificationOtpMailer;
+    private final MailProperties mailProperties;
     private final AnalyticsEventWriter analyticsEventWriter;
     private final StudentProfileVersionService profileVersions;
 
@@ -161,13 +163,13 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         if (user.getRole() == RoleEnum.STUDENT) {
             String email = studentEmail(user);
             if (email != null) {
-                verificationOtpMailer.trySendAccountApproved(email, user.getUsername());
+                requireSent(verificationOtpMailer.trySendAccountApproved(email, user.getUsername()));
             }
         }
         if (user.getRole() == RoleEnum.RECRUITER) {
             String email = accountEmail(user);
             if (email != null) {
-                verificationOtpMailer.trySendRecruiterAccountApproved(email, user.getUsername());
+                requireSent(verificationOtpMailer.trySendRecruiterAccountApproved(email, user.getUsername()));
             }
         }
         if (user.getRole() == RoleEnum.STUDENT && user.getStudent() != null) {
@@ -321,6 +323,12 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
             return;
         }
         verificationOtpMailer.trySendRecruiterAccountRejected(email, user.getUsername(), reason, comment);
+    }
+
+    private void requireSent(boolean sent) {
+        if (!sent && !mailProperties.isAllowDevConfirm()) {
+            throw new BadRequestException("Не удалось отправить код на почту. Попробуйте позже.");
+        }
     }
 
     private static String accountEmail(UserEnt user) {

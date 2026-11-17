@@ -151,7 +151,7 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         user.setEmailOtpExpiresAt(LocalDateTime.now().plusMinutes(ttl));
         boolean sent = verificationOtpMailer.trySendRecruiterEmailOtp(email, code, ttl);
         if (!sent && !mailProperties.isAllowDevConfirm()) {
-            log.warn("Email OTP not sent for username={}", user.getUsername());
+            throw new BadRequestException("Не удалось отправить код на почту. Попробуйте позже.");
         }
     }
 

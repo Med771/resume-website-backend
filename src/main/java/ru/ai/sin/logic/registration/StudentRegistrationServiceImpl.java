@@ -135,8 +135,9 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
         userRepo.save(user);
         if (user.getRole() == RoleEnum.RECRUITER) {
             String email = resolveEmail(user);
-            if (email != null) {
-                verificationOtpMailer.trySendRecruiterRegistrationSuccess(email, user.getUsername());
+            if (email != null && !verificationOtpMailer.trySendRecruiterRegistrationSuccess(email, user.getUsername())
+                    && !mailProperties.isAllowDevConfirm()) {
+                throw new BadRequestException("Не удалось отправить код на почту. Попробуйте позже.");
             }
         }
         log.info("Email verified: username={}", user.getUsername());
@@ -167,7 +168,7 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
                 ? verificationOtpMailer.trySendRecruiterEmailOtp(email, code, ttl)
                 : verificationOtpMailer.trySendStudentEmailOtp(email, code, ttl);
         if (!sent && !mailProperties.isAllowDevConfirm()) {
-            log.warn("Email OTP not sent for username={}", user.getUsername());
+            throw new BadRequestException("Не удалось отправить код на почту. Попробуйте позже.");
         }
     }
 

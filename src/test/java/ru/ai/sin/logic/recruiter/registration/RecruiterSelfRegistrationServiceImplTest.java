@@ -155,6 +155,18 @@ class RecruiterSelfRegistrationServiceImplTest {
     }
 
     @Test
+    void register_mailNotSent_withoutDevConfirm_throws() {
+        when(verificationOtpMailer.trySendRecruiterEmailOtp(anyString(), anyString(), anyInt())).thenReturn(false);
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.registerAndIssueTokens(
+                request(null, null, null, "Иван", "Иванов"), httpRequest))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
     void register_withoutCompany_throwsBadRequest() {
         RecruiterSelfRegistrationReq base = request(null, null, null, "Иван", "Иванов");
         RecruiterSelfRegistrationReq req = new RecruiterSelfRegistrationReq(

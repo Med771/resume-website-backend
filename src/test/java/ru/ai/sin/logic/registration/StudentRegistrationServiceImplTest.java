@@ -235,15 +235,54 @@ class StudentRegistrationServiceImplTest {
     }
 
     @Test
-    void register_mailNotSent_stillCreatesAccount() {
+    void register_mailNotSent_withDevConfirm_stillCreatesAccount() {
         stubSuccessfulAuth("newuser_x");
         when(studentRepo.save(any(StudentEnt.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(false);
+        when(mailProperties.isAllowDevConfirm()).thenReturn(true);
 
         service.registerAndIssueTokens(baseReq(), httpRequest);
 
-        verify(studentRepo).save(any(StudentEnt.class));
         verify(userRepo).save(any(UserEnt.class));
+    }
+
+    @Test
+    void register_mailNotSent_withoutDevConfirm_throws() {
+        when(studentRepo.save(any(StudentEnt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(false);
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.registerAndIssueTokens(baseReq(), httpRequest))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void resend_mailNotSent_withoutDevConfirm_throws() {
+        UserEnt user = pendingStudentWithOtp();
+        stubCurrentUser(user);
+        when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(false);
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.resendEmailConfirmation())
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void confirmEmail_recruiterMailNotSent_withoutDevConfirm_throws() {
+        UserEnt user = pendingStudentWithOtp();
+        user.setRole(RoleEnum.RECRUITER);
+        stubCurrentUser(user);
+        when(passwordEncoder.matches("1234", "otp-hash")).thenReturn(true);
+        when(verificationOtpMailer.trySendRecruiterRegistrationSuccess(anyString(), anyString())).thenReturn(false);
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.confirmEmail("1234"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
     }
 
     @Test

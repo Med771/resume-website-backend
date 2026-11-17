@@ -1,5 +1,6 @@
 package ru.ai.sin.logic.account;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -10,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import ru.ai.sin.config.property.MailProperties;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
@@ -77,12 +79,21 @@ class AccountApprovalServiceImplTest {
     @Mock
     private VerificationOtpMailer verificationOtpMailer;
     @Mock
+    private MailProperties mailProperties;
+    @Mock
     private AnalyticsEventWriter analyticsEventWriter;
     @Mock
     private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private AccountApprovalServiceImpl service;
+
+    @BeforeEach
+    void allowMailBypass() {
+        lenient().when(mailProperties.isAllowDevConfirm()).thenReturn(true);
+        lenient().when(verificationOtpMailer.trySendAccountApproved(anyString(), anyString())).thenReturn(true);
+        lenient().when(verificationOtpMailer.trySendRecruiterAccountApproved(anyString(), anyString())).thenReturn(true);
+    }
 
     private static UserEnt recruiterUser(AccountStatus status, String company, String lastName, String middleName) {
         RecruiterEnt recruiter = new RecruiterEnt();
@@ -274,6 +285,38 @@ class AccountApprovalServiceImplTest {
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
         verify(verificationOtpMailer, never()).trySendAccountApproved(anyString(), anyString());
         verify(verificationOtpMailer).trySendRecruiterAccountApproved("boss@test.local", "recruiter");
+    }
+
+    @Test
+    void approve_mailNotSent_withoutDevConfirm_throws() {
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setEmailVerified(true);
+        user.setRegistrationEmail("student@test.local");
+        user.setStudent(completeStudent());
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+        when(verificationOtpMailer.trySendAccountApproved(anyString(), anyString())).thenReturn(false);
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
+    }
+
+    @Test
+    void approve_recruiterMailNotSent_withoutDevConfirm_throws() {
+        UserEnt user = new UserEnt(RoleEnum.RECRUITER, "r", "recruiter", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setRegistrationEmail("boss@test.local");
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+        when(verificationOtpMailer.trySendRecruiterAccountApproved(anyString(), anyString())).thenReturn(false);
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
     }
 
     @Test
