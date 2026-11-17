@@ -55,10 +55,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -415,10 +415,10 @@ class StudentServiceImplPatchMeTest {
         user.setRole(RoleEnum.STUDENT);
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
         user.setStudent(studentEnt);
-        when(securityHelper.getCurrentUsername()).thenReturn("stu");
-        when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of(RoleEnum.STUDENT.getRole()));
-        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
-        when(userRepo.findByStudent_Id(ID)).thenReturn(Optional.of(user));
+        lenient().when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        lenient().when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of(RoleEnum.STUDENT.getRole()));
+        lenient().when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        lenient().when(userRepo.findByStudent_Id(ID)).thenReturn(Optional.of(user));
         return user;
     }
 
