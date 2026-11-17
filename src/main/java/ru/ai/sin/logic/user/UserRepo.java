@@ -50,6 +50,22 @@ public interface UserRepo extends JpaRepository<UserEnt, UUID>, JpaSpecification
             """)
     List<UserEnt> findAllStudentUsers();
 
+    @Query("""
+            SELECT u FROM UserEnt u
+            JOIN FETCH u.recruiter r
+            WHERE u.role = ru.ai.sin.models.enums.RoleEnum.RECRUITER
+              AND r.id IN :recruiterIds
+            """)
+    List<UserEnt> findRecruitersByRecruiterIds(@Param("recruiterIds") Collection<UUID> recruiterIds);
+
+    @Query("""
+            SELECT u FROM UserEnt u
+            JOIN FETCH u.recruiter r
+            WHERE u.role = ru.ai.sin.models.enums.RoleEnum.RECRUITER
+            ORDER BY r.id
+            """)
+    List<UserEnt> findAllRecruiterUsers();
+
     @Query("select u.role, count(u) from UserEnt u group by u.role")
     List<Object[]> countAllGroupedByRole();
 

@@ -59,6 +59,14 @@ class PublicCatalogSecurityMvcTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void recruiterMail_withoutCookie_isUnauthorized() throws Exception {
+        mockMvc.perform(post("/admin/account-approvals/recruiters/mail")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"recruiterIds\":[],\"all\":true,\"subject\":\"Тема\",\"body\":\"Текст\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @WithMockUser(roles = "STUDENT")
     void createCity_student_isForbidden() throws Exception {
         mockMvc.perform(post("/city")

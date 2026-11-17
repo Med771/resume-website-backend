@@ -294,10 +294,11 @@ class StudentRegistrationServiceImplTest {
         assertThat(user.getEmailOtpExpiresAt()).isNull();
         verify(userRepo).save(user);
         verify(verificationOtpMailer, never()).trySendRegistrationSuccess(anyString(), anyString());
+        verify(verificationOtpMailer, never()).trySendRecruiterRegistrationSuccess(anyString(), anyString());
     }
 
     @Test
-    void confirmEmail_recruiter_marksVerified() {
+    void confirmEmail_recruiter_marksVerifiedAndSendsRegistrationMail() {
         UserEnt user = pendingStudentWithOtp();
         user.setRole(RoleEnum.RECRUITER);
         stubCurrentUser(user);
@@ -307,6 +308,7 @@ class StudentRegistrationServiceImplTest {
 
         assertThat(user.isEmailVerified()).isTrue();
         verify(userRepo).save(user);
+        verify(verificationOtpMailer).trySendRecruiterRegistrationSuccess("ivan@test.local", "newuser_x");
     }
 
     @Test
@@ -318,7 +320,7 @@ class StudentRegistrationServiceImplTest {
 
         service.resendEmailConfirmation();
 
-        verify(verificationOtpMailer).trySendStudentEmailOtp(eq("boss@test.local"), anyString(), eq(15));
+        verify(verificationOtpMailer).trySendRecruiterEmailOtp(eq("boss@test.local"), anyString(), eq(15));
     }
 
     @Test

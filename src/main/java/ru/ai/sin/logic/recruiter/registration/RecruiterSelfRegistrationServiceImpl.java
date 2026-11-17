@@ -149,7 +149,7 @@ public class RecruiterSelfRegistrationServiceImpl implements RecruiterSelfRegist
         int ttl = Math.max(1, mailProperties.getOtpTtlMinutes());
         user.setEmailOtpHash(passwordEncoder.encode(code));
         user.setEmailOtpExpiresAt(LocalDateTime.now().plusMinutes(ttl));
-        boolean sent = verificationOtpMailer.trySendStudentEmailOtp(email, code, ttl);
+        boolean sent = verificationOtpMailer.trySendRecruiterEmailOtp(email, code, ttl);
         if (!sent && !mailProperties.isAllowDevConfirm()) {
             log.warn("Email OTP not sent for username={}", user.getUsername());
         }

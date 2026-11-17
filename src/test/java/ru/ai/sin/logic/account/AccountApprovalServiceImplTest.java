@@ -264,6 +264,7 @@ class AccountApprovalServiceImplTest {
         UserEnt user = new UserEnt(RoleEnum.RECRUITER, "r", "recruiter", "hash");
         user.setId(USER_ID);
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setRegistrationEmail("boss@test.local");
 
         when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
         when(securityHelper.getCurrentUsername()).thenReturn("admin");
@@ -272,6 +273,7 @@ class AccountApprovalServiceImplTest {
 
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
         verify(verificationOtpMailer, never()).trySendAccountApproved(anyString(), anyString());
+        verify(verificationOtpMailer).trySendRecruiterAccountApproved("boss@test.local", "recruiter");
     }
 
     @Test
@@ -503,7 +505,24 @@ class AccountApprovalServiceImplTest {
 
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.REJECTED);
         verify(verificationOtpMailer, never()).trySendAccountRejected(anyString(), anyString(), anyString(), anyString());
+        verify(verificationOtpMailer, never()).trySendRecruiterAccountRejected(anyString(), anyString(), any(), any());
         verify(studentRepo, never()).save(any(StudentEnt.class));
+    }
+
+    @Test
+    void reject_recruiterWithEmail_sendsRejectionMail() {
+        UserEnt user = new UserEnt(RoleEnum.RECRUITER, "r", "recruiter", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setRegistrationEmail("boss@test.local");
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(securityHelper.getCurrentUsername()).thenReturn("admin");
+
+        service.reject(USER_ID, null);
+
+        verify(verificationOtpMailer).trySendRecruiterAccountRejected(
+                eq("boss@test.local"), eq("recruiter"), isNull(), isNull());
     }
 
     @Test

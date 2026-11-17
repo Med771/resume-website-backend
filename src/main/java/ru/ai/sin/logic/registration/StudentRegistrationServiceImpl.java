@@ -133,7 +133,13 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
         user.setEmailOtpHash(null);
         user.setEmailOtpExpiresAt(null);
         userRepo.save(user);
-        log.info("Student email verified: username={}", user.getUsername());
+        if (user.getRole() == RoleEnum.RECRUITER) {
+            String email = resolveEmail(user);
+            if (email != null) {
+                verificationOtpMailer.trySendRecruiterRegistrationSuccess(email, user.getUsername());
+            }
+        }
+        log.info("Email verified: username={}", user.getUsername());
     }
 
     @Override
@@ -157,7 +163,9 @@ public class StudentRegistrationServiceImpl implements StudentRegistrationServic
         int ttl = Math.max(1, mailProperties.getOtpTtlMinutes());
         user.setEmailOtpHash(passwordEncoder.encode(code));
         user.setEmailOtpExpiresAt(LocalDateTime.now().plusMinutes(ttl));
-        boolean sent = verificationOtpMailer.trySendStudentEmailOtp(email, code, ttl);
+        boolean sent = user.getRole() == RoleEnum.RECRUITER
+                ? verificationOtpMailer.trySendRecruiterEmailOtp(email, code, ttl)
+                : verificationOtpMailer.trySendStudentEmailOtp(email, code, ttl);
         if (!sent && !mailProperties.isAllowDevConfirm()) {
             log.warn("Email OTP not sent for username={}", user.getUsername());
         }

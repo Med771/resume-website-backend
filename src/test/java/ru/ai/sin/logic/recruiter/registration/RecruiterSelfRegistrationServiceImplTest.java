@@ -81,7 +81,7 @@ class RecruiterSelfRegistrationServiceImplTest {
         lenient().when(httpRequest.getRemoteAddr()).thenReturn("127.0.0.1");
         lenient().when(mailProperties.getOtpTtlMinutes()).thenReturn(15);
         lenient().when(mailProperties.isAllowDevConfirm()).thenReturn(true);
-        lenient().when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(true);
+        lenient().when(verificationOtpMailer.trySendRecruiterEmailOtp(anyString(), anyString(), anyInt())).thenReturn(true);
         lenient().when(passwordEncoder.encode(anyString())).thenReturn("hash");
         lenient().when(userRepo.existsByUsername(anyString())).thenReturn(false);
         lenient().when(recruiterRepo.existsByNormalizedEmail(anyString())).thenReturn(false);
@@ -138,7 +138,7 @@ class RecruiterSelfRegistrationServiceImplTest {
         assertThat(user.getName()).isEqualTo("Иванов Иван");
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
         assertThat(user.getEmailOtpHash()).isEqualTo("hash");
-        verify(verificationOtpMailer).trySendStudentEmailOtp(eq("boss@test.local"), anyString(), eq(15));
+        verify(verificationOtpMailer).trySendRecruiterEmailOtp(eq("boss@test.local"), anyString(), eq(15));
     }
 
     @Test

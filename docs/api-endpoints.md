@@ -101,6 +101,7 @@
 | DELETE | `/recruiter/{id}` | A |
 | GET | `/admin/account-approvals/students` | A, все студенты и их статус; `hasPortfolio`, `hasExperience`, `hasEducation` |
 | GET | `/admin/account-approvals/recruiters` | A, все работодатели и их статус; поиск и сортировка |
+| POST | `/admin/account-approvals/recruiters/mail` | A, письмо на почту работодателя; `recruiterIds` или `all=true` |
 | POST | `/admin/account-approvals/{userId}/approve` | A |
 | POST | `/admin/account-approvals/{userId}/reject` | A |
 | POST | `/admin/recruiter-registration-requests/filter` | A |
