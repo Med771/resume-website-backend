@@ -82,6 +82,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         accountAccessHelper.requireStudentCanMutateResume(studentId);
         Optional<PortfolioDTO> drafted = profileVersions.capturePortfolioCreate(studentId, addPortfolioReq);
         if (drafted.isPresent()) {
+            studentReviewState.onStudentSelfEdit(studentTools.getStudentOrThrow(studentId));
             studentProfileChangeRecorder.record(
                     studentId, "/portfolio", "portfolio", "create", drafted.get().id(),
                     StudentProfileChangeRecorder.portfolioFields(addPortfolioReq));
@@ -119,6 +120,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         Optional<PortfolioDTO> drafted = profileVersions.capturePortfolioUpdate(
                 portfolioEnt.getStudent().getId(), id, addPortfolioReq);
         if (drafted.isPresent()) {
+            studentReviewState.onStudentSelfEdit(portfolioEnt.getStudent());
             studentProfileChangeRecorder.record(
                     portfolioEnt.getStudent().getId(), "/portfolio", "portfolio", "update", id,
                     StudentProfileChangeRecorder.portfolioFields(addPortfolioReq));
@@ -155,6 +157,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         PortfolioEnt portfolioEnt = portfolioTools.getPortfolioOrThrow(id);
         accountAccessHelper.requireStudentCanMutateResume(portfolioEnt.getStudent().getId());
         if (profileVersions.capturePortfolioDelete(portfolioEnt.getStudent().getId(), id)) {
+            studentReviewState.onStudentSelfEdit(portfolioEnt.getStudent());
             studentProfileChangeRecorder.record(
                     portfolioEnt.getStudent().getId(), "/portfolio", "portfolio", "delete", id, List.of());
             return;

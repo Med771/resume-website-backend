@@ -39,6 +39,8 @@ import ru.ai.sin.tools.SpecialityTools;
 import ru.ai.sin.tools.StudentTools;
 import ru.ai.sin.tools.UserTools;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.FileNotFoundException;
 import java.time.LocalDate;
@@ -55,6 +57,8 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -349,6 +353,88 @@ class StudentServiceImplPatchMeTest {
 
         assertThat(studentEnt.getCity()).isEqualTo("Казань");
         assertThat(studentEnt.getCityCatalog()).isSameAs(city);
+    }
+
+    @Test
+    void patchMe_pendingWithPublishedVersion_staysPending() {
+        UserEnt user = pendingEditor();
+        when(profileVersions.captureCardPatch(eq(ID), any())).thenReturn(true);
+        when(profileVersions.draftCard(user.getStudent())).thenReturn(Optional.of(sampleDto()));
+        useRealReviewState();
+
+        studentService.patchMe(bioPatch());
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+    }
+
+    @Test
+    void patchMe_pendingWithoutPublishedVersion_staysPending() {
+        UserEnt user = pendingEditor();
+        when(studentTools.mapToDTO(user.getStudent())).thenReturn(sampleDto());
+        useRealReviewState();
+
+        studentService.patchMe(bioPatch());
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        assertThat(user.getStudent().getBio()).isEqualTo("new bio");
+    }
+
+    @Test
+    void patchMe_approvedWithDraft_movesToRevision() {
+        UserEnt user = pendingEditor();
+        user.setAccountStatus(AccountStatus.APPROVED);
+        user.getStudent().setCatalogVisible(true);
+        when(profileVersions.captureCardPatch(eq(ID), any())).thenReturn(true);
+        when(profileVersions.draftCard(user.getStudent())).thenReturn(Optional.of(sampleDto()));
+        useRealReviewState();
+
+        studentService.patchMe(bioPatch());
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
+        assertThat(user.getStudent().isCatalogVisible()).isFalse();
+    }
+
+    @Test
+    void setPhoto_pendingWithDraft_staysPending() {
+        UserEnt user = pendingEditor();
+        when(studentTools.getStudentOrThrow(ID)).thenReturn(user.getStudent());
+        MultipartFile file = mock(MultipartFile.class);
+        when(fileHelper.saveFile(file, ID.toString())).thenReturn("photo.jpg");
+        when(profileVersions.capturePhoto(ID, "photo.jpg")).thenReturn(true);
+        useRealReviewState();
+
+        studentService.setPhoto(ID, file);
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+    }
+
+    private UserEnt pendingEditor() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = new UserEnt();
+        user.setRole(RoleEnum.STUDENT);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setStudent(studentEnt);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of(RoleEnum.STUDENT.getRole()));
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        when(userRepo.findByStudent_Id(ID)).thenReturn(Optional.of(user));
+        return user;
+    }
+
+    private void useRealReviewState() {
+        StudentReviewState real = new StudentReviewState(userRepo, securityHelper);
+        doAnswer(invocation -> {
+            real.onStudentSelfEdit(invocation.getArgument(0));
+            return null;
+        }).when(studentReviewState).onStudentSelfEdit(any());
+    }
+
+    private static PatchStudentMeReq bioPatch() {
+        return new PatchStudentMeReq(
+                null, null, null, "new bio", null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                null, null, null, null);
     }
 
     private static PatchStudentMeReq cityPatch(String city) {

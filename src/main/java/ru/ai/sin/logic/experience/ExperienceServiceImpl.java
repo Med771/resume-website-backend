@@ -101,6 +101,7 @@ public class ExperienceServiceImpl implements ExperienceService {
         requireValidDates(addExperienceReq.startDate(), addExperienceReq.endDate());
         Optional<ExperienceDTO> drafted = profileVersions.captureExperienceCreate(studentId, addExperienceReq);
         if (drafted.isPresent()) {
+            studentReviewState.onStudentSelfEdit(studentTools.getStudentOrThrow(studentId));
             studentProfileChangeRecorder.record(
                     studentId, "/experience", "experience", "create", drafted.get().experience().id(),
                     StudentProfileChangeRecorder.experienceFields(addExperienceReq));
@@ -145,6 +146,7 @@ public class ExperienceServiceImpl implements ExperienceService {
         Optional<ExperienceDTO> drafted = profileVersions.captureExperienceUpdate(
                 experienceEnt.getStudent().getId(), id, updateExperienceReq);
         if (drafted.isPresent()) {
+            studentReviewState.onStudentSelfEdit(experienceEnt.getStudent());
             studentProfileChangeRecorder.record(
                     experienceEnt.getStudent().getId(), "/experience", "experience", "update", id,
                     StudentProfileChangeRecorder.experienceFields(updateExperienceReq));
@@ -180,6 +182,7 @@ public class ExperienceServiceImpl implements ExperienceService {
         ExperienceEnt experienceEnt = experienceTools.getExperienceOrThrow(id);
         accountAccessHelper.requireStudentCanMutateResume(experienceEnt.getStudent().getId());
         if (profileVersions.captureExperienceDelete(experienceEnt.getStudent().getId(), id)) {
+            studentReviewState.onStudentSelfEdit(experienceEnt.getStudent());
             studentProfileChangeRecorder.record(
                     experienceEnt.getStudent().getId(), "/experience", "experience", "delete", id, List.of());
             return;

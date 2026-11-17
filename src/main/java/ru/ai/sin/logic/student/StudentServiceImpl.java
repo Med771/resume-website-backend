@@ -133,6 +133,7 @@ public class StudentServiceImpl implements StudentService {
         }
 
         if (profileVersions.capturePhoto(studentEnt.getId(), filePath)) {
+            studentReviewState.onStudentSelfEdit(studentEnt);
             studentProfileChangeRecorder.record(
                     studentEnt.getId(), "/student/photo", "photo", "update", null, List.of("imagePath"));
             return;
@@ -151,6 +152,7 @@ public class StudentServiceImpl implements StudentService {
         accountAccessHelper.requireStudentOwnsProfile(id);
         StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
         if (profileVersions.capturePhotoDelete(id)) {
+            studentReviewState.onStudentSelfEdit(studentEnt);
             studentProfileChangeRecorder.record(
                     id, "/student/photo", "photo", "delete", null, List.of());
             return;
@@ -354,6 +356,7 @@ public class StudentServiceImpl implements StudentService {
 
         List<String> changedFields = StudentProfileChangeRecorder.cardFields(req);
         if (!changedFields.isEmpty() && profileVersions.captureCardPatch(studentEnt.getId(), req)) {
+            studentReviewState.onStudentSelfEdit(studentEnt);
             studentProfileChangeRecorder.record(
                     studentEnt.getId(), "/student/me", "card", "update", null, changedFields);
             return profileVersions.draftCard(studentEnt).orElseGet(() -> studentTools.mapToDTO(studentEnt));

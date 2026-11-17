@@ -99,6 +99,7 @@ public class InstitutionServiceImpl implements InstitutionService {
         accountAccessHelper.requireStudentCanMutateResume(studentId);
         Optional<InstitutionDTO> drafted = profileVersions.captureEducationCreate(studentId, addInstitutionReq);
         if (drafted.isPresent()) {
+            studentReviewState.onStudentSelfEdit(studentTools.getStudentOrThrow(studentId));
             studentProfileChangeRecorder.record(
                     studentId, "/institution", "education", "create", drafted.get().institution().id(),
                     StudentProfileChangeRecorder.institutionFields(addInstitutionReq));
@@ -142,6 +143,7 @@ public class InstitutionServiceImpl implements InstitutionService {
         Optional<InstitutionDTO> drafted = profileVersions.captureEducationUpdate(
                 institutionEnt.getStudent().getId(), id, updateInstitutionReq);
         if (drafted.isPresent()) {
+            studentReviewState.onStudentSelfEdit(institutionEnt.getStudent());
             studentProfileChangeRecorder.record(
                     institutionEnt.getStudent().getId(), "/institution", "education", "update", id,
                     StudentProfileChangeRecorder.institutionFields(updateInstitutionReq));
@@ -176,6 +178,7 @@ public class InstitutionServiceImpl implements InstitutionService {
         InstitutionEnt institutionEnt = institutionTools.getInstitutionOrThrow(id);
         accountAccessHelper.requireStudentCanMutateResume(institutionEnt.getStudent().getId());
         if (profileVersions.captureEducationDelete(institutionEnt.getStudent().getId(), id)) {
+            studentReviewState.onStudentSelfEdit(institutionEnt.getStudent());
             studentProfileChangeRecorder.record(
                     institutionEnt.getStudent().getId(), "/institution", "education", "delete", id, List.of());
             return;
