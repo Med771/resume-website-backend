@@ -66,8 +66,10 @@ class RecruiterPatchMappingTest {
         entity.setCooperationFormat(CooperationFormat.OTHER);
         entity.setReadyToRequestStudents(true);
 
-        RecruiterDTO dto = mapper.toDTO(entity);
+        RecruiterDTO dto = mapper.toDTO(entity, "ann_user");
 
+        assertThat(dto.username()).isEqualTo("ann_user");
+        assertThat(dto.imagePath()).isNull();
         assertThat(dto.cooperationFormat()).isEqualTo(CooperationFormat.OTHER);
         assertThat(dto.readyToRequestStudents()).isTrue();
     }

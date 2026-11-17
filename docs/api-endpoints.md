@@ -95,6 +95,8 @@
 | GET | `/recruiter/me` | R, A |
 | GET | `/recruiter/{id}` | R, A |
 | PATCH | `/recruiter/{id}` | R, A |
+| POST | `/recruiter/photo/{id}` | R своё, A любое; часть `avatarFile` |
+| DELETE | `/recruiter/photo/{id}` | R своё, A любое |
 | POST | `/recruiter` | A |
 | POST | `/recruiter/filter` | A |
 | PUT | `/recruiter/{id}` | A |

@@ -30,6 +30,8 @@ public interface UserRepo extends JpaRepository<UserEnt, UUID>, JpaSpecification
 
     Optional<UserEnt> findByRecruiter_Id(UUID recruiterId);
 
+    List<UserEnt> findByRecruiter_IdIn(Collection<UUID> recruiterIds);
+
     Optional<UserEnt> findByStudent_Id(UUID studentId);
 
     @Query("""
