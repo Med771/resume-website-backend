@@ -210,6 +210,26 @@ public class StudentProfileVersionService {
         return true;
     }
 
+    /**
+     * Статус поиска и обе занятости пишутся в рабочую карточку и в уже открытый снимок.
+     * Новая версия не создаётся, статус черновика не меняется.
+     */
+    @Transactional
+    public void patchLivePreferences(UUID studentId, PatchStudentMeReq req) {
+        if (studentId == null || req == null) {
+            return;
+        }
+        studentRepo.findById(studentId).ifPresent(student -> applyLivePreferences(student, req));
+        StudentProfileVersionEnt latest = versionRepo.findFirstByStudentIdOrderByVersionNumberDesc(studentId).orElse(null);
+        if (latest == null || latest.getStatus() == StudentProfileVersionStatus.APPROVED) {
+            return;
+        }
+        ProfileSnapshot snap = read(latest);
+        applyLivePreferences(snap, req);
+        latest.setSnapshot(write(snap));
+        versionRepo.save(latest);
+    }
+
     @Transactional
     public boolean captureAdminCard(UUID studentId, PatchStudentReq req) {
         if (!isAdmin() || !latestIsDraft(studentId)) {
@@ -737,6 +757,30 @@ public class StudentProfileVersionService {
             entity.setAdditionalInfo(item.getAdditionalInfo());
             entity.setStudent(student);
             portfolioRepo.save(entity);
+        }
+    }
+
+    private static void applyLivePreferences(StudentEnt student, PatchStudentMeReq req) {
+        if (req.busyness() != null) {
+            student.setBusyness(req.busyness());
+        }
+        if (req.desiredBusyness() != null) {
+            student.setDesiredBusyness(req.desiredBusyness());
+        }
+        if (req.jobSearchStatus() != null) {
+            student.setJobSearchStatus(req.jobSearchStatus());
+        }
+    }
+
+    private static void applyLivePreferences(ProfileSnapshot snap, PatchStudentMeReq req) {
+        if (req.busyness() != null) {
+            snap.setBusyness(req.busyness());
+        }
+        if (req.desiredBusyness() != null) {
+            snap.setDesiredBusyness(req.desiredBusyness());
+        }
+        if (req.jobSearchStatus() != null) {
+            snap.setJobSearchStatus(req.jobSearchStatus());
         }
     }
 
