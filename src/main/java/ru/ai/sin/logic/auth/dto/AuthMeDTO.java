@@ -13,7 +13,7 @@ public record AuthMeDTO(
         String username,
         @Schema(description = "Роль: STUDENT, RECRUITER, ADMIN")
         String role,
-        @Schema(description = "Статус аккаунта: PENDING_APPROVAL, APPROVED, REJECTED")
+        @Schema(description = "Статус аккаунта: REGISTRATION, IN_REVISION, PENDING_APPROVAL, APPROVED, REJECTED")
         String accountStatus,
         @Schema(description = "Почта подтверждена кодом после регистрации (для студентов после нового флоу)")
         boolean emailVerified,
@@ -26,7 +26,7 @@ public record AuthMeDTO(
         @Schema(description = "Комментарий администратора к отказу. Только у студента со статусом REJECTED")
         String rejectionComment,
 
-        @Schema(description = "До какого момента можно вернуть прошлую анкету. Пусто, если пяти минут нет")
+        @Schema(description = "Поле сессии остаётся и всегда пустое")
         java.time.LocalDateTime draftGraceEndsAt
 ) {
 }

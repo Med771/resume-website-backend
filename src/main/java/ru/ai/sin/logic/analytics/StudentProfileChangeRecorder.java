@@ -117,6 +117,9 @@ public class StudentProfileChangeRecorder {
         if (req.publicProfileConsent() != null) {
             fields.add("publicProfileConsent");
         }
+        if (req.cityId() != null) {
+            fields.add("cityId");
+        }
         return fields;
     }
 

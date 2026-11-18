@@ -52,6 +52,42 @@ public class VerificationOtpMailer {
                 "STUDENT_EMAIL_OTP");
     }
 
+    public boolean trySendRecruiterEmailOtp(String toEmail, String code, int ttlMinutes) {
+        return trySend(
+                toEmail,
+                "Код подтверждения — Singularity Resume",
+                buildRecruiterEmailOtpBody(code, ttlMinutes),
+                "Recruiter email OTP",
+                "RECRUITER_EMAIL_OTP");
+    }
+
+    public boolean trySendRecruiterRegistrationSuccess(String toEmail, String username) {
+        return trySend(
+                toEmail,
+                "Регистрация завершена — Singularity Resume",
+                buildRecruiterRegistrationSuccessBody(username),
+                "Recruiter registration success",
+                "RECRUITER_REGISTRATION_SUCCESS");
+    }
+
+    public boolean trySendRecruiterAccountApproved(String toEmail, String username) {
+        return trySend(
+                toEmail,
+                "Аккаунт одобрен — Singularity Resume",
+                buildRecruiterAccountApprovedBody(username),
+                "Recruiter account approved",
+                "RECRUITER_ACCOUNT_APPROVED");
+    }
+
+    public boolean trySendRecruiterAccountRejected(String toEmail, String username, String reasonText, String comment) {
+        return trySend(
+                toEmail,
+                "Аккаунт не одобрен — Singularity Resume",
+                buildRecruiterAccountRejectedBody(username, reasonText, comment),
+                "Recruiter account rejected",
+                "RECRUITER_ACCOUNT_REJECTED");
+    }
+
     public boolean trySendPasswordReset(String toEmail, String code, int ttlMinutes, String username) {
         return trySend(
                 toEmail,
@@ -171,6 +207,59 @@ public class VerificationOtpMailer {
 
                 Если вы не запрашивали код, просто проигнорируйте это письмо.
                 """.formatted(code, ttlMinutes);
+    }
+
+    private static String buildRecruiterEmailOtpBody(String code, int ttlMinutes) {
+        return """
+                Здравствуйте!
+
+                Вот код, чтобы подтвердить почту: %s
+
+                Он действует %d мин. Никому его не сообщайте.
+
+                Если вы не запрашивали код, просто проигнорируйте это письмо.
+                """.formatted(code, ttlMinutes);
+    }
+
+    private static String buildRecruiterRegistrationSuccessBody(String username) {
+        String login = username == null ? "" : username;
+        return """
+                Здравствуйте!
+
+                Почта подтверждена.
+
+                Ваш логин: %s
+
+                Аккаунт ждёт решения администратора. Когда его одобрят, пришлём письмо.
+                """.formatted(login);
+    }
+
+    private static String buildRecruiterAccountApprovedBody(String username) {
+        String login = username == null ? "" : username;
+        return """
+                Здравствуйте!
+
+                Администратор одобрил аккаунт. Можно открыть каталог студентов.
+
+                Ваш логин: %s
+                """.formatted(login);
+    }
+
+    private static String buildRecruiterAccountRejectedBody(String username, String reasonText, String comment) {
+        String login = username == null ? "" : username;
+        String reason = reasonText == null ? "" : reasonText.trim();
+        String extra = "";
+        if (comment != null && !comment.isBlank() && !comment.trim().equals(reason)) {
+            extra = comment.trim() + "\n\n";
+        }
+        String reasonBlock = reason.isEmpty() ? "" : "Причина: " + reason + "\n\n";
+        return """
+                Здравствуйте!
+
+                Администратор не одобрил ваш аккаунт.
+
+                %s%sВаш логин: %s
+                """.formatted(reasonBlock, extra, login);
     }
 
     private static String buildStudentEmailOtpBody(String code, int ttlMinutes) {

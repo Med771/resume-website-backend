@@ -8,5 +8,9 @@ public record SkillDTO(
 
         @NotBlank
         @Size(min = 1, max = 255, message = "Name must be less than 255 characters")
-        String name) {
+        String name,
+
+        Long parentId,
+
+        Long specialityId) {
 }

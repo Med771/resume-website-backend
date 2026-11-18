@@ -12,7 +12,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+
+import org.springframework.web.multipart.MultipartFile;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 
@@ -107,6 +110,35 @@ public class RecruiterController {
         RecruiterDTO recruiterDTO = recruiterService.patch(id, patchRecruiterReq);
 
         return ResponseEntity.ok(recruiterDTO);
+    }
+
+    @Operation(
+            summary = "Загрузить или заменить фото работодателя",
+            description = """
+                    **RECRUITER** — только своя карточка, **ADMIN** — любая.
+                    Часть `multipart/form-data`, имя части файла: `avatarFile`.
+                    Статус аккаунта не меняется. **204**.""")
+    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PostMapping(path = "/photo/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void setPhoto(
+            @PathVariable @NotNull UUID id,
+            @RequestPart("avatarFile") MultipartFile multipartFile
+    ) {
+        recruiterService.setPhoto(id, multipartFile);
+    }
+
+    @Operation(
+            summary = "Удалить фото работодателя",
+            description = """
+                    **RECRUITER** — только своя карточка, **ADMIN** — любая.
+                    Стирает файл и очищает `imagePath`. Если фото уже нет — тоже **204**.
+                    Статус аккаунта не меняется.""")
+    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @DeleteMapping(path = "/photo/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePhoto(@PathVariable @NotNull UUID id) {
+        recruiterService.deletePhoto(id);
     }
 
     @Operation(summary = "Удалить рекрутера", description = "Удаляет рекрутера по ID")

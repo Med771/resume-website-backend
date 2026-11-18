@@ -19,15 +19,21 @@ public interface RecruiterMapper {
     RecruiterEnt toEntity(AddRecruiterReq dto);
 
     // ---------------- RecruiterEnt -> RecruiterDTO ----------------
-    @Mapping(source = "city", target = "city")
-    @Mapping(source = "userInformation.firstName", target = "firstName")
-    @Mapping(source = "userInformation.lastName", target = "lastName")
-    @Mapping(source = "userInformation.email", target = "email")
-    @Mapping(source = "contactInformation.phoneNumber", target = "phoneNumber")
-    @Mapping(source = "contactInformation.telegramUsername", target = "telegramUsername")
-    @Mapping(source = "contactInformation.telegramUserId", target = "telegramUserId")
-    @Mapping(source = "middleName", target = "middleName")
-    RecruiterDTO toDTO(RecruiterEnt entity);
+    @Mapping(source = "entity.id", target = "id")
+    @Mapping(source = "entity.companyName", target = "companyName")
+    @Mapping(source = "entity.city", target = "city")
+    @Mapping(source = "entity.userInformation.firstName", target = "firstName")
+    @Mapping(source = "entity.userInformation.lastName", target = "lastName")
+    @Mapping(source = "entity.userInformation.email", target = "email")
+    @Mapping(source = "entity.contactInformation.phoneNumber", target = "phoneNumber")
+    @Mapping(source = "entity.contactInformation.telegramUsername", target = "telegramUsername")
+    @Mapping(source = "entity.contactInformation.telegramUserId", target = "telegramUserId")
+    @Mapping(source = "entity.middleName", target = "middleName")
+    @Mapping(source = "entity.cooperationFormat", target = "cooperationFormat")
+    @Mapping(source = "entity.readyToRequestStudents", target = "readyToRequestStudents")
+    @Mapping(source = "entity.imagePath", target = "imagePath")
+    @Mapping(target = "username", source = "login")
+    RecruiterDTO toDTO(RecruiterEnt entity, String login);
 
     // ---------------- UpdateRecruiterReq -> RecruiterEnt ----------------
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

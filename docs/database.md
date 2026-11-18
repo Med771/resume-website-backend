@@ -50,7 +50,7 @@ erDiagram
 | email_verified | BOOLEAN | почта подтверждена кодом |
 | email_otp_hash | VARCHAR(128) | хеш кода с почты |
 | email_otp_expires_at | TIMESTAMP | срок кода |
-| account_status | VARCHAR(32) | `PENDING_APPROVAL`, `APPROVED`, `REJECTED` |
+| account_status | VARCHAR(32) | `REGISTRATION`, `IN_REVISION`, `PENDING_APPROVAL`, `APPROVED`, `REJECTED` |
 | hints_disabled | BOOLEAN | подсказки в UI выключены |
 | registration_phone | VARCHAR(32) | телефон с регистрации |
 | registration_email | VARCHAR(255) | почта с регистрации |

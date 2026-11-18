@@ -1,7 +1,5 @@
 package ru.ai.sin.logic.vacancy;
 
-import org.springframework.data.domain.Pageable;
-import ru.ai.sin.logic.vacancy.dto.FilterVacancyModerationReq;
 import ru.ai.sin.logic.vacancy.dto.VacancyDTO;
 import ru.ai.sin.logic.vacancy.dto.VacancyModerationRejectReq;
 import ru.ai.sin.models.PageResponse;
@@ -10,7 +8,7 @@ import java.util.UUID;
 
 public interface VacancyModerationAdminService {
 
-    PageResponse<VacancyDTO> filter(Pageable pageable, FilterVacancyModerationReq filter);
+    PageResponse<VacancyDTO> list(int page, int size);
 
     VacancyDTO getById(UUID id);
 

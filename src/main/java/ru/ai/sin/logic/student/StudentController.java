@@ -44,7 +44,8 @@ import java.util.UUID;
                 **Сортировка списков** (`POST /student/cardsFilter`, `POST /student/filter`): порядок задаётся полями `FilterStudentReq.sortBy`, `sortDirection`, `useDefaultRanking`;
                 параметр query `sort` **игнорируется**.
 
-                **Согласие на показ анонимам** (`publicProfileConsent`) и **ручной номер** (`manualSortOrder`): при **`POST /student`** можно задать сразу в теле; дальше — `PUT`/`PATCH` (сброс номера — `clearManualSortOrder: true`).""")
+                Поле `publicProfileConsent` сохраняется в карточке. Каталог для вошедших его не читает.
+                Ручной номер `manualSortOrder` устарел: каталог по нему больше не сортирует.""")
 public class StudentController {
 
     private final StudentService studentService;
@@ -108,8 +109,8 @@ public class StudentController {
     @Operation(
             summary = "Завершить регистрацию",
             description = """
-                    Только **STUDENT** с подтверждённой почтой и статусом `PENDING_APPROVAL`.
-                    Тела нет. Отправляет письмо о завершении регистрации.
+                    Только **STUDENT** с подтверждённой почтой и статусом `REGISTRATION`, `IN_REVISION` или `PENDING_APPROVAL`.
+                    Тела нет. Отправляет письмо о завершении регистрации. Статус не меняет.
                     Дата рождения, курс и город этим вызовом не меняются.""")
     @PreAuthorize("hasRole('STUDENT')")
     @PostMapping(path = "/me/complete-registration")
@@ -121,9 +122,10 @@ public class StudentController {
     @Operation(
             summary = "Отправить полную анкету на одобрение",
             description = """
-                    Только **STUDENT** с подтверждённой почтой и статусом `PENDING_APPROVAL`.
-                    Нужны хотя бы один опыт (`experience`), одно место учёбы (`education`) и одно портфолио (`portfolio`).
-                    Если анкета неполная — 403 `PROFILE_INCOMPLETE`. Иначе письмо с просьбой дождаться одобрения.""")
+                    Только **STUDENT** с подтверждённой почтой.
+                    Из `REGISTRATION` и `IN_REVISION` переводит в `PENDING_APPROVAL` и шлёт письмо.
+                    Если статус уже `PENDING_APPROVAL`, только шлёт письмо.
+                    Неполная анкета — 403 `PROFILE_INCOMPLETE`.""")
     @PreAuthorize("hasRole('STUDENT')")
     @PostMapping(path = "/me/submit-for-review")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -151,9 +153,8 @@ public class StudentController {
             description = """
                     Постраничная выдача `StudentCardDTO` по фильтрам из тела.
 
-                    Студент и рекрутер с любым своим статусом видят студентов со статусом **APPROVED** и `catalogVisible=true`.
-                    Скрытый и не одобренный в список не попадают. Своя ещё не одобренная карточка в список не входит: она на `GET /student/me`.
-                    Одобренный студент видит свою карточку, даже если она скрыта. Админ видит всех.
+                    Студент и рекрутер видят только видимые карточки со статусом **APPROVED**, подтверждённой почтой и полной анкетой.
+                    Своя неполная карточка в список не входит: она на `GET /student/me`. Админ видит всех.
 
                     **Пагинация:** `page`, `size` в query. **Сортировка:** только из JSON (`sortBy`, `sortDirection`, `useDefaultRanking`), не из `sort=`.""")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER', 'ADMIN')")
@@ -225,7 +226,7 @@ public class StudentController {
             description = """
                     Только **ADMIN**. Создаёт карточку и связи по DTO.
 
-                    Опционально в теле: **`publicProfileConsent`** (по умолчанию как `false`, если не передано или `false`) и **`manualSortOrder`** (ручной порядок в каталоге; `null` — не задавать).
+                    Опционально в теле: **`publicProfileConsent`** (по умолчанию как `false`, если не передано или `false`). **`manualSortOrder`** устарел, каталог его не читает.
 
                     **201** + `StudentDTO`.""")
     @PreAuthorize("hasRole('ADMIN')")
@@ -241,8 +242,8 @@ public class StudentController {
             description = """
                     Только **ADMIN**. Перезаписывает поля согласно `UpdateStudentReq`.
 
-                    Поле `publicProfileConsent`: если передано **null** — текущее значение в БД **не меняется**; если `true`/`false` — устанавливается явно
-                    (влияет на попадание карточки в `/public/students/...` при прочих условиях).
+                    Поле `publicProfileConsent`: если передано **null** — текущее значение в БД **не меняется**; если `true`/`false` — устанавливается явно.
+                    Каталог для вошедших это поле не читает.
 
                     После сохранения пересчитывается `profileTextScore`.
 

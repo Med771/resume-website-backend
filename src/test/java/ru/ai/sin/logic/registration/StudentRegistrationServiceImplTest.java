@@ -22,6 +22,9 @@ import ru.ai.sin.exception.models.ForbiddenException;
 import ru.ai.sin.exception.models.TooManyRequestsException;
 import ru.ai.sin.helper.JwtHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.city.CityCatalog;
+import ru.ai.sin.logic.city.CityEnt;
+import ru.ai.sin.logic.city.CityRepo;
 import ru.ai.sin.logic.registration.dto.StudentAccountRegistrationReq;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
@@ -72,6 +75,8 @@ class StudentRegistrationServiceImplTest {
     @Mock
     private StudentRepo studentRepo;
     @Mock
+    private CityRepo cityRepo;
+    @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
     private AuthenticationManager authenticationManager;
@@ -102,6 +107,11 @@ class StudentRegistrationServiceImplTest {
         lenient().when(passwordEncoder.encode(anyString())).thenReturn("hash");
         lenient().when(studentRepo.existsByNormalizedEmail(anyString())).thenReturn(false);
         lenient().when(userRepo.existsByUsername(anyString())).thenReturn(false);
+        CityEnt moscow = new CityEnt();
+        moscow.setId(3L);
+        moscow.setName("Москва");
+        lenient().when(cityRepo.findFirstByNameIgnoreCase(anyString())).thenReturn(Optional.empty());
+        lenient().when(cityRepo.findFirstByNameIgnoreCase("Москва")).thenReturn(Optional.of(moscow));
 
         service = new StudentRegistrationServiceImpl(
                 registrationIpRateLimiter,
@@ -113,6 +123,7 @@ class StudentRegistrationServiceImplTest {
                 verificationOtpMailer,
                 userRepo,
                 studentRepo,
+                new CityCatalog(cityRepo),
                 passwordEncoder,
                 authenticationManager,
                 jwtHelper,
@@ -124,7 +135,7 @@ class StudentRegistrationServiceImplTest {
     void register_passwordMismatch_throwsBadRequest() {
         StudentAccountRegistrationReq req = new StudentAccountRegistrationReq(
                 "user1", "SecurePass123", "other", null, null, null, "a@b.c", null, "+79990001122",
-                LocalDate.of(2000, 1, 1));
+                LocalDate.of(2000, 1, 1), null);
 
         assertThatThrownBy(() -> service.registerAndIssueTokens(req, httpRequest))
                 .isInstanceOf(BadRequestException.class)
@@ -136,7 +147,7 @@ class StudentRegistrationServiceImplTest {
         when(registrationProperties.isReservedUsername(eq("root"), any())).thenReturn(true);
         StudentAccountRegistrationReq req = new StudentAccountRegistrationReq(
                 "root", "SecurePass123", "SecurePass123", null, null, null, "a@b.c", null, "+79990001122",
-                LocalDate.of(2000, 1, 1));
+                LocalDate.of(2000, 1, 1), null);
 
         assertThatThrownBy(() -> service.registerAndIssueTokens(req, httpRequest))
                 .isInstanceOf(BadRequestException.class)
@@ -188,7 +199,7 @@ class StudentRegistrationServiceImplTest {
 
         UserEnt savedUser = userCaptor.getValue();
         assertThat(savedUser.getRole()).isEqualTo(RoleEnum.STUDENT);
-        assertThat(savedUser.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        assertThat(savedUser.getAccountStatus()).isEqualTo(AccountStatus.REGISTRATION);
         assertThat(savedUser.getName()).isEqualTo("Иванов Иван Петрович");
         assertThat(savedUser.isPhoneVerified()).isFalse();
         assertThat(savedUser.isEmailVerified()).isFalse();
@@ -203,15 +214,75 @@ class StudentRegistrationServiceImplTest {
     }
 
     @Test
-    void register_mailNotSent_stillCreatesAccount() {
+    void register_unknownCity_doesNotCreateStudent() {
+        StudentAccountRegistrationReq req = new StudentAccountRegistrationReq(
+                "newuser_x",
+                "SecurePass123",
+                "SecurePass123",
+                "Иван",
+                "Иванов",
+                null,
+                "ivan@test.local",
+                "Нет такого",
+                "+79990001122",
+                LocalDate.of(2000, 5, 5),
+                null);
+
+        assertThatThrownBy(() -> service.registerAndIssueTokens(req, httpRequest))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("справочник");
+        verify(studentRepo, never()).save(any());
+    }
+
+    @Test
+    void register_mailNotSent_withDevConfirm_stillCreatesAccount() {
         stubSuccessfulAuth("newuser_x");
         when(studentRepo.save(any(StudentEnt.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(false);
+        when(mailProperties.isAllowDevConfirm()).thenReturn(true);
 
         service.registerAndIssueTokens(baseReq(), httpRequest);
 
-        verify(studentRepo).save(any(StudentEnt.class));
         verify(userRepo).save(any(UserEnt.class));
+    }
+
+    @Test
+    void register_mailNotSent_withoutDevConfirm_throws() {
+        when(studentRepo.save(any(StudentEnt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(false);
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.registerAndIssueTokens(baseReq(), httpRequest))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void resend_mailNotSent_withoutDevConfirm_throws() {
+        UserEnt user = pendingStudentWithOtp();
+        stubCurrentUser(user);
+        when(verificationOtpMailer.trySendStudentEmailOtp(anyString(), anyString(), anyInt())).thenReturn(false);
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.resendEmailConfirmation())
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void confirmEmail_recruiterMailNotSent_withoutDevConfirm_throws() {
+        UserEnt user = pendingStudentWithOtp();
+        user.setRole(RoleEnum.RECRUITER);
+        stubCurrentUser(user);
+        when(passwordEncoder.matches("1234", "otp-hash")).thenReturn(true);
+        when(verificationOtpMailer.trySendRecruiterRegistrationSuccess(anyString(), anyString())).thenReturn(false);
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.confirmEmail("1234"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
     }
 
     @Test
@@ -262,10 +333,11 @@ class StudentRegistrationServiceImplTest {
         assertThat(user.getEmailOtpExpiresAt()).isNull();
         verify(userRepo).save(user);
         verify(verificationOtpMailer, never()).trySendRegistrationSuccess(anyString(), anyString());
+        verify(verificationOtpMailer, never()).trySendRecruiterRegistrationSuccess(anyString(), anyString());
     }
 
     @Test
-    void confirmEmail_recruiter_marksVerified() {
+    void confirmEmail_recruiter_marksVerifiedAndSendsRegistrationMail() {
         UserEnt user = pendingStudentWithOtp();
         user.setRole(RoleEnum.RECRUITER);
         stubCurrentUser(user);
@@ -275,6 +347,7 @@ class StudentRegistrationServiceImplTest {
 
         assertThat(user.isEmailVerified()).isTrue();
         verify(userRepo).save(user);
+        verify(verificationOtpMailer).trySendRecruiterRegistrationSuccess("ivan@test.local", "newuser_x");
     }
 
     @Test
@@ -286,7 +359,7 @@ class StudentRegistrationServiceImplTest {
 
         service.resendEmailConfirmation();
 
-        verify(verificationOtpMailer).trySendStudentEmailOtp(eq("boss@test.local"), anyString(), eq(15));
+        verify(verificationOtpMailer).trySendRecruiterEmailOtp(eq("boss@test.local"), anyString(), eq(15));
     }
 
     @Test
@@ -357,7 +430,8 @@ class StudentRegistrationServiceImplTest {
                 "ivan@test.local",
                 "Москва",
                 "+79990001122",
-                LocalDate.of(2000, 5, 5)
+                LocalDate.of(2000, 5, 5),
+                null
         );
     }
 }

@@ -22,6 +22,8 @@ public interface StudentMapper {
     @Mapping(target = "publicProfileConsent", ignore = true)
     @Mapping(target = "profileTextScore", ignore = true)
     @Mapping(target = "manualSortOrder", ignore = true)
+    @Mapping(target = "city", ignore = true)
+    @Mapping(target = "cityCatalog", ignore = true)
     @Mapping(target = "userInformation.firstName", source = "firstName")
     @Mapping(target = "userInformation.lastName", source = "lastName")
     @Mapping(target = "userInformation.email", source = "email")
@@ -43,6 +45,7 @@ public interface StudentMapper {
     @Mapping(source = "student.catalogVisible", target = "catalogVisible")
     @Mapping(source = "student.profileTextScore", target = "profileTextScore")
     @Mapping(source = "student.manualSortOrder", target = "manualSortOrder")
+    @Mapping(source = "student.cityCatalog.id", target = "cityId")
     StudentDTO toDTO(StudentEnt student, List<SkillDTO> skills);
 
     // ---------------- StudentEnt -> StudentCardDTO ----------------
@@ -66,5 +69,7 @@ public interface StudentMapper {
     @Mapping(target = "publicProfileConsent", ignore = true)
     @Mapping(target = "profileTextScore", ignore = true)
     @Mapping(target = "manualSortOrder", ignore = true)
+    @Mapping(target = "city", ignore = true)
+    @Mapping(target = "cityCatalog", ignore = true)
     void updateEntityFromDto(UpdateStudentReq updateStudentReq, @MappingTarget StudentEnt student);
 }

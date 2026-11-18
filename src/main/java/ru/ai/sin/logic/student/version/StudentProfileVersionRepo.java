@@ -4,7 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,10 +17,6 @@ public interface StudentProfileVersionRepo extends JpaRepository<StudentProfileV
     Optional<StudentProfileVersionEnt> findByStudentIdAndVersionNumber(UUID studentId, int versionNumber);
 
     boolean existsByStudentIdAndStatus(UUID studentId, StudentProfileVersionStatus status);
-
-    List<StudentProfileVersionEnt> findByStatusAndGraceEndsAtBefore(
-            StudentProfileVersionStatus status,
-            LocalDateTime moment);
 
     void deleteByStudentIdAndStatus(UUID studentId, StudentProfileVersionStatus status);
 

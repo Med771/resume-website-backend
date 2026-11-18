@@ -22,24 +22,27 @@ import ru.ai.sin.models.PageResponse;
 
 import ru.ai.sin.logic.request.dto.*;
 
+@Deprecated
 @RestController
 @RequiredArgsConstructor
 @Validated
 @RequestMapping(path = "/request")
-@Tag(name = "Request", description = "Операции управления заявками")
+@Tag(name = "Request", description = "Устарело. Логика будет переписана. Запросы пока работают.")
 public class RequestController {
 
     private final RequestService requestService;
     private final TuDecisionService tuDecisionService;
 
-    @Operation(summary = "Получить заявку по ID", description = "Возвращает детальную информацию о заявке")
+    @Operation(summary = "Получить заявку по ID", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает. Возвращает детальную информацию о заявке")
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping(path = "/{id}")
     public ResponseEntity<RequestDTO> getById(@PathVariable @Min(1) long id) {
         return ResponseEntity.ok(requestService.getById(id));
     }
 
-    @Operation(summary = "Фильтр заявок", description = "Принимает DTO фильтра в request body и Pageable без параметра sort")
+    @Operation(summary = "Фильтр заявок", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает. Принимает DTO фильтра в request body и Pageable без параметра sort")
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping(path = "/filter")
     public ResponseEntity<PageResponse<RequestDTO>> getByFilter(
@@ -48,7 +51,8 @@ public class RequestController {
         return ResponseEntity.ok(requestService.getByFilter(pageable, filterRequestReq));
     }
 
-    @Operation(summary = "Мои заявки", description = "STUDENT или RECRUITER — только свои заявки")
+    @Operation(summary = "Мои заявки", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает. STUDENT или RECRUITER — только свои заявки")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER')")
     @PostMapping(path = "/mine/filter")
     public ResponseEntity<PageResponse<RequestDTO>> getMineByFilter(
@@ -59,7 +63,9 @@ public class RequestController {
 
     @Operation(
             summary = "Создать заявку",
-            description = "Заявка от рекрутера на студента. Роль STUDENT создавать заявки не может. "
+            deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает. "
+                    + "Заявка от рекрутера на студента. Роль STUDENT создавать заявки не может. "
                     + "Студент с catalogVisible=false недоступен не-админу (ответ 404, как при отсутствии id). "
                     + "После первой заявки с полными данными профиль рекрутера привязывается к пользователю; "
                     + "далее достаточно studentId (проверка: GET /recruiter/me). В чате появляется системное сообщение об отправке.")
@@ -69,7 +75,8 @@ public class RequestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(requestService.create(addRequestReq));
     }
 
-    @Operation(summary = "Решение студента по заявке", description = "Принять или отклонить заявку; доступно только владельцу студента (роль STUDENT)")
+    @Operation(summary = "Решение студента по заявке", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает. Принять или отклонить заявку; доступно только владельцу студента (роль STUDENT)")
     @PreAuthorize("hasRole('STUDENT')")
     @PostMapping(path = "/{id}/student-decision")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -79,7 +86,8 @@ public class RequestController {
         requestService.studentRespond(id, req);
     }
 
-    @Operation(summary = "Решение по ТУ", description = "Подтверждение или отказ по заявке на этапе ТУ")
+    @Operation(summary = "Решение по ТУ", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает. Подтверждение или отказ по заявке на этапе ТУ")
     @PreAuthorize("hasAnyRole('STUDENT', 'RECRUITER')")
     @PostMapping(path = "/{id}/tu-decision")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -89,7 +97,8 @@ public class RequestController {
         tuDecisionService.decideOnRequest(id, req);
     }
 
-    @Operation(summary = "Удалить заявку", description = "Удаляет заявку по ID")
+    @Operation(summary = "Удалить заявку", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает. Удаляет заявку по ID")
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

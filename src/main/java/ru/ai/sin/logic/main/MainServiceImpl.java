@@ -8,13 +8,18 @@ import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.recruiter.RecruiterEnt;
+import ru.ai.sin.logic.recruiter.RecruiterRepo;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.student.version.StudentProfileVersionService;
+import ru.ai.sin.logic.user.UserEnt;
+import ru.ai.sin.logic.user.UserRepo;
 
 import java.io.FileNotFoundException;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +27,8 @@ public class MainServiceImpl implements MainService {
 
     private final FileHelper fileHelper;
     private final StudentRepo studentRepo;
+    private final RecruiterRepo recruiterRepo;
+    private final UserRepo userRepo;
     private final AccountAccessHelper accountAccessHelper;
     private final SecurityHelper securityHelper;
     private final StudentProfileVersionService profileVersions;
@@ -53,9 +60,30 @@ public class MainServiceImpl implements MainService {
             }
             return;
         }
+        Optional<RecruiterEnt> recruiter = fileName == null
+                ? Optional.empty()
+                : recruiterRepo.findByImagePath(fileName);
+        if (recruiter != null && recruiter.isPresent()) {
+            if (canReadRecruiterPhoto(recruiter.get().getId())) {
+                return;
+            }
+            throw new NotFoundException("File not found");
+        }
         if (!securityHelper.isCurrentUserAdmin()) {
             throw new NotFoundException("File not found");
         }
+    }
+
+    private boolean canReadRecruiterPhoto(UUID recruiterId) {
+        if (securityHelper.isCurrentUserAdmin()) {
+            return true;
+        }
+        String username = securityHelper.getCurrentUsernameOptional().orElse(null);
+        if (username == null || recruiterId == null) {
+            return false;
+        }
+        UserEnt owner = userRepo.findByRecruiter_Id(recruiterId).orElse(null);
+        return owner != null && username.equals(owner.getUsername());
     }
 
     @Override

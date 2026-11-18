@@ -255,7 +255,7 @@ class StudentResumeAccessMvcTest {
     @WithMockUser(roles = "STUDENT")
     void studentFilterSkill_ok() throws Exception {
         when(skillService.getAllByFilter(any(), any()))
-                .thenReturn(new PageResponse<>(List.of(new SkillDTO(1L, "Java")), 0, 20, 1, 1));
+                .thenReturn(new PageResponse<>(List.of(new SkillDTO(1L, "Java", null, null)), 0, 20, 1, 1));
 
         mockMvc.perform(post("/skill/filter")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -308,8 +308,8 @@ class StudentResumeAccessMvcTest {
         when(studentService.patchMe(any())).thenReturn(new StudentDTO(
                 STUDENT_ID, "City", null, null, "bio", null,
                 CourseEnum.FIRST, BusynessEnum.FREE, null, null, "A", "B", null, null, null, null, null, 1L, "S",
-                List.of(new SkillDTO(1L, "Java")),
-                false, false, 0, null));
+                List.of(new SkillDTO(1L, "Java", null, null)),
+                false, false, 0, null, null));
 
         mockMvc.perform(patch("/student/me")
                         .contentType(MediaType.APPLICATION_JSON)

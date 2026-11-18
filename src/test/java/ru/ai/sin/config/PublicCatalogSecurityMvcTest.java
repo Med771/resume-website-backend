@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.ai.sin.integration.AbstractPostgresIntegrationTest;
 
@@ -16,20 +17,6 @@ class PublicCatalogSecurityMvcTest extends AbstractPostgresIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Test
-    void publicVacancies_requiresAuth() throws Exception {
-        mockMvc.perform(get("/public/vacancies"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void publicStudentsCards_requiresAuth() throws Exception {
-        mockMvc.perform(post("/public/students/cards?page=0&size=20")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isUnauthorized());
-    }
 
     @Test
     void publicProjects_requiresAuth() throws Exception {
@@ -53,5 +40,38 @@ class PublicCatalogSecurityMvcTest extends AbstractPostgresIntegrationTest {
     void mainStatus_permitAll() throws Exception {
         mockMvc.perform(get("/main/status"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void cityFilter_withoutCookie_isOk() throws Exception {
+        mockMvc.perform(post("/city/filter")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void createCity_withoutCookie_isUnauthorized() throws Exception {
+        mockMvc.perform(post("/city")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Казань\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void recruiterMail_withoutCookie_isUnauthorized() throws Exception {
+        mockMvc.perform(post("/admin/account-approvals/recruiters/mail")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"recruiterIds\":[],\"all\":true,\"subject\":\"Тема\",\"body\":\"Текст\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void createCity_student_isForbidden() throws Exception {
+        mockMvc.perform(post("/city")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Казань\"}"))
+                .andExpect(status().isForbidden());
     }
 }

@@ -33,16 +33,18 @@ import ru.ai.sin.models.PageResponse;
 
 import java.util.UUID;
 
+@Deprecated
 @RestController
 @RequiredArgsConstructor
 @Validated
 @RequestMapping(path = "/chat")
-@Tag(name = "Chat", description = "Внутренние чаты рекрутер–студент")
+@Tag(name = "Chat", description = "Устарело. Логика будет переписана. Запросы пока работают.")
 public class ChatController {
 
     private final ChatService chatService;
 
-    @Operation(summary = "Мои чаты")
+    @Operation(summary = "Мои чаты", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @PreAuthorize("isAuthenticated()")
     @GetMapping
     public ResponseEntity<PageResponse<ChatSummaryDTO>> listMyChats(@PageableDefault Pageable pageable) {
@@ -55,14 +57,16 @@ public class ChatController {
                 page.getTotalPages()));
     }
 
-    @Operation(summary = "Сводка по чату")
+    @Operation(summary = "Сводка по чату", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @PreAuthorize("isAuthenticated()")
     @GetMapping(path = "/{chatId}/summary")
     public ResponseEntity<ChatSummaryDTO> summary(@PathVariable UUID chatId) {
         return ResponseEntity.ok(chatService.getChatSummary(chatId));
     }
 
-    @Operation(summary = "Сообщения чата")
+    @Operation(summary = "Сообщения чата", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @PreAuthorize("isAuthenticated()")
     @GetMapping(path = "/{chatId}/messages")
     public ResponseEntity<PageResponse<ChatMessageDTO>> messages(
@@ -77,7 +81,8 @@ public class ChatController {
                 page.getTotalPages()));
     }
 
-    @Operation(summary = "Отправить текст")
+    @Operation(summary = "Отправить текст", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @PreAuthorize("isAuthenticated()")
     @PostMapping(path = "/{chatId}/messages")
     public ResponseEntity<ChatMessageDTO> sendText(
@@ -86,7 +91,8 @@ public class ChatController {
         return ResponseEntity.status(HttpStatus.CREATED).body(chatService.sendTextMessage(chatId, req));
     }
 
-    @Operation(summary = "Отправить сообщение с вложением")
+    @Operation(summary = "Отправить сообщение с вложением", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @PreAuthorize("isAuthenticated()")
     @PostMapping(path = "/{chatId}/messages/attachment", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ChatMessageDTO> sendAttachment(
@@ -97,7 +103,8 @@ public class ChatController {
                 .body(chatService.sendMessageWithAttachment(chatId, body, file));
     }
 
-    @Operation(summary = "Редактировать своё сообщение")
+    @Operation(summary = "Редактировать своё сообщение", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @PreAuthorize("isAuthenticated()")
     @PatchMapping(path = "/{chatId}/messages/{messageId}")
     public ResponseEntity<ChatMessageDTO> edit(
@@ -107,14 +114,16 @@ public class ChatController {
         return ResponseEntity.ok(chatService.editMessage(chatId, messageId, req));
     }
 
-    @Operation(summary = "Контекст чата для админ-панели", description = "Связанные заявки и отклики на вакансии")
+    @Operation(summary = "Контекст чата для админ-панели", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает. Связанные заявки и отклики на вакансии")
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping(path = "/{chatId}/context")
     public ResponseEntity<ChatContextDTO> context(@PathVariable UUID chatId) {
         return ResponseEntity.ok(chatService.getChatContext(chatId));
     }
 
-    @Operation(summary = "Удалить чат целиком (админ)", description = "Каскадно удаляет заявки, отклики, сообщения и чат")
+    @Operation(summary = "Удалить чат целиком (админ)", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает. Каскадно удаляет заявки, отклики, сообщения и чат")
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping(path = "/{chatId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -122,7 +131,8 @@ public class ChatController {
         chatService.adminDeleteChat(chatId);
     }
 
-    @Operation(summary = "Удалить сообщение (админ, мягкое удаление)")
+    @Operation(summary = "Удалить сообщение (админ, мягкое удаление)", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping(path = "/{chatId}/messages/{messageId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -130,7 +140,8 @@ public class ChatController {
         chatService.adminSoftDeleteMessage(chatId, messageId);
     }
 
-    @Operation(summary = "Отметить прочитанным")
+    @Operation(summary = "Отметить прочитанным", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @PreAuthorize("isAuthenticated()")
     @PostMapping(path = "/{chatId}/read")
     @ResponseStatus(HttpStatus.NO_CONTENT)

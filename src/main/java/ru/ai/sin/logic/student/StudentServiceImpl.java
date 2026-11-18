@@ -22,6 +22,7 @@ import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.logic.city.CityCatalog;
 import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
 import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.chat.ChatRepo;
@@ -85,6 +86,7 @@ public class StudentServiceImpl implements StudentService {
     private final StudentReviewState studentReviewState;
     private final StudentProfileChangeRecorder studentProfileChangeRecorder;
     private final StudentProfileVersionService profileVersions;
+    private final CityCatalog cityCatalog;
 
     /**
      * Один read-only boundary на загрузку + маппинг: {@link StudentTools#getStudentOrThrow} завершает свой вложенный tx,
@@ -94,7 +96,6 @@ public class StudentServiceImpl implements StudentService {
     @Transactional(readOnly = true)
     public StudentDTO getById(UUID id) {
         accountAccessHelper.requireCanReadStudentResumeDetails(id);
-        profileVersions.expireDueDrafts();
         StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
         Optional<StudentDTO> draft = profileVersions.draftCard(studentEnt);
         if (draft != null && draft.isPresent()) {
@@ -109,7 +110,6 @@ public class StudentServiceImpl implements StudentService {
         return userTools.findCurrentUserFetchingLinks()
                 .filter(u -> u.getRole() == RoleEnum.STUDENT && u.getStudent() != null)
                 .map(u -> {
-                    profileVersions.expireDueDrafts();
                     Optional<StudentDTO> draft = profileVersions.draftCard(u.getStudent());
                     if (draft != null && draft.isPresent()) {
                         return draft.get();
@@ -133,6 +133,7 @@ public class StudentServiceImpl implements StudentService {
         }
 
         if (profileVersions.capturePhoto(studentEnt.getId(), filePath)) {
+            studentReviewState.onStudentSelfEdit(studentEnt);
             studentProfileChangeRecorder.record(
                     studentEnt.getId(), "/student/photo", "photo", "update", null, List.of("imagePath"));
             return;
@@ -151,6 +152,7 @@ public class StudentServiceImpl implements StudentService {
         accountAccessHelper.requireStudentOwnsProfile(id);
         StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
         if (profileVersions.capturePhotoDelete(id)) {
+            studentReviewState.onStudentSelfEdit(studentEnt);
             studentProfileChangeRecorder.record(
                     id, "/student/photo", "photo", "delete", null, List.of());
             return;
@@ -215,19 +217,13 @@ public class StudentServiceImpl implements StudentService {
             UserEnt currentUser
     ) {
         boolean admin = currentUser.getRole() == RoleEnum.ADMIN;
-        UUID ownId = null;
-        if (!admin && currentUser.getRole() == RoleEnum.STUDENT
-                && currentUser.getAccountStatus() == AccountStatus.APPROVED
-                && currentUser.getStudent() != null) {
-            ownId = currentUser.getStudent().getId();
-        }
-        Sort sort = StudentSortResolver.resolve(filterStudentReq);
+        Sort sort = StudentSortResolver.resolve(filterStudentReq, !admin);
         Pageable effectivePageable = org.springframework.data.domain.PageRequest.of(
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
                 sort);
         return StudentSpecifications.findPage(
-                studentRepo, effectivePageable, filterStudentReq, admin, false, !admin, ownId);
+                studentRepo, effectivePageable, filterStudentReq, admin, false, !admin, null);
     }
 
     @Override
@@ -238,6 +234,7 @@ public class StudentServiceImpl implements StudentService {
         SpecialityEnt specialityEnt = specialityTools.getSpecialityOrThrow(addStudentReq.specialityId());
 
         studentEnt.setSpeciality(specialityEnt);
+        cityCatalog.assignIfPresent(studentEnt, addStudentReq.cityId(), addStudentReq.city());
         studentSkillsMutator.replaceSkills(studentEnt, addStudentReq.skillsIds());
         applyCreateCatalogFlags(addStudentReq, studentEnt);
         studentEnt = saveNewStudent(studentEnt, addStudentReq.email(), addStudentReq.telegramUsername());
@@ -275,6 +272,7 @@ public class StudentServiceImpl implements StudentService {
         studentEnt.setMiddleName(updateStudentReq.middleName());
         studentEnt.setGender(updateStudentReq.gender());
         studentEnt.setSpeciality(specialityEnt);
+        cityCatalog.assignIfPresent(studentEnt, updateStudentReq.cityId(), updateStudentReq.city());
         studentSkillsMutator.replaceSkills(studentEnt, updateStudentReq.skillsIds());
 
         if (updateStudentReq.publicProfileConsent() != null) {
@@ -302,9 +300,9 @@ public class StudentServiceImpl implements StudentService {
         }
         StudentEnt studentEnt = studentTools.getStudentOrThrow(id);
 
+        cityCatalog.assignIfPresent(studentEnt, patchStudentReq.cityId(), patchStudentReq.city());
         applyOptionalResumeFields(
                 studentEnt,
-                patchStudentReq.city(),
                 patchStudentReq.hhLink(),
                 patchStudentReq.birthDate(),
                 patchStudentReq.bio(),
@@ -358,14 +356,15 @@ public class StudentServiceImpl implements StudentService {
 
         List<String> changedFields = StudentProfileChangeRecorder.cardFields(req);
         if (!changedFields.isEmpty() && profileVersions.captureCardPatch(studentEnt.getId(), req)) {
+            studentReviewState.onStudentSelfEdit(studentEnt);
             studentProfileChangeRecorder.record(
                     studentEnt.getId(), "/student/me", "card", "update", null, changedFields);
             return profileVersions.draftCard(studentEnt).orElseGet(() -> studentTools.mapToDTO(studentEnt));
         }
 
+        cityCatalog.assignIfPresent(studentEnt, req.cityId(), req.city());
         applyOptionalResumeFields(
                 studentEnt,
-                req.city(),
                 req.hhLink(),
                 req.birthDate(),
                 req.bio(),
@@ -396,22 +395,47 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(readOnly = true)
     public void completeRegistration() {
-        UserEnt user = currentStudentPendingEmailVerified();
+        UserEnt user = currentStudentEmailVerified();
+        AccountStatus status = user.getAccountStatus();
+        if (status != AccountStatus.REGISTRATION
+                && status != AccountStatus.IN_REVISION
+                && status != AccountStatus.PENDING_APPROVAL) {
+            throw new BadRequestException("Аккаунт уже обработан");
+        }
         verificationOtpMailer.trySendRegistrationSuccess(studentEmail(user), user.getUsername());
     }
 
     @Override
     @Transactional
     public void submitForReview() {
-        UserEnt user = currentStudentPendingEmailVerified();
-        CommunicationReadinessRes readiness = profileCommunicationGateService.evaluateForCurrentUser();
-        if (!readiness.ready()) {
-            throw new ProfileIncompleteException(readiness.missingFields());
+        UserEnt user = currentStudentEmailVerified();
+        AccountStatus status = user.getAccountStatus();
+        boolean draft = profileVersions.hasUnpublished(user.getStudent().getId());
+        if (status != AccountStatus.REGISTRATION
+                && status != AccountStatus.IN_REVISION
+                && status != AccountStatus.PENDING_APPROVAL
+                && !(status == AccountStatus.APPROVED && draft)) {
+            throw new BadRequestException("Аккаунт уже обработан");
+        }
+        if (draft) {
+            profileVersions.assertUnpublishedComplete(user.getStudent());
+        } else {
+            CommunicationReadinessRes readiness = profileCommunicationGateService.evaluateForCurrentUser();
+            if (!readiness.ready()) {
+                throw new ProfileIncompleteException(readiness.missingFields());
+            }
+        }
+        if (status != AccountStatus.PENDING_APPROVAL) {
+            user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+            userRepo.save(user);
+            user.getStudent().setCatalogVisible(false);
+            user.getStudent().setRejectionReason(null);
+            user.getStudent().setRejectionComment(null);
         }
         verificationOtpMailer.trySendProfileSubmitted(studentEmail(user));
     }
 
-    private UserEnt currentStudentPendingEmailVerified() {
+    private UserEnt currentStudentEmailVerified() {
         UserEnt user = userRepo.findByUsernameFetchingLinks(securityHelper.getCurrentUsername())
                 .orElseThrow(() -> new NotFoundException("User not found"));
         if (user.getRole() != RoleEnum.STUDENT || user.getStudent() == null) {
@@ -419,9 +443,6 @@ public class StudentServiceImpl implements StudentService {
         }
         if (!user.isEmailVerified()) {
             throw new BadRequestException("Сначала подтвердите почту");
-        }
-        if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL) {
-            throw new BadRequestException("Аккаунт уже обработан");
         }
         return user;
     }
@@ -513,7 +534,6 @@ public class StudentServiceImpl implements StudentService {
 
     private void applyOptionalResumeFields(
             StudentEnt studentEnt,
-            String city,
             String hhLink,
             LocalDate birthDate,
             String bio,
@@ -532,9 +552,6 @@ public class StudentServiceImpl implements StudentService {
             List<Long> skillsIds,
             Boolean publicProfileConsent
     ) {
-        if (city != null) {
-            studentEnt.setCity(city);
-        }
         if (hhLink != null) {
             studentEnt.setHhLink(hhLink);
         }
@@ -652,6 +669,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @Deprecated
     @Transactional
     public void reorder(ReorderStudentsReq req) {
         List<UUID> ids = req.orderedIds();

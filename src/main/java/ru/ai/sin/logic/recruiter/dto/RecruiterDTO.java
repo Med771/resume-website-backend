@@ -1,5 +1,6 @@
 package ru.ai.sin.logic.recruiter.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 
 import ru.ai.sin.models.enums.CooperationFormat;
@@ -43,5 +44,8 @@ public record RecruiterDTO(
 
         CooperationFormat cooperationFormat,
 
-        Boolean readyToRequestStudents) {
+        Boolean readyToRequestStudents,
+
+        @Schema(description = "Путь к фото. Пусто, пока работодатель его не загрузил")
+        String imagePath) {
 }

@@ -45,14 +45,16 @@
 | PUT | `/student/{id}` | A |
 | PATCH | `/student/{id}` | A |
 | DELETE | `/student/{id}` | A |
+| GET | `/admin/students/{id}/profile-versions` | A, номера версий |
+| GET | `/admin/students/{id}/published-snapshot` | A, последняя одобренная анкета; нет версии — 404 |
 | POST | `/admin/students/reorder` | A |
 | POST | `/admin/students/bulk-visibility` | A |
-| GET | `/public/students/{id}` | вход, устарел |
-| POST | `/public/students/cards` | вход, устарел |
 
 Карточка с `catalog_visible = false` для студента и рекрутера — 404.
 
 ## Заявки и чат
+
+Раздел устарел: пути живые, логика будет заменена.
 
 | Метод | Путь | Кто |
 |-------|------|-----|
@@ -79,48 +81,31 @@
 
 ## Вакансии
 
+Создание, лента и отклики сняты. Таблицы остаются. Админ видит все статусы одним списком.
+
 | Метод | Путь | Кто |
 |-------|------|-----|
-| GET | `/vacancies` | S, R, A |
-| GET | `/vacancies/mine` | R |
-| GET | `/vacancies/{id}` | S, R, A |
-| POST | `/vacancies` | R |
-| PUT | `/vacancies/{id}` | R |
-| POST | `/vacancies/{id}/submit-for-review` | R |
-| POST | `/vacancies/{id}/close` | R |
-| DELETE | `/vacancies/{id}` | R, A |
-| POST | `/vacancies/{id}/applications` | S |
-| GET | `/vacancies/applications/mine` | S |
-| POST | `/vacancies/applications/{applicationId}/withdraw` | S |
-| GET | `/vacancies/{id}/applications` | R |
-| POST | `/vacancies/{id}/applications/{applicationId}/accept` | R |
-| POST | `/vacancies/{id}/applications/{applicationId}/reject` | R |
-| POST | `/vacancies/applications/{applicationId}/tu-decision` | S, R |
-| POST | `/admin/vacancies/filter` | A |
+| GET | `/admin/vacancies` | A, все статусы; `page`, `size` |
 | GET | `/admin/vacancies/{id}` | A |
-| POST | `/admin/vacancies/{id}/approve` | A |
-| POST | `/admin/vacancies/{id}/reject` | A |
-| GET | `/public/vacancies` | вход |
-| GET | `/public/vacancies/{id}` | вход |
-| POST | `/recruiter/onboarding/vacancy` | R |
-| GET | `/recruiter/onboarding/status` | R |
+| POST | `/admin/vacancies/{id}/approve` | A, только из `PENDING_REVIEW` |
+| POST | `/admin/vacancies/{id}/reject` | A, только из `PENDING_REVIEW` |
 
-## Рекрутер, пользователи, модерация
+## Рекрутер и модерация
 
 | Метод | Путь | Кто |
 |-------|------|-----|
 | GET | `/recruiter/me` | R, A |
 | GET | `/recruiter/{id}` | R, A |
 | PATCH | `/recruiter/{id}` | R, A |
+| POST | `/recruiter/photo/{id}` | R своё, A любое; часть `avatarFile` |
+| DELETE | `/recruiter/photo/{id}` | R своё, A любое |
 | POST | `/recruiter` | A |
 | POST | `/recruiter/filter` | A |
 | PUT | `/recruiter/{id}` | A |
 | DELETE | `/recruiter/{id}` | A |
-| POST | `/user/filter` | A |
-| POST | `/user` | A |
-| DELETE | `/user/{id}` | A |
 | GET | `/admin/account-approvals/students` | A, все студенты и их статус; `hasPortfolio`, `hasExperience`, `hasEducation` |
 | GET | `/admin/account-approvals/recruiters` | A, все работодатели и их статус; поиск и сортировка |
+| POST | `/admin/account-approvals/recruiters/mail` | A, письмо на почту работодателя; `recruiterIds` или `all=true` |
 | POST | `/admin/account-approvals/{userId}/approve` | A |
 | POST | `/admin/account-approvals/{userId}/reject` | A |
 | POST | `/admin/recruiter-registration-requests/filter` | A |
@@ -151,8 +136,13 @@
 
 Чтение (`GET /{id}`, `POST /filter`) — **S, R, A**. Создание, правка, удаление — **A**, кроме опыта, портфолио и учёбы студента: их меняет ещё и **S** (свою карточку).
 
+Города студента: `GET /city/{id}` и `POST /city/filter` без входа. Создание, правка и удаление — **A**. В конце анкеты необязательный `cityId`. Текст `city` ищет город и не создаёт его.
+
+У навыка в конце ответа и запроса необязательные `parentId` и `specialityId`. Специальность только у корня. Пустое поле на `PUT` связь не стирает.
+
 | Ресурс | Создание / правка / удаление |
 |--------|------------------------------|
+| `/city` | A |
 | `/company` | A |
 | `/skill` | A |
 | `/speciality` | A |

@@ -5,7 +5,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -43,10 +43,10 @@ class RecruiterControllerMvcTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private RecruiterService recruiterService;
 
-    @MockBean
+    @MockitoBean
     private JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;
 
     private static RecruiterDTO sampleRecruiter() {
@@ -60,6 +60,7 @@ class RecruiterControllerMvcTest {
                 "ann@acme.test",
                 "+79990001122",
                 "ann_tg",
+                null,
                 null,
                 null,
                 null,

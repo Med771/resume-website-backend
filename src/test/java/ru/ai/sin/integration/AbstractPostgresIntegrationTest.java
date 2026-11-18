@@ -1,11 +1,14 @@
 package ru.ai.sin.integration;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import ru.ai.sin.logic.city.CityEnt;
+import ru.ai.sin.logic.city.CityRepo;
 
 /**
  * Общая настройка интеграционных тестов с реальным PostgreSQL (Spring Boot Testing + Testcontainers).
@@ -52,5 +55,16 @@ public abstract class AbstractPostgresIntegrationTest {
         registry.add("JWT_COOKIE_SAME_SITE", () -> "Lax");
         registry.add("SWAGGER_VERSION", () -> "1.0.0");
         registry.add("SWAGGER_ON", () -> "false");
+    }
+
+    @Autowired
+    private CityRepo cityRepo;
+
+    protected CityEnt ensureCity(String name) {
+        return cityRepo.findFirstByNameIgnoreCase(name).orElseGet(() -> {
+            CityEnt city = new CityEnt();
+            city.setName(name);
+            return cityRepo.saveAndFlush(city);
+        });
     }
 }

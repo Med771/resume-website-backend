@@ -8,6 +8,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -27,13 +28,13 @@ public interface StudentRepo extends
         JpaSpecificationExecutor<StudentEnt>  {
 
     @NonNull
-    @EntityGraph(attributePaths = {"speciality", "skills"}, type = EntityGraph.EntityGraphType.LOAD)
+    @EntityGraph(attributePaths = {"speciality", "skills", "cityCatalog"}, type = EntityGraph.EntityGraphType.LOAD)
     Optional<StudentEnt> findById(@NonNull UUID id);
 
     Optional<StudentEnt> findByImagePath(String imagePath);
 
     @NonNull
-    @EntityGraph(attributePaths = {"speciality", "skills"}, type = EntityGraph.EntityGraphType.LOAD)
+    @EntityGraph(attributePaths = {"speciality", "skills", "cityCatalog"}, type = EntityGraph.EntityGraphType.LOAD)
     Page<StudentEnt> findAll(Specification<StudentEnt> specification, @NonNull Pageable pageable);
 
     @Query("""
@@ -68,4 +69,12 @@ public interface StudentRepo extends
               and s.timestamps.createdAt >= :from
               and s.timestamps.createdAt < :to""")
     long countStudentsCreatedBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Modifying(flushAutomatically = true)
+    @Query("update StudentEnt s set s.city = :name where s.cityCatalog.id = :cityId")
+    void syncCityName(@Param("cityId") long cityId, @Param("name") String name);
+
+    @Modifying(flushAutomatically = true)
+    @Query("update StudentEnt s set s.city = null, s.cityCatalog = null where s.cityCatalog.id = :cityId")
+    void detachCity(@Param("cityId") long cityId);
 }

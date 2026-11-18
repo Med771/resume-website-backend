@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.student.StudentEnt;
-import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
@@ -17,12 +16,10 @@ public class StudentReviewState {
 
     private final UserRepo userRepo;
     private final SecurityHelper securityHelper;
-    private final StudentProfileVersionService profileVersions;
 
     /**
-     * Правка своей анкеты студентом: одобренная или отклонённая карточка снова ждёт проверки и скрывается.
-     * Пока статус уже {@link AccountStatus#PENDING_APPROVAL}, повторный вызов ничего не меняет.
-     * Правка администратора статус не трогает.
+     * Своя правка переводит регистрацию, одобрение, отказ или проверку в доработку и скрывает карточку.
+     * Уже начатая доработка не меняется. Правка администратора статус не трогает.
      */
     @Transactional
     public void onStudentSelfEdit(StudentEnt student) {
@@ -34,13 +31,13 @@ public class StudentReviewState {
             return;
         }
         AccountStatus status = user.getAccountStatus();
-        if (status != AccountStatus.APPROVED && status != AccountStatus.REJECTED) {
+        if (status != AccountStatus.REGISTRATION
+                && status != AccountStatus.APPROVED
+                && status != AccountStatus.REJECTED
+                && status != AccountStatus.PENDING_APPROVAL) {
             return;
         }
-        if (profileVersions.hasPublishedVersion(student.getId())) {
-            return;
-        }
-        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setAccountStatus(AccountStatus.IN_REVISION);
         userRepo.save(user);
         student.setCatalogVisible(false);
         student.setRejectionReason(null);

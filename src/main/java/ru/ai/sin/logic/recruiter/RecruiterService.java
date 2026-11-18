@@ -6,6 +6,8 @@ import ru.ai.sin.models.PageResponse;
 
 import ru.ai.sin.logic.recruiter.dto.*;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +33,10 @@ public interface RecruiterService {
 
     // ---------- PATCH METHODS ----------
     RecruiterDTO patch(UUID id, PatchRecruiterReq patchRecruiterReq);
+
+    void setPhoto(UUID id, MultipartFile file);
+
+    void deletePhoto(UUID id);
 
     // ---------- DELETE METHODS ----------
     void deleteById(UUID id);

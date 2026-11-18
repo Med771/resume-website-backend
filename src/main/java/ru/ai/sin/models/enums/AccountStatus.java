@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 public enum AccountStatus {
     PENDING_APPROVAL("PENDING_APPROVAL"),
     APPROVED("APPROVED"),
-    REJECTED("REJECTED");
+    REJECTED("REJECTED"),
+    REGISTRATION("REGISTRATION"),
+    IN_REVISION("IN_REVISION");
 
     private final String code;
 

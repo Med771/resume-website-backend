@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
+import ru.ai.sin.logic.account.dto.AdminRecruiterMailReq;
+import ru.ai.sin.logic.account.dto.AdminRecruiterMailResult;
 import ru.ai.sin.logic.account.dto.AccountEmailVerifiedReq;
 import ru.ai.sin.logic.account.dto.AccountRejectReq;
 import ru.ai.sin.logic.account.dto.RecruiterApprovalSortField;
@@ -26,11 +28,12 @@ import java.util.UUID;
 public class AccountApprovalAdminController {
 
     private final AccountApprovalService accountApprovalService;
+    private final AdminRecruiterMailService adminRecruiterMailService;
 
     @Operation(
             summary = "Все студенты со статусом аккаунта",
             description = """
-                    Страница пользователей с ролью STUDENT: `PENDING_APPROVAL`, `APPROVED` и `REJECTED`.
+                    Страница пользователей с ролью STUDENT: `REGISTRATION`, `IN_REVISION`, `PENDING_APPROVAL`, `APPROVED` и `REJECTED`.
                     В строке `id` пользователя и `studentId` карточки.
                     `hasPortfolio`, `hasExperience`, `hasEducation` — есть ли хотя бы одна запись.
                     Пагинация: `page`, `size`.""")
@@ -65,11 +68,26 @@ public class AccountApprovalAdminController {
     }
 
     @Operation(
+            summary = "Написать работодателям на почту",
+            description = """
+                    Обычный текст на адреса работодателей: registrationEmail, иначе email карточки.
+                    Непустой recruiterIds либо all=true. Один id — письмо одному работодателю.
+                    Не больше 200 получателей.
+                    В теме и тексте подставляются {{recruiterId}}, {{firstName}}, {{lastName}},
+                    {{name}}, {{username}}, {{email}}, {{companyName}}.
+                    Пустое поле даёт пустую строку. Незнакомый {{...}} остаётся как есть.""")
+    @PostMapping("/recruiters/mail")
+    public AdminRecruiterMailResult mailRecruiters(@Valid @RequestBody AdminRecruiterMailReq req) {
+        return adminRecruiterMailService.send(req);
+    }
+
+    @Operation(
             summary = "Одобрить аккаунт",
             description = """
+                    Только из `PENDING_APPROVAL`. `REGISTRATION` и `IN_REVISION` отвечают 400.
                     Студенту — 400, если почта ещё не подтверждена (`emailVerified=false`)
                     или анкета неполная. В `message` перечислены все недостающие или некорректные поля.
-                    `PENDING_APPROVAL` при этом не меняется.""")
+                    Статус при отказе проверки не меняется.""")
     @PostMapping("/{userId}/approve")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void approve(@PathVariable UUID userId) {

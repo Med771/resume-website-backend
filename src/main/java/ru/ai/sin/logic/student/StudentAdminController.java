@@ -21,6 +21,7 @@ import ru.ai.sin.logic.student.dto.AdminStudentMailReq;
 import ru.ai.sin.logic.student.dto.AdminStudentMailResult;
 import ru.ai.sin.logic.student.dto.BulkStudentVisibilityReq;
 import ru.ai.sin.logic.student.dto.BulkStudentVisibilityResult;
+import ru.ai.sin.logic.student.dto.PublishedStudentSnapshotDTO;
 import ru.ai.sin.logic.student.dto.ReorderStudentsReq;
 import ru.ai.sin.logic.student.dto.StudentProfileVersionItemDTO;
 import ru.ai.sin.logic.student.version.StudentProfileVersionService;
@@ -43,7 +44,15 @@ public class StudentAdminController {
         return profileVersions.listForAdmin(id);
     }
 
-    @Operation(summary = "Изменить ручной порядок карточек студентов")
+    @Operation(summary = "Последняя одобренная анкета: карточка, опыт, учёба и портфолио")
+    @GetMapping("/{id}/published-snapshot")
+    public PublishedStudentSnapshotDTO publishedSnapshot(@PathVariable UUID id) {
+        return profileVersions.publishedSnapshotForAdmin(id);
+    }
+
+    @Deprecated
+    @Operation(summary = "Изменить ручной порядок карточек студентов", deprecated = true,
+            description = "Устарело. Каталог этот номер больше не читает. Запрос по-прежнему сохраняет числа.")
     @PostMapping("/reorder")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void reorder(@Valid @RequestBody ReorderStudentsReq req) {

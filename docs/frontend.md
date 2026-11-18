@@ -10,13 +10,13 @@
 - `GET /main/status`
 - регистрация, логин, refresh, logout
 
-`/public/students/**` устарел. Каталог после входа: `POST /student/cardsFilter`. `/public/vacancies/**` без cookie отвечает **401**. Вакансии после входа: `GET /vacancies`.
+Каталог после входа: `POST /student/cardsFilter`. Вакансии для сайта и рекрутёра сняты. Админ смотрит список: `GET /admin/vacancies`.
 
 ## Сессия
 
 `GET /auth/me` возвращает `id`, `username`, `role`, `accountStatus`, `emailVerified`, `hintsDisabled`.
 
-Роль: `STUDENT`, `RECRUITER`, `ADMIN`. Статус аккаунта: `PENDING_APPROVAL`, `APPROVED`, `REJECTED`.
+Роль: `STUDENT`, `RECRUITER`, `ADMIN`. Статус аккаунта: `REGISTRATION`, `IN_REVISION`, `PENDING_APPROVAL`, `APPROVED`, `REJECTED`.
 
 Access кончается — `POST /auth/refresh` (нужна refresh-cookie). Выход — `POST /auth/logout`.
 

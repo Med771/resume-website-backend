@@ -23,6 +23,7 @@ import ru.ai.sin.tools.ExperienceTools;
 import ru.ai.sin.tools.StudentTools;
 
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,6 +84,21 @@ class ExperienceServiceImplAccessTest {
         verify(accountAccessHelper).requireStudentCanMutateResume(OWN_ID);
         verify(studentTools).getStudentOrThrow(OWN_ID);
         verify(studentTools, never()).getStudentOrThrow(OTHER_ID);
+    }
+
+    @Test
+    void create_draftKeepsPendingByAskingReviewState() {
+        AddExperienceReq req = new AddExperienceReq(
+                1L, OWN_ID, "Dev", null, LocalDate.of(2020, 1, 1), null, null);
+        when(accountAccessHelper.resolveStudentIdForResumeMutation(OWN_ID)).thenReturn(OWN_ID);
+        StudentEnt own = student(OWN_ID);
+        ExperienceDTO drafted = dto(OWN_ID);
+        when(profileVersions.captureExperienceCreate(OWN_ID, req)).thenReturn(Optional.of(drafted));
+        when(studentTools.getStudentOrThrow(OWN_ID)).thenReturn(own);
+
+        assertThat(experienceService.create(req)).isEqualTo(drafted);
+        verify(studentReviewState).onStudentSelfEdit(own);
+        verify(experienceRepo, never()).save(any());
     }
 
     @Test

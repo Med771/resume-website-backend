@@ -41,3 +41,7 @@ logs
 ### Local Storage ###
 tmp
 file
+
+# Локальный запуск
+src/main/resources/application-dev.yaml
+src/main/resources/application-test.yaml

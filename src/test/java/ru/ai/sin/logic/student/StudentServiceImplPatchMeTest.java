@@ -11,6 +11,8 @@ import ru.ai.sin.helper.AccountAccessHelper;
 import ru.ai.sin.helper.FileHelper;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.StudentReviewState;
+import ru.ai.sin.logic.city.CityCatalog;
+import ru.ai.sin.logic.city.CityEnt;
 import ru.ai.sin.logic.analytics.StudentProfileChangeRecorder;
 import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.chat.ChatRepo;
@@ -37,6 +39,8 @@ import ru.ai.sin.tools.SpecialityTools;
 import ru.ai.sin.tools.StudentTools;
 import ru.ai.sin.tools.UserTools;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.FileNotFoundException;
 import java.time.LocalDate;
@@ -49,7 +53,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -107,6 +114,8 @@ class StudentServiceImplPatchMeTest {
     private StudentProfileChangeRecorder studentProfileChangeRecorder;
     @Mock
     private StudentProfileVersionService profileVersions;
+    @Mock
+    private CityCatalog cityCatalog;
 
     @InjectMocks
     private StudentServiceImpl studentService;
@@ -163,10 +172,11 @@ class StudentServiceImplPatchMeTest {
         StudentDTO dto = new StudentDTO(
                 ID, "c", "h", LocalDate.of(1999, 5, 5), "new bio", null,
                 CourseEnum.FIRST, BusynessEnum.FREE, null, null, "A", "B", null, null, null, null, null, 1L, "S",
-                List.of(new SkillDTO(1L, "Java")),
+                List.of(new SkillDTO(1L, "Java", null, null)),
                 false,
                 false,
                 0,
+                null,
                 null
         );
         when(studentTools.mapToDTO(studentEnt)).thenReturn(dto);
@@ -174,7 +184,7 @@ class StudentServiceImplPatchMeTest {
         PatchStudentMeReq req = new PatchStudentMeReq(
                 null, null, null, "new bio", null, null, null, null,
                 null, null, null, null, null, null, null, null,
-                List.of(1L), null, null);
+                List.of(1L), null, null, null);
 
         assertThat(studentService.patchMe(req).bio()).isEqualTo("new bio");
         verify(studentReviewState).onStudentSelfEdit(studentEnt);
@@ -247,6 +257,199 @@ class StudentServiceImplPatchMeTest {
         studentService.submitForReview();
 
         verify(verificationOtpMailer).trySendProfileSubmitted("student@test.local");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+    }
+
+    @Test
+    void submitForReview_registration_movesToPending() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = pendingStudent(studentEnt);
+        user.setAccountStatus(AccountStatus.REGISTRATION);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        when(profileCommunicationGateService.evaluateForCurrentUser())
+                .thenReturn(new CommunicationReadinessRes(true, List.of()));
+
+        studentService.submitForReview();
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
+        verify(verificationOtpMailer).trySendProfileSubmitted("student@test.local");
+    }
+
+    @Test
+    void submitForReview_approvedWithoutDraft_isBadRequest() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = pendingStudent(studentEnt);
+        user.setAccountStatus(AccountStatus.APPROVED);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> studentService.submitForReview())
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("обработан");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        verify(verificationOtpMailer, never()).trySendProfileSubmitted(any());
+    }
+
+    @Test
+    void patchMe_cityText_usesCatalog() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = new UserEnt();
+        user.setRole(RoleEnum.STUDENT);
+        user.setStudent(studentEnt);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        when(studentTools.mapToDTO(studentEnt)).thenReturn(sampleDto());
+        doAnswer(invocation -> {
+            StudentEnt student = invocation.getArgument(0);
+            student.setCity("Казань");
+            return null;
+        }).when(cityCatalog).assignIfPresent(any(), isNull(), eq("казань"));
+
+        studentService.patchMe(cityPatch("казань"));
+
+        assertThat(studentEnt.getCity()).isEqualTo("Казань");
+    }
+
+    @Test
+    void patchMe_unknownCity_isBadRequest() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        studentEnt.setCity("Казань");
+        UserEnt user = new UserEnt();
+        user.setRole(RoleEnum.STUDENT);
+        user.setStudent(studentEnt);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        doThrow(new BadRequestException("Город не найден в справочнике"))
+                .when(cityCatalog).assignIfPresent(any(), isNull(), eq("Нет такого"));
+
+        assertThatThrownBy(() -> studentService.patchMe(cityPatch("Нет такого")))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("справочник");
+        assertThat(studentEnt.getCity()).isEqualTo("Казань");
+    }
+
+    @Test
+    void patchMe_withoutCity_keepsChosenCity() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        CityEnt city = new CityEnt();
+        city.setId(5L);
+        city.setName("Казань");
+        studentEnt.setCity("Казань");
+        studentEnt.setCityCatalog(city);
+        UserEnt user = new UserEnt();
+        user.setRole(RoleEnum.STUDENT);
+        user.setStudent(studentEnt);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        when(studentTools.mapToDTO(studentEnt)).thenReturn(sampleDto());
+
+        studentService.patchMe(cityPatch(null));
+
+        assertThat(studentEnt.getCity()).isEqualTo("Казань");
+        assertThat(studentEnt.getCityCatalog()).isSameAs(city);
+    }
+
+    @Test
+    void patchMe_pendingWithPublishedVersion_movesToRevision() {
+        UserEnt user = pendingEditor();
+        when(profileVersions.captureCardPatch(eq(ID), any())).thenReturn(true);
+        when(profileVersions.draftCard(user.getStudent())).thenReturn(Optional.of(sampleDto()));
+        useRealReviewState();
+
+        studentService.patchMe(bioPatch());
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
+    }
+
+    @Test
+    void patchMe_pendingWithoutPublishedVersion_movesToRevision() {
+        UserEnt user = pendingEditor();
+        when(studentTools.mapToDTO(user.getStudent())).thenReturn(sampleDto());
+        useRealReviewState();
+
+        studentService.patchMe(bioPatch());
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
+        assertThat(user.getStudent().getBio()).isEqualTo("new bio");
+    }
+
+    @Test
+    void patchMe_approvedWithDraft_movesToRevision() {
+        UserEnt user = pendingEditor();
+        user.setAccountStatus(AccountStatus.APPROVED);
+        user.getStudent().setCatalogVisible(true);
+        when(profileVersions.captureCardPatch(eq(ID), any())).thenReturn(true);
+        when(profileVersions.draftCard(user.getStudent())).thenReturn(Optional.of(sampleDto()));
+        useRealReviewState();
+
+        studentService.patchMe(bioPatch());
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
+        assertThat(user.getStudent().isCatalogVisible()).isFalse();
+    }
+
+    @Test
+    void setPhoto_pendingWithDraft_movesToRevision() {
+        UserEnt user = pendingEditor();
+        when(studentTools.getStudentOrThrow(ID)).thenReturn(user.getStudent());
+        MultipartFile file = mock(MultipartFile.class);
+        when(fileHelper.saveFile(file, ID.toString())).thenReturn("photo.jpg");
+        when(profileVersions.capturePhoto(ID, "photo.jpg")).thenReturn(true);
+        useRealReviewState();
+
+        studentService.setPhoto(ID, file);
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
+    }
+
+    private UserEnt pendingEditor() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = new UserEnt();
+        user.setRole(RoleEnum.STUDENT);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setStudent(studentEnt);
+        lenient().when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        lenient().when(securityHelper.getCurrentRoleOptional()).thenReturn(Optional.of(RoleEnum.STUDENT.getRole()));
+        lenient().when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        lenient().when(userRepo.findByStudent_Id(ID)).thenReturn(Optional.of(user));
+        return user;
+    }
+
+    private void useRealReviewState() {
+        StudentReviewState real = new StudentReviewState(userRepo, securityHelper);
+        doAnswer(invocation -> {
+            real.onStudentSelfEdit(invocation.getArgument(0));
+            return null;
+        }).when(studentReviewState).onStudentSelfEdit(any());
+    }
+
+    private static PatchStudentMeReq bioPatch() {
+        return new PatchStudentMeReq(
+                null, null, null, "new bio", null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                null, null, null, null);
+    }
+
+    private static PatchStudentMeReq cityPatch(String city) {
+        return new PatchStudentMeReq(
+                city, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                null, null, null, null);
+    }
+
+    private static StudentDTO sampleDto() {
+        return new StudentDTO(
+                ID, "c", "h", LocalDate.of(1999, 5, 5), "bio", null,
+                CourseEnum.FIRST, BusynessEnum.FREE, null, null, "A", "B", null, null, null, null, null, 1L, "S",
+                List.of(new SkillDTO(1L, "Java", null, null)),
+                false, false, 0, null, null);
     }
 
     private static UserEnt pendingStudent(StudentEnt studentEnt) {

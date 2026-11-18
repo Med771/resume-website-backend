@@ -202,10 +202,11 @@ class StudentServiceImplVisibilityTest {
         return new StudentDTO(
                 ID, "c", "h", LocalDate.of(1999, 5, 5), null, null,
                 CourseEnum.FIRST, BusynessEnum.FREE, null, null, "A", "B", null, null, null, null, null, 1L, "S",
-                List.of(new SkillDTO(1L, "x")),
+                List.of(new SkillDTO(1L, "x", null, null)),
                 false,
                 false,
                 0,
+                null,
                 null
         );
     }

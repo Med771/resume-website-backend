@@ -3,7 +3,7 @@ package ru.ai.sin.logic.vacancy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -13,7 +13,6 @@ import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.skill.SkillMapper;
 import ru.ai.sin.logic.skill.SkillOrder;
 import ru.ai.sin.logic.skill.dto.SkillDTO;
-import ru.ai.sin.logic.vacancy.dto.FilterVacancyModerationReq;
 import ru.ai.sin.logic.vacancy.dto.VacancyDTO;
 import ru.ai.sin.logic.vacancy.dto.VacancyModerationRejectReq;
 import ru.ai.sin.models.PageResponse;
@@ -34,17 +33,14 @@ public class VacancyModerationAdminServiceImpl implements VacancyModerationAdmin
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<VacancyDTO> filter(Pageable pageable, FilterVacancyModerationReq filter) {
-        Page<VacancyEnt> page = vacancyRepo.findAll(
-                VacancySpecifications.moderationFilters(filter),
-                pageable
-        );
+    public PageResponse<VacancyDTO> list(int page, int size) {
+        Page<VacancyEnt> result = vacancyRepo.findAll(PageRequest.of(page, size));
         return new PageResponse<>(
-                page.getContent().stream().map(this::toDto).toList(),
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                page.getTotalElements(),
-                page.getTotalPages()
+                result.getContent().stream().map(this::toDto).toList(),
+                page,
+                size,
+                result.getTotalElements(),
+                result.getTotalPages()
         );
     }
 

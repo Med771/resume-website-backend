@@ -45,6 +45,7 @@ public record StudentCardDTO(
         @NotNull
         List<SkillDTO> skills,
 
-        @Schema(description = "Ручной приоритет в каталоге (см. `StudentDTO.manualSortOrder`); для анонимной витрины может использоваться в сортировке")
+        @Deprecated
+        @Schema(deprecated = true, description = "Устарело. Каталог по этому номеру больше не сортирует. Поле остаётся в ответе.")
         Integer manualSortOrder) {
 }

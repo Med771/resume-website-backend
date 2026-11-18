@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.ai.sin.config.property.MailProperties;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.SecurityHelper;
@@ -58,6 +59,7 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     private final InstitutionRepo institutionRepo;
     private final SecurityHelper securityHelper;
     private final VerificationOtpMailer verificationOtpMailer;
+    private final MailProperties mailProperties;
     private final AnalyticsEventWriter analyticsEventWriter;
     private final StudentProfileVersionService profileVersions;
 
@@ -65,7 +67,6 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     @Transactional(readOnly = true)
     public PageResponse<AccountApprovalUserDTO> listStudents(int page, int size) {
         PageRequest pr = PageRequest.of(page, size);
-        profileVersions.expireDueDrafts();
         Page<UserEnt> result = userRepo.findByRole(RoleEnum.STUDENT, pr);
         Set<UUID> studentIds = result.getContent().stream()
                 .map(UserEnt::getStudent)
@@ -125,6 +126,10 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
     public void approve(UUID userId) {
         UserEnt user = userRepo.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь не найден: " + userId));
+        if (user.getAccountStatus() == AccountStatus.REGISTRATION
+                || user.getAccountStatus() == AccountStatus.IN_REVISION) {
+            throw new BadRequestException("Аккаунт ещё не отправлен на проверку");
+        }
         boolean republish = user.getStudent() != null && profileVersions.hasUnpublished(user.getStudent().getId());
         if (user.getAccountStatus() != AccountStatus.PENDING_APPROVAL && !republish) {
             throw new BadRequestException("Аккаунт уже обработан");
@@ -158,7 +163,13 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         if (user.getRole() == RoleEnum.STUDENT) {
             String email = studentEmail(user);
             if (email != null) {
-                verificationOtpMailer.trySendAccountApproved(email, user.getUsername());
+                requireSent(verificationOtpMailer.trySendAccountApproved(email, user.getUsername()));
+            }
+        }
+        if (user.getRole() == RoleEnum.RECRUITER) {
+            String email = accountEmail(user);
+            if (email != null) {
+                requireSent(verificationOtpMailer.trySendRecruiterAccountApproved(email, user.getUsername()));
             }
         }
         if (user.getRole() == RoleEnum.STUDENT && user.getStudent() != null) {
@@ -195,8 +206,7 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
         if (user.getRole() == RoleEnum.STUDENT) {
             rejectStudent(user, body);
         } else {
-            user.setAccountStatus(AccountStatus.REJECTED);
-            userRepo.save(user);
+            rejectRecruiter(user, body);
         }
         log.info("Account rejected: userId={} by {} reason={} comment={}",
                 userId,
@@ -290,6 +300,49 @@ public class AccountApprovalServiceImpl implements AccountApprovalService {
             return null;
         }
         return comment.trim();
+    }
+
+    private void rejectRecruiter(UserEnt user, AccountRejectReq body) {
+        String reason = null;
+        String comment = null;
+        if (body != null && body.reasonCode() != null && !body.reasonCode().isBlank()) {
+            AccountRejectionReason parsed = parseRejectionReason(body);
+            comment = normalizeComment(body.comment());
+            if (parsed == AccountRejectionReason.OTHER && comment == null) {
+                throw new BadRequestException("Укажите комментарий");
+            }
+            reason = parsed.formulation(comment);
+        } else if (body != null) {
+            comment = normalizeComment(body.comment());
+        }
+        user.setAccountStatus(AccountStatus.REJECTED);
+        userRepo.save(user);
+        String email = accountEmail(user);
+        if (email == null) {
+            log.warn("Recruiter rejection email skipped: no email, userId={}", user.getId());
+            return;
+        }
+        verificationOtpMailer.trySendRecruiterAccountRejected(email, user.getUsername(), reason, comment);
+    }
+
+    private void requireSent(boolean sent) {
+        if (!sent && !mailProperties.isAllowDevConfirm()) {
+            throw new BadRequestException("Не удалось отправить код на почту. Попробуйте позже.");
+        }
+    }
+
+    private static String accountEmail(UserEnt user) {
+        String studentAddress = studentEmail(user);
+        if (studentAddress != null) {
+            return studentAddress;
+        }
+        if (user.getRecruiter() != null
+                && user.getRecruiter().getUserInformation() != null
+                && user.getRecruiter().getUserInformation().getEmail() != null
+                && !user.getRecruiter().getUserInformation().getEmail().isBlank()) {
+            return user.getRecruiter().getUserInformation().getEmail().trim();
+        }
+        return null;
     }
 
     private static String studentEmail(UserEnt user) {

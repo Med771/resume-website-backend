@@ -44,7 +44,7 @@ logging:
 
 app:
   info:
-    version: 1.0.6
+    version: 1.0.7
 
   logging:
     pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"

@@ -15,7 +15,7 @@ import java.util.UUID;
         name = "StudentDTO",
         description = """
                 Полная карточка студента для каталога и админки после входа (`GET /student/{id}`, фильтры, ответы PUT/PATCH).
-                Для анонимной витрины используется `StudentCardDTO` и отдельные эндпоинты `/public/students/...`.""")
+                Короткая карточка каталога — `StudentCardDTO`.""")
 public record StudentDTO(
         @Schema(description = "ID студента")
         @NotNull
@@ -97,8 +97,12 @@ public record StudentDTO(
         @Schema(description = "Денормализованная метрика объёма текстовых полей; обновляется при сохранении карточки; участвует в сортировке")
         int profileTextScore,
 
-        @Schema(description = """
-                Ручной приоритет в каталоге: меньшее число — выше при сортировке по релевантности и при `sortBy=MANUAL_SORT_ORDER` ASC.
-                Задаётся админом (`PUT`/`PATCH /student/{id}`). `null` — не задан (в конце списка при ASC на PostgreSQL).""")
-        Integer manualSortOrder) {
+        @Deprecated
+        @Schema(deprecated = true, description = """
+                Устарело. Каталог по этому номеру больше не сортирует.
+                Поле остаётся в ответе. `null` — номер не задан.""")
+        Integer manualSortOrder,
+
+        @Schema(description = "Город из справочника. Пусто, если в снимке имя, которого в справочнике уже нет")
+        Long cityId) {
 }

@@ -13,17 +13,21 @@ import java.util.Set;
 @Schema(
         name = "FilterStudentReq",
         description = """
-                Фильтры списка студентов для `POST /student/cardsFilter`, `POST /student/filter` и `POST /public/students/cards`.
+                Фильтры списка студентов для `POST /student/cardsFilter` и `POST /student/filter`.
 
                 **Сортировка:** только поля ниже; query-параметр `sort` у `Pageable` на сервере **не используется** (белый список полей).
 
-                **useDefaultRanking:** если `null` или `true`, и `sortBy` не задан или равен `RELEVANCE`, порядок такой:
-                `manualSortOrder` ASC (на PostgreSQL NULL в конце по умолчанию), затем `profileTextScore` DESC, затем `imagePath` ASC, затем дата создания DESC.
-                Явный NULLS LAST в Spring Sort недоступен вместе с Specification — см. StudentSortResolver.
+                **useDefaultRanking:** если `null` или `true`, и `sortBy` не задан или равен `RELEVANCE`.
+                Студент и работодатель без строки поиска видят порядок: статус поиска (`looking`, `considering`, затем `not_looking` и пусто),
+                внутри него желаемый формат (`employed`, `freelance`, `project_work`, затем `free` и пусто).
+                Админ и поиск по строке: `profileTextScore` DESC, затем `imagePath` ASC, затем дата создания DESC.
+                Ручной номер админа устарел и в этот порядок не входит.
 
                 Если `useDefaultRanking=false`, используется `sortBy` (по умолчанию `CREATED_AT`, если null) и `sortDirection` (по умолчанию DESC).""")
 public record FilterStudentReq(
-        @Schema(description = "Подстрока: сначала полное ФИО, если никого нет — описание")
+        @Schema(description = """
+                Подстрока. Студент и работодатель ищут её в фамилии или имени.
+                Админ ищет в склейке «имя фамилия отчество», а если никого нет — в описании.""")
         String findString,
 
         @Schema(description = "Ограничение по одному или нескольким значениям курса (`CourseEnum`)")

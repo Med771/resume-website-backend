@@ -20,6 +20,8 @@ import java.util.UUID;
 public interface RecruiterRepo extends JpaRepository<RecruiterEnt, UUID>, JpaSpecificationExecutor<RecruiterEnt> {
     Optional<RecruiterEnt> findByUserInformationEmail(String email);
 
+    Optional<RecruiterEnt> findByImagePath(String imagePath);
+
     @Query("""
             SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END
             FROM RecruiterEnt r

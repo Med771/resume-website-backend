@@ -17,12 +17,17 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.ai.sin.models.PageResponse;
 
 import ru.ai.sin.logic.skill.dto.*;
+import ru.ai.sin.logic.speciality.SpecialityEnt;
 
 import ru.ai.sin.exception.models.BadRequestException;
 
 import ru.ai.sin.helper.SecurityHelper;
 
 import ru.ai.sin.tools.SkillTools;
+import ru.ai.sin.tools.SpecialityTools;
+
+import java.util.HashSet;
+import java.util.Set;
 
 
 @Slf4j
@@ -36,14 +41,18 @@ public class SkillServiceImpl implements SkillService {
 
     private final SkillTools skillTools;
 
+    private final SpecialityTools specialityTools;
+
     private final SecurityHelper securityHelper;
 
     @Override
+    @Transactional(readOnly = true)
     public SkillDTO getById(long id) {
         return skillMapper.toDTO(skillTools.getSkillOrThrow(id));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<SkillDTO> getAllByFilter(Pageable pageable, FilterSkillReq filterSkillReq) {
         Pageable ordered = PageRequest.of(
                 pageable.getPageNumber(),
@@ -65,8 +74,20 @@ public class SkillServiceImpl implements SkillService {
 
 
     @Override
+    @Transactional
     public SkillDTO create(AddSkillReq addSkillReq) {
+        if (addSkillReq.parentId() != null && addSkillReq.specialityId() != null) {
+            throw new BadRequestException("Специальность задаётся только корню");
+        }
         SkillEnt skillEnt = new SkillEnt(addSkillReq.name());
+        if (addSkillReq.parentId() != null) {
+            SkillEnt parent = skillTools.getSkillOrThrow(addSkillReq.parentId());
+            assertNoCycle(null, parent);
+            skillEnt.setParent(parent);
+        }
+        if (addSkillReq.specialityId() != null) {
+            skillEnt.setSpeciality(requireSpeciality(addSkillReq.specialityId()));
+        }
 
         try {
             skillEnt = skillRepo.save(skillEnt);
@@ -95,6 +116,7 @@ public class SkillServiceImpl implements SkillService {
         SkillEnt skillEnt = skillTools.getSkillOrThrow(id);
 
         skillMapper.updateEntityFromDto(updateSkillReq, skillEnt);
+        applyGraph(skillEnt, updateSkillReq);
 
         SkillDTO skillDTO = skillMapper.toDTO(skillEnt);
 
@@ -118,5 +140,60 @@ public class SkillServiceImpl implements SkillService {
         }
 
         log.info("User: {}, deleted a skill: {} with data: {}", securityHelper.getCurrentUsername(), id, skillEnt);
+    }
+
+    private void applyGraph(SkillEnt skill, UpdateSkillReq req) {
+        boolean setParent = req.parentId() != null;
+        boolean clearParent = Boolean.TRUE.equals(req.clearParent());
+        boolean setSpeciality = req.specialityId() != null;
+        boolean clearSpeciality = Boolean.TRUE.equals(req.clearSpeciality());
+        if (setParent && clearParent) {
+            throw new BadRequestException("Укажите либо parentId, либо clearParent");
+        }
+        if (setSpeciality && clearSpeciality) {
+            throw new BadRequestException("Укажите либо specialityId, либо clearSpeciality");
+        }
+        if (setParent && setSpeciality) {
+            throw new BadRequestException("Специальность задаётся только корню");
+        }
+        if (clearParent) {
+            skill.setParent(null);
+        }
+        if (setParent) {
+            if (req.parentId().equals(skill.getId())) {
+                throw new BadRequestException("Навык не может быть родителем самого себя");
+            }
+            SkillEnt parent = skillTools.getSkillOrThrow(req.parentId());
+            assertNoCycle(skill.getId(), parent);
+            skill.setParent(parent);
+            skill.setSpeciality(null);
+        }
+        if (clearSpeciality) {
+            skill.setSpeciality(null);
+        }
+        if (setSpeciality) {
+            if (skill.getParent() != null) {
+                throw new BadRequestException("Специальность задаётся только корню");
+            }
+            skill.setSpeciality(requireSpeciality(req.specialityId()));
+        }
+    }
+
+    private void assertNoCycle(Long skillId, SkillEnt parent) {
+        Set<Long> seen = new HashSet<>();
+        if (skillId != null) {
+            seen.add(skillId);
+        }
+        SkillEnt current = parent;
+        while (current != null) {
+            if (!seen.add(current.getId())) {
+                throw new BadRequestException("Такой родитель замыкает граф навыков");
+            }
+            current = current.getParent();
+        }
+    }
+
+    private SpecialityEnt requireSpeciality(Long specialityId) {
+        return specialityTools.getSpecialityOrThrow(specialityId);
     }
 }

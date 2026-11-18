@@ -10,7 +10,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.exception.models.NotFoundException;
 import ru.ai.sin.helper.SecurityHelper;
+import ru.ai.sin.logic.city.CityCatalog;
 import ru.ai.sin.logic.company.CompanyRepo;
+import ru.ai.sin.logic.experience.ExperienceEnt;
+import ru.ai.sin.logic.portfolio.PortfolioEnt;
+import ru.ai.sin.logic.portfolio.dto.PortfolioDTO;
+import ru.ai.sin.logic.student.dto.StudentProfileVersionItemDTO;
 import ru.ai.sin.logic.education.EducationRepo;
 import ru.ai.sin.logic.experience.ExperienceRepo;
 import ru.ai.sin.logic.institution.InstitutionRepo;
@@ -27,7 +32,6 @@ import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -39,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -70,6 +75,8 @@ class StudentProfileVersionServiceTest {
     private EducationRepo educationRepo;
     @Mock
     private SecurityHelper securityHelper;
+    @Mock
+    private CityCatalog cityCatalog;
 
     private final List<StudentProfileVersionEnt> rows = new ArrayList<>();
     private Clock clock;
@@ -80,10 +87,15 @@ class StudentProfileVersionServiceTest {
     @BeforeEach
     void setUp() {
         clock = Clock.fixed(Instant.parse("2026-11-08T12:00:00Z"), ZONE);
+        lenient().doAnswer(invocation -> {
+            StudentEnt target = invocation.getArgument(0);
+            target.setCity(invocation.getArgument(1));
+            return null;
+        }).when(cityCatalog).restoreFromSnapshot(any(), nullable(String.class));
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
         service = new StudentProfileVersionService(
                 versionRepo, studentRepo, userRepo, experienceRepo, institutionRepo, portfolioRepo,
-                skillRepo, specialityRepo, companyRepo, educationRepo, securityHelper, mapper, clock);
+                skillRepo, specialityRepo, companyRepo, educationRepo, securityHelper, mapper, cityCatalog, clock);
         student = new StudentEnt();
         student.setId(STUDENT_ID);
         student.setBio("old bio");
@@ -113,11 +125,6 @@ class StudentProfileVersionServiceTest {
         lenient().when(versionRepo.existsByStudentIdAndStatus(any(), any())).thenAnswer(invocation -> rows.stream()
                 .anyMatch(row -> row.getStudentId().equals(invocation.getArgument(0))
                         && row.getStatus() == invocation.getArgument(1)));
-        lenient().when(versionRepo.findByStatusAndGraceEndsAtBefore(any(), any())).thenAnswer(invocation -> rows.stream()
-                .filter(row -> row.getStatus() == invocation.getArgument(0)
-                        && row.getGraceEndsAt() != null
-                        && row.getGraceEndsAt().isBefore(invocation.getArgument(1)))
-                .toList());
         lenient().doAnswer(invocation -> {
             UUID studentId = invocation.getArgument(0);
             StudentProfileVersionStatus status = invocation.getArgument(1);
@@ -135,14 +142,13 @@ class StudentProfileVersionServiceTest {
     }
 
     @Test
-    void beforeFirstApproval_publishedIsMissingAndGraceIsEmpty() {
+    void beforeFirstApproval_publishedIsMissing() {
         assertThat(service.hasPublishedVersion(STUDENT_ID)).isFalse();
         assertThatThrownBy(() -> service.publishedCard(student)).isInstanceOf(NotFoundException.class);
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
     }
 
     @Test
-    void firstEditKeepsApprovedTextInCatalogAndOpensGrace() {
+    void firstEditKeepsApprovedTextInCatalog() {
         service.publishOnApprove(student);
 
         boolean captured = service.captureCardPatch(STUDENT_ID, patch("new bio"));
@@ -150,61 +156,44 @@ class StudentProfileVersionServiceTest {
         assertThat(captured).isTrue();
         assertThat(student.getBio()).isEqualTo("old bio");
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isEqualTo(LocalDateTime.now(clock).plusMinutes(5));
         assertThat(service.draftCard(student).orElseThrow().bio()).isEqualTo("new bio");
         assertThat(service.publishedCard(student).bio()).isEqualTo("old bio");
     }
 
     @Test
-    void secondEditDoesNotMoveGrace() {
+    void secondEditKeepsTheDraft() {
         service.publishOnApprove(student);
         service.captureCardPatch(STUDENT_ID, patch("new bio"));
-        LocalDateTime grace = service.activeGraceEndsAt(STUDENT_ID);
 
         service.captureCardPatch(STUDENT_ID, patch("newer bio"));
 
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isEqualTo(grace);
         assertThat(service.draftCard(student).orElseThrow().bio()).isEqualTo("newer bio");
     }
 
     @Test
-    void revertInsideGraceDeletesDraftAndKeepsApproval() {
+    void revertWhileRevisingDeletesDraftAndRestoresApproval() {
         service.publishOnApprove(student);
         service.captureCardPatch(STUDENT_ID, patch("new bio"));
+        user.setAccountStatus(AccountStatus.IN_REVISION);
+        student.setCatalogVisible(false);
 
         service.revertDraft(STUDENT_ID);
 
         assertThat(service.draftCard(student)).isEmpty();
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        assertThat(student.isCatalogVisible()).isTrue();
         assertThat(service.publishedCard(student).bio()).isEqualTo("old bio");
     }
 
     @Test
-    void revertAfterGraceDoesNotRestoreApproved() {
+    void revertWithoutRevision_isBadRequest() {
         service.publishOnApprove(student);
         service.captureCardPatch(STUDENT_ID, patch("new bio"));
-        clock = Clock.fixed(Instant.parse("2026-11-08T12:06:00Z"), ZONE);
-        service = rebuild();
 
-        service.revertDraft(STUDENT_ID);
-
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
-        assertThat(service.draftCard(student).orElseThrow().bio()).isEqualTo("new bio");
-    }
-
-    @Test
-    void expiredGraceOnReadMarksPendingButPublishedStays() {
-        service.publishOnApprove(student);
-        service.captureCardPatch(STUDENT_ID, patch("new bio"));
-        clock = Clock.fixed(Instant.parse("2026-11-08T12:06:00Z"), ZONE);
-        service = rebuild();
-
-        service.expireDueDrafts();
-
-        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING_APPROVAL);
-        assertThat(service.publishedCard(student).bio()).isEqualTo("old bio");
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
+        assertThatThrownBy(() -> service.revertDraft(STUDENT_ID))
+                .isInstanceOf(BadRequestException.class);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        assertThat(service.draftCard(student)).isPresent();
     }
 
     @Test
@@ -215,7 +204,7 @@ class StudentProfileVersionServiceTest {
 
         assertThat(service.ownVersion(student, 2).bio()).isEqualTo("new bio");
         assertThat(service.ownVersion(student, 3).bio()).isEqualTo("newer bio");
-        assertThat(service.listOwn(STUDENT_ID)).extracting(item -> item.status())
+        assertThat(service.listOwn(STUDENT_ID)).extracting(StudentProfileVersionItemDTO::status)
                 .contains("APPROVED", "DRAFT");
         assertThatThrownBy(() -> service.ownVersion(student, 99)).isInstanceOf(NotFoundException.class);
     }
@@ -231,21 +220,19 @@ class StudentProfileVersionServiceTest {
         assertThat(student.getBio()).isEqualTo("old bio");
         assertThat(service.publishedCard(student).bio()).isEqualTo("old bio");
         assertThat(service.draftCard(student).orElseThrow().bio()).isEqualTo("new bio");
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
-        assertThat(service.listOwn(STUDENT_ID)).extracting(item -> item.status())
+        assertThat(service.listOwn(STUDENT_ID)).extracting(StudentProfileVersionItemDTO::status)
                 .contains("APPROVED", "REJECTED");
     }
 
     @Test
-    void editAfterRejectStartsNewGraceAndKeepsRejectedSnapshot() {
+    void editAfterRejectKeepsRejectedSnapshot() {
         service.publishOnApprove(student);
         service.captureCardPatch(STUDENT_ID, patch("rejected bio"));
         service.markLatestDraftRejected(STUDENT_ID);
 
         service.captureCardPatch(STUDENT_ID, patch("another bio"));
 
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isEqualTo(LocalDateTime.now(clock).plusMinutes(5));
-        assertThat(service.listOwn(STUDENT_ID)).extracting(item -> item.status())
+        assertThat(service.listOwn(STUDENT_ID)).extracting(StudentProfileVersionItemDTO::status)
                 .contains("REJECTED", "DRAFT");
     }
 
@@ -258,8 +245,49 @@ class StudentProfileVersionServiceTest {
         service.publishOnApprove(student);
 
         assertThat(student.getBio()).isEqualTo("new bio that is definitely long enough");
-        assertThat(service.activeGraceEndsAt(STUDENT_ID)).isNull();
         assertThat(service.hasPublishedVersion(STUDENT_ID)).isTrue();
+    }
+
+    @Test
+    void publishedSnapshot_missingStudent_notFound() {
+        when(studentRepo.findById(STUDENT_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.publishedSnapshotForAdmin(STUDENT_ID))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("Студент не найден");
+    }
+
+    @Test
+    void publishedSnapshot_withoutApprovedVersion_notFound() {
+        when(studentRepo.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+
+        assertThatThrownBy(() -> service.publishedSnapshotForAdmin(STUDENT_ID))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("Одобренной анкеты ещё нет");
+    }
+
+    @Test
+    void publishedSnapshot_returnsLatestApprovedLists() {
+        ExperienceEnt experience = new ExperienceEnt();
+        experience.setId(7L);
+        experience.setPosition("Dev");
+        PortfolioEnt portfolio = new PortfolioEnt();
+        portfolio.setId(3L);
+        portfolio.setName("Site");
+        portfolio.setLink("https://example.com");
+        when(experienceRepo.findAllByStudent_Id(STUDENT_ID)).thenReturn(List.of(experience));
+        when(portfolioRepo.findAllByStudent_Id(STUDENT_ID)).thenReturn(List.of(portfolio));
+        student.setBio("published bio");
+        service.publishOnApprove(student);
+        student.setBio("draft bio");
+        when(studentRepo.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+
+        var snapshot = service.publishedSnapshotForAdmin(STUDENT_ID);
+
+        assertThat(snapshot.card().bio()).isEqualTo("published bio");
+        assertThat(snapshot.experience()).extracting(row -> row.experience().position()).containsExactly("Dev");
+        assertThat(snapshot.portfolio()).extracting(PortfolioDTO::name).containsExactly("Site");
+        assertThat(snapshot.education()).isEmpty();
     }
 
     @Test
@@ -279,7 +307,7 @@ class StudentProfileVersionServiceTest {
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
         return new StudentProfileVersionService(
                 versionRepo, studentRepo, userRepo, experienceRepo, institutionRepo, portfolioRepo,
-                skillRepo, specialityRepo, companyRepo, educationRepo, securityHelper, mapper, clock);
+                skillRepo, specialityRepo, companyRepo, educationRepo, securityHelper, mapper, cityCatalog, clock);
     }
 
     private Optional<StudentProfileVersionEnt> latest(UUID studentId) {
@@ -292,6 +320,6 @@ class StudentProfileVersionServiceTest {
         return new PatchStudentMeReq(
                 null, null, null, bio, null, null, null, null,
                 null, null, null, null, null, null, null, null,
-                null, null, null);
+                null, null, null, null);
     }
 }

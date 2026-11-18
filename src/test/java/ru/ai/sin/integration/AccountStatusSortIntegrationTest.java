@@ -100,6 +100,7 @@ class AccountStatusSortIntegrationTest extends AbstractPostgresIntegrationTest {
 
     private UUID createStudent(Cookie[] cookies, String username, long specialityId, long skillId) throws Exception {
         Map<String, Object> body = new LinkedHashMap<>();
+        ensureCity("Moscow");
         body.put("city", "Moscow");
         body.put("birthDate", "2000-05-05");
         body.put("bio", "status sort student");

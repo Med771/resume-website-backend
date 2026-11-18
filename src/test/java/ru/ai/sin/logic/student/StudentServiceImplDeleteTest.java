@@ -108,10 +108,11 @@ class StudentServiceImplDeleteTest {
         StudentDTO snapshot = new StudentDTO(
                 ID, "c", "h", LocalDate.of(1999, 5, 5), "bio", null,
                 CourseEnum.FIRST, BusynessEnum.FREE, null, null, "A", "B", null, null, "a@b.c", null, null, 1L, "S",
-                List.of(new SkillDTO(1L, "Java")),
+                List.of(new SkillDTO(1L, "Java", null, null)),
                 false,
                 true,
                 0,
+                null,
                 null
         );
 

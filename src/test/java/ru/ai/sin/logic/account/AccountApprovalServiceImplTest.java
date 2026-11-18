@@ -1,5 +1,6 @@
 package ru.ai.sin.logic.account;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -10,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import ru.ai.sin.config.property.MailProperties;
 import ru.ai.sin.exception.models.BadRequestException;
 import ru.ai.sin.helper.SecurityHelper;
 import ru.ai.sin.logic.account.dto.AccountApprovalUserDTO;
@@ -18,6 +20,7 @@ import ru.ai.sin.logic.account.dto.AccountRejectReq;
 import ru.ai.sin.logic.account.dto.RecruiterApprovalSortField;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.analytics.AnalyticsEventWriter;
+import ru.ai.sin.logic.city.CityEnt;
 import ru.ai.sin.logic.student.version.StudentProfileVersionService;
 import ru.ai.sin.logic.experience.ExperienceEnt;
 import ru.ai.sin.logic.experience.ExperienceRepo;
@@ -51,6 +54,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -75,12 +79,21 @@ class AccountApprovalServiceImplTest {
     @Mock
     private VerificationOtpMailer verificationOtpMailer;
     @Mock
+    private MailProperties mailProperties;
+    @Mock
     private AnalyticsEventWriter analyticsEventWriter;
     @Mock
     private StudentProfileVersionService profileVersions;
 
     @InjectMocks
     private AccountApprovalServiceImpl service;
+
+    @BeforeEach
+    void allowMailBypass() {
+        lenient().when(mailProperties.isAllowDevConfirm()).thenReturn(true);
+        lenient().when(verificationOtpMailer.trySendAccountApproved(anyString(), anyString())).thenReturn(true);
+        lenient().when(verificationOtpMailer.trySendRecruiterAccountApproved(anyString(), anyString())).thenReturn(true);
+    }
 
     private static UserEnt recruiterUser(AccountStatus status, String company, String lastName, String middleName) {
         RecruiterEnt recruiter = new RecruiterEnt();
@@ -262,6 +275,7 @@ class AccountApprovalServiceImplTest {
         UserEnt user = new UserEnt(RoleEnum.RECRUITER, "r", "recruiter", "hash");
         user.setId(USER_ID);
         user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setRegistrationEmail("boss@test.local");
 
         when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
         when(securityHelper.getCurrentUsername()).thenReturn("admin");
@@ -270,6 +284,71 @@ class AccountApprovalServiceImplTest {
 
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
         verify(verificationOtpMailer, never()).trySendAccountApproved(anyString(), anyString());
+        verify(verificationOtpMailer).trySendRecruiterAccountApproved("boss@test.local", "recruiter");
+    }
+
+    @Test
+    void approve_mailNotSent_withoutDevConfirm_throws() {
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setEmailVerified(true);
+        user.setRegistrationEmail("student@test.local");
+        user.setStudent(completeStudent());
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+        when(verificationOtpMailer.trySendAccountApproved(anyString(), anyString())).thenReturn(false);
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
+    }
+
+    @Test
+    void approve_recruiterMailNotSent_withoutDevConfirm_throws() {
+        UserEnt user = new UserEnt(RoleEnum.RECRUITER, "r", "recruiter", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setRegistrationEmail("boss@test.local");
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(mailProperties.isAllowDevConfirm()).thenReturn(false);
+        when(verificationOtpMailer.trySendRecruiterAccountApproved(anyString(), anyString())).thenReturn(false);
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Не удалось отправить код");
+    }
+
+    @Test
+    void approve_registration_isRejected() {
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.REGISTRATION);
+        user.setEmailVerified(true);
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("не отправлен");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.REGISTRATION);
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void approve_revisionWithDraft_isRejected() {
+        StudentEnt student = completeStudent();
+        UserEnt user = new UserEnt(RoleEnum.STUDENT, "s", "student", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.IN_REVISION);
+        user.setEmailVerified(true);
+        user.setStudent(student);
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        lenient().when(profileVersions.hasUnpublished(any())).thenReturn(true);
+
+        assertThatThrownBy(() -> service.approve(USER_ID))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("не отправлен");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.IN_REVISION);
     }
 
     @Test
@@ -469,7 +548,24 @@ class AccountApprovalServiceImplTest {
 
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.REJECTED);
         verify(verificationOtpMailer, never()).trySendAccountRejected(anyString(), anyString(), anyString(), anyString());
+        verify(verificationOtpMailer, never()).trySendRecruiterAccountRejected(anyString(), anyString(), any(), any());
         verify(studentRepo, never()).save(any(StudentEnt.class));
+    }
+
+    @Test
+    void reject_recruiterWithEmail_sendsRejectionMail() {
+        UserEnt user = new UserEnt(RoleEnum.RECRUITER, "r", "recruiter", "hash");
+        user.setId(USER_ID);
+        user.setAccountStatus(AccountStatus.PENDING_APPROVAL);
+        user.setRegistrationEmail("boss@test.local");
+
+        when(userRepo.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(securityHelper.getCurrentUsername()).thenReturn("admin");
+
+        service.reject(USER_ID, null);
+
+        verify(verificationOtpMailer).trySendRecruiterAccountRejected(
+                eq("boss@test.local"), eq("recruiter"), isNull(), isNull());
     }
 
     @Test
@@ -537,6 +633,9 @@ class AccountApprovalServiceImplTest {
         StudentEnt student = new StudentEnt();
         student.setImagePath("photo.jpg");
         student.setBio("Описание анкеты длиннее тридцати символов");
+        CityEnt city = new CityEnt();
+        city.setName("Москва");
+        student.setCityCatalog(city);
         student.setCity("Москва");
         student.setCourse(CourseEnum.FIRST);
         student.setBusyness(BusynessEnum.FREE);

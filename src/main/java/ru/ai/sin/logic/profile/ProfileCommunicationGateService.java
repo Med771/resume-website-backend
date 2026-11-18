@@ -78,7 +78,7 @@ public class ProfileCommunicationGateService {
         if (student.getBio() == null || student.getBio().trim().length() < MIN_BIO_LENGTH) {
             missing.add("about");
         }
-        if (!StringUtils.hasText(student.getCity())) {
+        if (student.getCityCatalog() == null) {
             missing.add("city");
         }
         if (student.getSpeciality() == null) {

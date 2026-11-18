@@ -34,6 +34,9 @@ public class RecruiterEnt {
     @Column(name = "city")
     private String city;
 
+    @Column(name = "image_path", unique = true)
+    private String imagePath;
+
     @Column(name = "middle_name")
     private String middleName;
 

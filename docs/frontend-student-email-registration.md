@@ -42,7 +42,7 @@ Cookie и CORS: [frontend.md](./frontend.md).
 
 Поля: `id`, `username`, `role`, `accountStatus`, `emailVerified`, `hintsDisabled`.
 
-После регистрации: cookie есть, `emailVerified: false`, `accountStatus: PENDING_APPROVAL`. После кода почта подтверждена, статус остаётся `PENDING_APPROVAL`, пока не одобрит админ.
+После регистрации: cookie есть, `emailVerified: false`, `accountStatus: REGISTRATION`. После кода почта подтверждена, статус остаётся `REGISTRATION`, пока студент не начнёт анкету. Правка переводит в `IN_REVISION`. Кнопка `POST /student/me/submit-for-review` ставит `PENDING_APPROVAL`.
 
 Пока `role === "STUDENT"` и `emailVerified === false`, покажите экран ввода кода.
 
