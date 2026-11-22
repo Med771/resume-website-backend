@@ -189,6 +189,8 @@ class StudentFindStringIntegrationTest extends AbstractPostgresIntegrationTest {
                 null,
                 null,
                 null,
+                null,
+                null,
                 null);
         return StudentSpecifications.findPage(
                         studentRepo,

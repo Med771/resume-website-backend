@@ -153,6 +153,10 @@ public final class StudentSpecifications {
                 predicates.add(root.get("busyness").in(filterStudentReq.busyness()));
             }
 
+            if (filterStudentReq.desiredBusyness() != null && !filterStudentReq.desiredBusyness().isEmpty()) {
+                predicates.add(root.get("desiredBusyness").in(filterStudentReq.desiredBusyness()));
+            }
+
             if (filterStudentReq.bornBefore() != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("birthDate"), filterStudentReq.bornBefore()));
             }
@@ -163,6 +167,10 @@ public final class StudentSpecifications {
 
             if (filterStudentReq.specialitiesIds() != null && !filterStudentReq.specialitiesIds().isEmpty()) {
                 predicates.add(root.get("speciality").get("id").in(filterStudentReq.specialitiesIds()));
+            }
+
+            if (filterStudentReq.cityIds() != null && !filterStudentReq.cityIds().isEmpty()) {
+                predicates.add(root.get("cityCatalog").get("id").in(filterStudentReq.cityIds()));
             }
 
             boolean catalogRank = catalogRank(filterStudentReq, requireApprovedAccount);

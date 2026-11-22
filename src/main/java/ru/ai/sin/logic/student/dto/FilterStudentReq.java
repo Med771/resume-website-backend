@@ -66,5 +66,15 @@ public record FilterStudentReq(
         Boolean catalogVisible,
 
         @Schema(description = "Фильтр по согласию на публичную витрину; `null` — без ограничения")
-        Boolean publicProfileConsent) {
+        Boolean publicProfileConsent,
+
+        @Schema(description = """
+                Города из справочника. Непустой список оставляет студентов с этим `cityId`.
+                Пустой список и `null` ничего не отсекают. Студент без города в отбор не попадает.""")
+        List<@Positive Long> cityIds,
+
+        @Schema(description = """
+                Желаемая занятость (`BusynessEnum`). Пустой набор и `null` ничего не отсекают.
+                Студент без желаемой занятости в отбор не попадает.""")
+        Set<BusynessEnum> desiredBusyness) {
 }

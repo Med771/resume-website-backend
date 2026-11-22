@@ -32,6 +32,8 @@ class StudentSortResolverTest {
                 StudentSortDirection.ASC,
                 false,
                 null,
+                null,
+                null,
                 null
         );
         Sort sort = StudentSortResolver.resolve(f);
@@ -47,6 +49,8 @@ class StudentSortResolverTest {
                 StudentSortDirection.ASC,
                 false,
                 null,
+                null,
+                null,
                 null
         );
         assertThat(StudentSortResolver.resolve(email).toList().getFirst().getProperty())
@@ -57,6 +61,8 @@ class StudentSortResolverTest {
                 StudentSortField.COURSE,
                 StudentSortDirection.DESC,
                 false,
+                null,
+                null,
                 null,
                 null
         );
@@ -73,6 +79,8 @@ class StudentSortResolverTest {
                 StudentSortDirection.ASC,
                 false,
                 null,
+                null,
+                null,
                 null
         );
         assertThat(StudentSortResolver.resolve(f).isSorted()).isFalse();
@@ -86,7 +94,7 @@ class StudentSortResolverTest {
     @Test
     void catalogAudience_withFindString_keepsRelevanceSort() {
         FilterStudentReq f = new FilterStudentReq(
-                "Иван", null, null, null, null, null, null, null, null, null, null, null);
+                "Иван", null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(StudentSortResolver.resolve(f, true).toList().getFirst().getProperty())
                 .isEqualTo("profileTextScore");
     }
@@ -99,6 +107,8 @@ class StudentSortResolverTest {
                 StudentSortDirection.DESC,
                 false,
                 null,
+                null,
+                null,
                 null
         );
         Sort sort = StudentSortResolver.resolve(f);
@@ -107,6 +117,6 @@ class StudentSortResolverTest {
     }
 
     private static FilterStudentReq emptyFilter() {
-        return new FilterStudentReq(null, null, null, null, null, null, null, null, null, null, null, null);
+        return new FilterStudentReq(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 }
