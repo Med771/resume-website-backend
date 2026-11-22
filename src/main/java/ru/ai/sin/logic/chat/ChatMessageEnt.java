@@ -14,6 +14,7 @@ import ru.ai.sin.models.enums.convertor.ChatMessageKindConverter;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Deprecated
 @Entity
 @Table(name = "chat_messages")
 @EntityListeners(AuditingEntityListener.class)

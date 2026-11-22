@@ -16,6 +16,7 @@ import ru.ai.sin.models.embeddables.TimeStamped;
 import ru.ai.sin.logic.recruiter.RecruiterEnt;
 import ru.ai.sin.logic.student.StudentEnt;
 
+@Deprecated
 @Entity
 @Table(name = "requests")
 @EntityListeners(AuditingEntityListener.class)

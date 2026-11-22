@@ -26,6 +26,7 @@ Backend платформы резюме: каталог студентов, за
 | [architecture/analytics.md](./architecture/analytics.md)                           | Журнал посещений и действий               |
 | [architecture/profile-versions.md](./architecture/profile-versions.md)             | Версии анкеты после одобрения             |
 | [architecture/recruiter.md](./architecture/recruiter.md)                           | Регистрация и личный кабинет работодателя |
+| [architecture/recruitment-requests.md](./architecture/recruitment-requests.md)     | Заявки работодателя на студентов          |
 | [architecture/skills.md](./architecture/skills.md)                                 | Граф навыков: родитель и специальность корня |
 | [architecture/cities.md](./architecture/cities.md)                                 | Справочник городов студента                  |
 

@@ -43,6 +43,7 @@ import ru.ai.sin.logic.notification.UserInboxNotificationService;
 
 import java.util.Optional;
 
+@Deprecated
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+@Deprecated
 @Entity
 @Table(name = "vacancies")
 @EntityListeners(AuditingEntityListener.class)

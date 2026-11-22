@@ -9,6 +9,7 @@ import ru.ai.sin.logic.student.StudentEnt;
 
 import java.util.UUID;
 
+@Deprecated
 public interface ChatService {
 
     ChatEnt getOrCreateChat(RecruiterEnt recruiter, StudentEnt student);

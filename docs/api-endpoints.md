@@ -54,7 +54,7 @@
 
 ## Заявки и чат
 
-Раздел устарел: пути живые, логика будет заменена.
+Раздел устарел и заменяется `/recruitment-requests`. Пути живые.
 
 | Метод | Путь | Кто |
 |-------|------|-----|
@@ -81,7 +81,7 @@
 
 ## Вакансии
 
-Создание, лента и отклики сняты. Таблицы остаются. Админ видит все статусы одним списком.
+Раздел устарел и заменяется `/recruitment-requests`. Создание, лента и отклики сняты. Таблицы остаются. Админ видит все статусы одним списком.
 
 | Метод | Путь | Кто |
 |-------|------|-----|
@@ -89,6 +89,23 @@
 | GET | `/admin/vacancies/{id}` | A |
 | POST | `/admin/vacancies/{id}/approve` | A, только из `PENDING_REVIEW` |
 | POST | `/admin/vacancies/{id}/reject` | A, только из `PENDING_REVIEW` |
+
+## Заявки работодателя на студентов
+
+Новый ресурс. Правила — в [architecture/recruitment-requests.md](./architecture/recruitment-requests.md).
+
+| Метод | Путь | Кто |
+|-------|------|-----|
+| POST | `/recruitment-requests` | R со статусом `APPROVED`, A |
+| POST | `/recruitment-requests/filter` | S с одобренной анкетой видит открытые в окне публикации; R — только свои; A — все |
+| GET | `/recruitment-requests/{id}` | S, R, A по тем же правилам |
+| PUT | `/recruitment-requests/{id}` | владелец и A, не из архива |
+| POST | `/recruitment-requests/{id}/close` | владелец и A |
+| POST | `/recruitment-requests/{id}/archive` | владелец и A |
+| POST | `/recruitment-requests/{id}/responses` | S с одобренной анкетой, один раз |
+| GET | `/recruitment-requests/{id}/responses` | владелец и A — все; S — свой |
+| POST | `/recruitment-requests/{id}/responses/{responseId}/accept` | владелец и A |
+| POST | `/recruitment-requests/{id}/responses/{responseId}/reject` | владелец и A |
 
 ## Рекрутер и модерация
 

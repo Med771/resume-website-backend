@@ -6,6 +6,7 @@ import ru.ai.sin.models.PageResponse;
 import ru.ai.sin.logic.request.dto.*;
 
 
+@Deprecated
 public interface RequestService {
     RequestDTO getById(long id);
 
