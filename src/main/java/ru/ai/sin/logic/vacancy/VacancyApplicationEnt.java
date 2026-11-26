@@ -14,6 +14,7 @@ import ru.ai.sin.models.enums.convertor.VacancyApplicationStatusConverter;
 
 import java.util.UUID;
 
+@Deprecated
 @Entity
 @Table(name = "vacancy_applications")
 @EntityListeners(AuditingEntityListener.class)

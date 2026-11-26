@@ -22,6 +22,7 @@ import ru.ai.sin.logic.notification.UserInboxNotificationService;
 
 import java.time.LocalDateTime;
 
+@Deprecated
 @Service
 @RequiredArgsConstructor
 public class TuDecisionService {

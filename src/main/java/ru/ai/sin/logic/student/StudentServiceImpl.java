@@ -60,6 +60,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class StudentServiceImpl implements StudentService {
 
+    private static final Set<String> LIVE_PREFERENCE_FIELDS = Set.of(
+            "busyness", "desiredBusyness", "jobSearchStatus");
+
     private final StudentRepo studentRepo;
     private final PortfolioRepo portfolioRepo;
     private final ExperienceRepo experienceRepo;
@@ -355,7 +358,9 @@ public class StudentServiceImpl implements StudentService {
         }
 
         List<String> changedFields = StudentProfileChangeRecorder.cardFields(req);
-        if (!changedFields.isEmpty() && profileVersions.captureCardPatch(studentEnt.getId(), req)) {
+        boolean reviewChange = changedFields.stream().anyMatch(field -> !LIVE_PREFERENCE_FIELDS.contains(field));
+        if (reviewChange && profileVersions.captureCardPatch(studentEnt.getId(), req)) {
+            applyLivePreferenceFields(studentEnt, req);
             studentReviewState.onStudentSelfEdit(studentEnt);
             studentProfileChangeRecorder.record(
                     studentEnt.getId(), "/student/me", "card", "update", null, changedFields);
@@ -384,7 +389,11 @@ public class StudentServiceImpl implements StudentService {
                 req.publicProfileConsent());
 
         StudentProfileScoring.applyTo(studentEnt);
-        studentReviewState.onStudentSelfEdit(studentEnt);
+        if (reviewChange) {
+            studentReviewState.onStudentSelfEdit(studentEnt);
+        } else if (changedFields.stream().anyMatch(LIVE_PREFERENCE_FIELDS::contains)) {
+            profileVersions.patchLivePreferences(studentEnt.getId(), req);
+        }
         if (!changedFields.isEmpty()) {
             studentProfileChangeRecorder.record(
                     studentEnt.getId(), "/student/me", "card", "update", null, changedFields);
@@ -529,6 +538,18 @@ public class StudentServiceImpl implements StudentService {
         } catch (DataIntegrityViolationException ex) {
             log.warn("Student already exists: {}, {}", email, telegramUsername);
             throw new BadRequestException("Student already exists: %s, %s".formatted(email, telegramUsername));
+        }
+    }
+
+    private static void applyLivePreferenceFields(StudentEnt studentEnt, PatchStudentMeReq req) {
+        if (req.busyness() != null) {
+            studentEnt.setBusyness(req.busyness());
+        }
+        if (req.desiredBusyness() != null) {
+            studentEnt.setDesiredBusyness(req.desiredBusyness());
+        }
+        if (req.jobSearchStatus() != null) {
+            studentEnt.setJobSearchStatus(req.jobSearchStatus());
         }
     }
 

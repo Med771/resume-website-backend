@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -115,9 +116,34 @@ class CatalogAudienceIntegrationTest extends AbstractPostgresIntegrationTest {
                 late.getId());
     }
 
+    @Test
+    @Transactional
+    void catalog_filtersByCityAndDesiredBusyness() {
+        StudentEnt match = ready("Г", "Г", null, "Описание анкеты длиннее тридцати символов.");
+        StudentEnt other = ready("Д", "Д", null, "Описание анкеты длиннее тридцати символов.");
+        var kazan = ensureCity("Kazan-" + UUID.randomUUID());
+        other.setCityCatalog(kazan);
+        other.setCity(kazan.getName());
+        other.setDesiredBusyness(BusynessEnum.FREELANCE);
+        studentRepo.saveAndFlush(other);
+
+        assertThat(catalog(null, List.of(match.getCityCatalog().getId()), null))
+                .contains(match.getId())
+                .doesNotContain(other.getId());
+        assertThat(catalog(null, null, Set.of(BusynessEnum.EMPLOYED)))
+                .contains(match.getId())
+                .doesNotContain(other.getId());
+        assertThat(catalog(null)).contains(match.getId(), other.getId());
+    }
+
     private List<UUID> catalog(String findString) {
+        return catalog(findString, null, null);
+    }
+
+    private List<UUID> catalog(String findString, List<Long> cityIds, Set<BusynessEnum> desiredBusyness) {
         FilterStudentReq filter = new FilterStudentReq(
-                findString, null, null, null, null, null, null, null, null, null, null, null);
+                findString, null, null, null, null, null, null, null, null, null, null, null,
+                cityIds, desiredBusyness);
         return StudentSpecifications.findPage(
                         studentRepo,
                         PageRequest.of(0, 200),

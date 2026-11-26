@@ -21,11 +21,12 @@ import ru.ai.sin.models.PageResponse;
 
 import java.util.UUID;
 
+@Deprecated
 @RestController
 @RequestMapping("/admin/vacancies")
 @RequiredArgsConstructor
 @Validated
-@Tag(name = "VacancyModerationAdmin", description = "Список вакансий для админа")
+@Tag(name = "VacancyModerationAdmin", description = "Устарело. Логика будет переписана. Запросы пока работают.")
 @PreAuthorize("hasRole('ADMIN')")
 public class VacancyAdminController {
 
@@ -33,7 +34,8 @@ public class VacancyAdminController {
 
     @Operation(
             summary = "Все вакансии",
-            description = "Страница вакансий всех статусов: DRAFT, PENDING_REVIEW, PUBLISHED, REJECTED, CLOSED. Пагинация: page, size.")
+            deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает. Страница вакансий всех статусов: DRAFT, PENDING_REVIEW, PUBLISHED, REJECTED, CLOSED. Пагинация: page, size.")
     @GetMapping
     public ResponseEntity<PageResponse<VacancyDTO>> list(
             @RequestParam(defaultValue = "0") int page,
@@ -42,19 +44,22 @@ public class VacancyAdminController {
         return ResponseEntity.ok(vacancyModerationAdminService.list(page, size));
     }
 
-    @Operation(summary = "Карточка вакансии для модерации")
+    @Operation(summary = "Карточка вакансии для модерации", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @GetMapping("/{id}")
     public ResponseEntity<VacancyDTO> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(vacancyModerationAdminService.getById(id));
     }
 
-    @Operation(summary = "Одобрить вакансию (PUBLISHED)")
+    @Operation(summary = "Одобрить вакансию (PUBLISHED)", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @PostMapping("/{id}/approve")
     public ResponseEntity<VacancyDTO> approve(@PathVariable UUID id) {
         return ResponseEntity.ok(vacancyModerationAdminService.approve(id));
     }
 
-    @Operation(summary = "Отклонить вакансию")
+    @Operation(summary = "Отклонить вакансию", deprecated = true,
+            description = "Устарело. Логика будет переписана. Запрос пока работает.")
     @PostMapping("/{id}/reject")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void reject(

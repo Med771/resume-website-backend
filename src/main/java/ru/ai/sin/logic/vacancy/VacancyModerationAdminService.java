@@ -6,6 +6,7 @@ import ru.ai.sin.models.PageResponse;
 
 import java.util.UUID;
 
+@Deprecated
 public interface VacancyModerationAdminService {
 
     PageResponse<VacancyDTO> list(int page, int size);

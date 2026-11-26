@@ -33,6 +33,7 @@ import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
 import ru.ai.sin.models.enums.BusynessEnum;
 import ru.ai.sin.models.enums.CourseEnum;
+import ru.ai.sin.models.enums.JobSearchStatus;
 import ru.ai.sin.models.enums.RoleEnum;
 import ru.ai.sin.tools.SkillTools;
 import ru.ai.sin.tools.SpecialityTools;
@@ -199,6 +200,34 @@ class StudentServiceImplPatchMeTest {
                 eq(ID), eq("/student/me"), eq("card"), eq("update"), isNull(), fields.capture());
         assertThat(fields.getValue()).containsExactly("bio", "skillsIds");
         assertThat(fields.getValue()).noneMatch(field -> field.contains("new bio"));
+    }
+
+    @Test
+    void patchMe_preferencesDoNotSendProfileForReview() {
+        StudentEnt studentEnt = new StudentEnt();
+        studentEnt.setId(ID);
+        UserEnt user = new UserEnt();
+        user.setRole(RoleEnum.STUDENT);
+        user.setAccountStatus(AccountStatus.APPROVED);
+        user.setStudent(studentEnt);
+        when(securityHelper.getCurrentUsername()).thenReturn("stu");
+        when(userRepo.findByUsernameFetchingLinks("stu")).thenReturn(Optional.of(user));
+        when(studentTools.mapToDTO(studentEnt)).thenReturn(sampleDto());
+
+        PatchStudentMeReq req = new PatchStudentMeReq(
+                null, null, null, null, null, BusynessEnum.FREE, BusynessEnum.PROJECT_WORK, JobSearchStatus.LOOKING,
+                null, null, null, null, null, null, null, null,
+                null, null, null, null);
+
+        studentService.patchMe(req);
+
+        assertThat(studentEnt.getBusyness()).isEqualTo(BusynessEnum.FREE);
+        assertThat(studentEnt.getDesiredBusyness()).isEqualTo(BusynessEnum.PROJECT_WORK);
+        assertThat(studentEnt.getJobSearchStatus()).isEqualTo(JobSearchStatus.LOOKING);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        verify(studentReviewState, never()).onStudentSelfEdit(any());
+        verify(profileVersions, never()).captureCardPatch(any(), any());
+        verify(profileVersions).patchLivePreferences(ID, req);
     }
 
     @Test

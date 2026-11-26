@@ -25,9 +25,12 @@ import ru.ai.sin.logic.speciality.SpecialityRepo;
 import ru.ai.sin.logic.student.StudentEnt;
 import ru.ai.sin.logic.student.StudentRepo;
 import ru.ai.sin.logic.student.dto.PatchStudentMeReq;
+import ru.ai.sin.logic.student.dto.StudentDTO;
 import ru.ai.sin.logic.user.UserEnt;
 import ru.ai.sin.logic.user.UserRepo;
 import ru.ai.sin.models.enums.AccountStatus;
+import ru.ai.sin.models.enums.BusynessEnum;
+import ru.ai.sin.models.enums.JobSearchStatus;
 import ru.ai.sin.models.enums.RoleEnum;
 
 import java.time.Clock;
@@ -158,6 +161,48 @@ class StudentProfileVersionServiceTest {
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
         assertThat(service.draftCard(student).orElseThrow().bio()).isEqualTo("new bio");
         assertThat(service.publishedCard(student).bio()).isEqualTo("old bio");
+    }
+
+    @Test
+    void preferenceEditDoesNotOpenDraft() {
+        service.publishOnApprove(student);
+        when(studentRepo.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+        int versions = rows.size();
+
+        service.patchLivePreferences(STUDENT_ID, preferences(JobSearchStatus.LOOKING, BusynessEnum.FREE, BusynessEnum.PROJECT_WORK));
+
+        assertThat(rows).hasSize(versions);
+        assertThat(service.draftCard(student)).isEmpty();
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        assertThat(student.getJobSearchStatus()).isEqualTo(JobSearchStatus.LOOKING);
+        assertThat(student.getBusyness()).isEqualTo(BusynessEnum.FREE);
+        assertThat(student.getDesiredBusyness()).isEqualTo(BusynessEnum.PROJECT_WORK);
+    }
+
+    @Test
+    void preferenceEditUpdatesOpenDraftInPlace() {
+        service.publishOnApprove(student);
+        service.captureCardPatch(STUDENT_ID, patch("new bio"));
+        int versions = rows.size();
+        int number = rows.stream()
+                .filter(row -> row.getStudentId().equals(STUDENT_ID))
+                .mapToInt(StudentProfileVersionEnt::getVersionNumber)
+                .max()
+                .orElseThrow();
+        when(studentRepo.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+
+        service.patchLivePreferences(STUDENT_ID, preferences(JobSearchStatus.CONSIDERING, null, null));
+
+        assertThat(rows).hasSize(versions);
+        assertThat(rows.stream()
+                .filter(row -> row.getStudentId().equals(STUDENT_ID))
+                .mapToInt(StudentProfileVersionEnt::getVersionNumber)
+                .max()
+                .orElseThrow()).isEqualTo(number);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.APPROVED);
+        StudentDTO draft = service.draftCard(student).orElseThrow();
+        assertThat(draft.bio()).isEqualTo("new bio");
+        assertThat(draft.jobSearchStatus()).isEqualTo(JobSearchStatus.CONSIDERING);
     }
 
     @Test
@@ -319,6 +364,17 @@ class StudentProfileVersionServiceTest {
     private static PatchStudentMeReq patch(String bio) {
         return new PatchStudentMeReq(
                 null, null, null, bio, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                null, null, null, null);
+    }
+
+    private static PatchStudentMeReq preferences(
+            JobSearchStatus status,
+            BusynessEnum busyness,
+            BusynessEnum desired
+    ) {
+        return new PatchStudentMeReq(
+                null, null, null, null, null, busyness, desired, status,
                 null, null, null, null, null, null, null, null,
                 null, null, null, null);
     }

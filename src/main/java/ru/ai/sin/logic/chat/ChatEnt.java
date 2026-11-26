@@ -13,6 +13,7 @@ import ru.ai.sin.models.embeddables.TimeStamped;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Deprecated
 @Entity
 @Table(name = "chats")
 @EntityListeners(AuditingEntityListener.class)
